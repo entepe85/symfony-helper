@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "es2017",
+        "outDir": "out",
+        "lib": ["es6"],
+        "sourceMap": true,
+        "strict": true,
+
+        "incremental": true,
+        "tsBuildInfoFile": "./out/tsbuildinfo"
+    },
+    "include": ["src", "test"],
+}

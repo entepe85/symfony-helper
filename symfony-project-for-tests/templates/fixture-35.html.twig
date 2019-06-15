@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+
+{% block body %}
+
+{% set var1 = 12 %}
+
+
+{% for var5 in [3,4,5] %}
+    {% set var6 = var5 %}
+    {{ var5 }}
+{% endfor %}
+
+
+
+{{ var1 }}
+
+{% set var2 = 13 %}
+
+{% endblock %}
+
+
+{% block other %}
+
+{% set var3, var4 = 14, 15 %}
+
+{{ var3 }}
+
+{% endblock %}

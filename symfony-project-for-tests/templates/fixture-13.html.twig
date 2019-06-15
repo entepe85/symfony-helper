@@ -1,0 +1,52 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+
+<p>fixture 13</p>
+
+{% for p in products %}
+    {% if p.image %}
+        <img src="{{ p.image }}">
+    {% endif %}
+
+    {% if p.special %}
+        <p>special text</p>
+    {% else %}
+        <p>common text</p>
+        <p>common text</p>
+    {% endif %}
+{% endfor %}
+
+{% endblock %}
+
+
+{% block body2 %}
+{#
+line
+#}
+
+{% autoescape false %}
+line
+{% endautoescape %}
+
+{% embed "file.twig" %}
+    {% block e %}line{% endblock %}
+{% endembed %}
+
+{% filter upper %}
+    line
+{% endfilter %}
+
+{% sandbox %}
+    {% include "file.twig" %}
+{% endsandbox %}
+
+{% macro testMacro() %}
+    line
+{% endmacro %}
+
+{% spaceless %}
+    line
+{% endspaceless %}
+
+{% endblock %}

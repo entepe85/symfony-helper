@@ -1,0 +1,14 @@
+{% set var1 = 12 %}
+
+{% for var2 in [3,4,5] %}
+    {% set var3 = var2 %}
+    {{ var3 }}
+{% endfor %}
+
+{{ var1 }}
+
+{% set var4 = 13 %}
+
+{% block content %}
+{{ var4 }}
+{% endblock %}

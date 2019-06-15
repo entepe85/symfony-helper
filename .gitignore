@@ -1,0 +1,6 @@
+*.vsix
+node_modules/
+out/
+php-bin/vendor/
+coverage/
+.nyc_output/

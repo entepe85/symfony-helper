@@ -1,0 +1,17 @@
+#index:
+#    path: /
+#    controller: App\Controller\DefaultController::index
+
+g1:
+    path: /g1
+    controller: "App\\Controller\\GController::page1"
+
+g2: { path: /g2, controller: \App\Controller\GController::page2 }
+
+g3: { path: /g3, controller: 'App\Controller\GController::page3' }
+
+gMiss1: { path: /gMiss1, controller: 'App\Controller\GController' }
+
+gMiss2: { path: /gMiss2, controller: \App\Controller\GController:: }
+
+g5: { path: /g5, controller: 'App\Controller\GController::page5' }

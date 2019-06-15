@@ -1,0 +1,4 @@
+These files used only during tests (see 'fakeFiles' argument of 'AllTextDocuments' constructor).
+These files are problematic because they break 'bin/console'.
+These files should not replace real files during virtual merging.
+These files must be manually added to 'test-utils.ts'.

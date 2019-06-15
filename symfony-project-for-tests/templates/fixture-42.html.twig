@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+{% if 'value' is oneForAll('param') %}
+    {{ oneForAll('value', 'value') }}
+{% else %}
+    {{ 'value' | oneForAll }}
+{% endif %}
+
+{{ 'value' is oneForAll([(2 + 3)*4, 'x' is testB('x', ('x' + )*2)]) }}
+
+{% endblock %}

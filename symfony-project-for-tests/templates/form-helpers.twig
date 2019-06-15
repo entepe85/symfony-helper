@@ -1,0 +1,14 @@
+{% macro blockA(content = 'block-a') %}
+    <div class="block-a">{{ content }}</div>
+{% endmacro %}
+
+{% macro blockB(content) %}
+    <div class="block-b">{{ content }}</div>
+{% endmacro %}
+
+{% macro blockD(paramA, paramB, paramC) %}
+{% endmacro %}
+
+{% macro blockE(paramE1, paramE2) %}
+    {{ paramE1 }}
+{% endmacro %}

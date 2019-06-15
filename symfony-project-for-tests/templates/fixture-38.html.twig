@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+{{ ('value' is not oneForAll) ? oneForAll('value', 'value') : ('value' | oneForAll) }}
+
+{{ 'x' is constant('X') }}
+{{ 'y' is constant('X') }}
+
+{% filter oneForAll %}
+{% endfilter %}
+
+{% endblock %}

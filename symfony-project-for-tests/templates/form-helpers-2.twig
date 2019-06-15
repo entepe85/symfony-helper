@@ -1,0 +1,20 @@
+{% macro blockA(content = 'block-a-special') %}
+    <div class="block-a-special">{{ content }}</div>
+{% endmacro %}
+
+{% macro blockC(content = 'block-c') %}
+    <div class="block-c">{{ content }}</div>
+{% endmacro %}
+
+{% macro blockD(content = 'block-d') %}
+    <div class="block-d">{{ content }}</div>
+{% endmacro %}
+
+{##
+Summary of blockE
+
+Description of blockE
+#}
+{% macro blockE(content = 'block-e') %}
+    <div class="block-e">{{ content }}</div>
+{% endmacro %}

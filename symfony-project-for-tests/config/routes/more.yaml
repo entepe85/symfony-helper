@@ -1,0 +1,3 @@
+g4:
+    path: /g4
+    controller: "App\\Controller\\GController::page4"

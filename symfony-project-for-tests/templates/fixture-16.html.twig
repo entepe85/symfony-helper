@@ -1,0 +1,23 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+
+<p>multple 'elseif' and a 'else'</p>
+{% if x > 20 %}
+    line 1
+{% elseif x < 10  %}
+    line 2
+{% elseif x == 15 %}
+    line 3
+{% else %}
+    line 4
+{% endif %}
+
+<p>'endif' right after 'elseif'</p>
+{% if x > 20 %}
+    line 1
+{% elseif x < 10  %}
+    line 2
+{% endif %}
+
+{% endblock %}

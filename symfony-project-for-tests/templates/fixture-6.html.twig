@@ -1,0 +1,7 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+<p>fixture 6</p>
+<p>line for first test <a href="{{ path('e-index') }}">link</a></p>
+<p>test for weirdly formatted second link to controller in subfolder: <a href="{{ path('e-index') }}">first</a>, <a href="{{url	( 'f-page' , {'page': 10})}}">second</a></p>
+{% endblock %}

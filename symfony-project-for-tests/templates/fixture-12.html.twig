@@ -1,0 +1,18 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+<p>fixture 12</p>
+<p>{{ globalA }}</p>
+
+{% filter filterA %}
+{% endfilter %}
+
+{{ 'value' | filterA }}
+
+{% if 'x' is testA %}
+{% endif %}
+
+{% if 'x' is not testA %}
+{% endif %}
+
+{% endblock %}

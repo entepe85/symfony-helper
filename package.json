@@ -1,0 +1,174 @@
+{
+    "name": "symfony-helper",
+    "displayName": "Symfony Helper",
+    "description": "Useful services (completions, hover, etc.) and commands for php, dql, and twig in symfony projects",
+    "publisher": "tmrdh",
+    "author": {
+        "name": "Timur Morduhai",
+        "email": "timur.morduhai@outlook.com"
+    },
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.30.0"
+    },
+    "license": "SEE LICENSE IN LICENSE",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tmrdh/symfony-helper.git"
+    },
+    "icon": "assets/icon.png",
+    "categories": [
+        "Programming Languages",
+        "Snippets"
+    ],
+    "activationEvents": [
+        "workspaceContains:symfony.lock"
+    ],
+    "keywords": [
+        "symfony",
+        "twig",
+        "dql",
+        "php",
+        "multi-root ready"
+    ],
+    "main": "./out/src/extension.js",
+    "contributes": {
+        "configuration": {
+            "type": "object",
+            "title": "Symfony Helper configuration",
+            "properties": {
+                "symfonyHelper.consoleHelper.type": {
+                    "type": "string",
+                    "enum": [
+                        "direct",
+                        "http"
+                    ],
+                    "default": "direct",
+                    "description": "'direct' for executing 'bin/console' with local php executable. 'http' for indirect executing of 'bin/console' through installable php file (see 'Install Http Helper' command and 'symfonyHelper.consoleHelper.webPath' setting). 'direct' does not work for containers and virtual machines, so use 'http' in that case.",
+                    "scope": "resource"
+                },
+                "symfonyHelper.consoleHelper.phpPath": {
+                    "type": "string",
+                    "default": "php",
+                    "description": "Name or absolute path to php executable for 'bin/console'.",
+                    "scope": "resource"
+                },
+                "symfonyHelper.consoleHelper.webPath": {
+                    "type": "string",
+                    "default": "http://localhost:8000/vscode-symfony-helper.php",
+                    "description": "Helper for containers and virtual machines. Create with 'Install Http Helper' command. Also, see 'symfonyHelper.consoleHelper.type' setting.",
+                    "scope": "resource"
+                },
+                "symfonyHelper.phpParser.port": {
+                    "type": "number",
+                    "default": 7474,
+                    "description": "Port for php parser process to listen on"
+                },
+                "symfonyHelper.phpParser.phpPath": {
+                    "type": "string",
+                    "default": "php",
+                    "description": "Name of or absolute path to php executable for php parser. Disable xdebug to get better speed. Minimal version is 7.0"
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "symfonyHelper.rebuildIndexes",
+                "title": "Rebuild Indexes",
+                "category": "Symfony Helper"
+            },
+            {
+                "command": "symfonyHelper.restartPhpParser",
+                "title": "Restart PHP Parser",
+                "category": "Symfony Helper"
+            },
+            {
+                "command": "symfonyHelper.extendTemplate",
+                "title": "Extend Template",
+                "category": "Symfony Helper"
+            },
+            {
+                "command": "symfonyHelper.openCompiledTemplate",
+                "title": "Open Compiled Template",
+                "category": "Symfony Helper"
+            },
+            {
+                "command": "symfonyHelper.toggleTwigComment",
+                "title": "Toggle Twig Comment",
+                "category": "Symfony Helper"
+            },
+            {
+                "command": "symfonyHelper.installHttpConsoleHelper",
+                "title": "Install Http Helper",
+                "category": "Symfony Helper"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "symfonyHelper.extendTemplate",
+                    "when": "resourceExtname == .twig"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "symfonyHelper.extendTemplate",
+                    "when": "resourceExtname == .twig"
+                }
+            ],
+            "editor/title/context": [
+                {
+                    "command": "symfonyHelper.extendTemplate",
+                    "when": "resourceExtname == .twig"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "echo Run \\'prepare-prepublish\\' manually",
+        "prepare-prepublish": "npm run compile && npm prune --production",
+        "compile": "tsc",
+        "compile-hard": "tsc -p tsconfig-hard.json",
+        "watch": "tsc -watch",
+        "lint": "tslint --project tsconfig.json --format verbose --force 'src/**/*.ts'",
+        "test": "npm run compile && mocha --no-timeouts out/test/server",
+        "test2": "npm run compile && COMMANDS_HELPER_TYPE=http mocha --no-timeouts out/test/server # start symfony local server manually",
+        "test3": "npm run compile && FORCE_NODE_8_9=true mocha --no-timeouts out/test/server",
+        "coverage": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=html mocha --no-timeouts --require ts-node/register --require source-map-support/register ./test/server/*.ts"
+    },
+    "dependencies": {
+        "axios": "~0.18.0",
+        "glob": "~7.1.0",
+        "lodash": "~4.17.0",
+        "mkdirp": "~0.5.0",
+        "sax": "~1.2.0",
+        "vscode-languageserver": "~5.2.0",
+        "vscode-uri": "~1.0.0",
+        "yaml-ast-parser": "0.0.43",
+        "vscode-languageclient": "~5.2.0"
+    },
+    "devDependencies": {
+        "@types/glob": "~7.1.0",
+        "@types/lodash": "~4.14.0",
+        "@types/mkdirp": "~0.5.0",
+        "@types/mocha": "~5.2.0",
+        "@types/node": "~8.9.0",
+        "@types/vscode": "~1.30.0",
+        "@types/sax": "~1.0.0",
+        "mocha": "~6.1.0",
+        "nyc": "~14.0.0",
+        "source-map-support": "~0.5.0",
+        "ts-node": "~8.1.0",
+        "tslint": "~5.12.0",
+        "typescript": "~3.5.0"
+    },
+    "nyc": {
+        "extension": [
+            ".ts"
+        ],
+        "include": [
+            "src"
+        ],
+        "all": true
+    }
+}

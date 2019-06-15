@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+{{ constant('App\\Logic\\Constants::FIRST_CONSTANT') }}
+{{ constant('\\App\\Logic\\Constants:' ~ ':FIRST_CONSTANT') }}
+{{ constant('\\App\\Logic\\Constants::') }}
+
+{# testing class completion #}
+{{ constant('Req') }}
+{{ constant('Con') }}
+{{ constant('App\\Logic\\Constants2::') }}
+{{ constant('') }}
+{% endblock %}

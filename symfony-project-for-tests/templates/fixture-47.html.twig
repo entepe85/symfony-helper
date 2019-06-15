@@ -1,0 +1,8 @@
+<p>{{ objects[0].propA }}</p>
+<p>{{ objects[0].somethingImportant }}</p>
+
+{% set o = objects[0] %}
+<p>{{ o.propA }}</p>
+
+<p>{{ objects[0].methodA(3, 4) }}</p>
+<p>{{ objects[0].someData(3, 4) }}</p>

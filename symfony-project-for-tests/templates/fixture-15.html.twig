@@ -1,0 +1,11 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+
+{% for a in arr %}
+    <p>a = {{ a }}</p>
+{% else %}
+    <p>array is empty</p>
+{% endfor %}
+
+{% endblock %}

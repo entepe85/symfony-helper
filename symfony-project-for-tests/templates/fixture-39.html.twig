@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% import 'form-helpers.twig' as formHelpers %}
+{% from 'form-helpers.twig' import blockB %}
+
+{% block body %}
+
+{% import 'form-helpers-2.twig' as formHelpers2 %}
+{% from 'form-helpers-2.twig' import blockC, blockD as blockX, blockE %}
+
+{{ formHelpers.blockA }}
+{{ formHelpers2.blockA('blockA from form-helpers-2') }}
+{{ blockB('block-b-content') }}
+{{ blockX() }}
+
+{% endblock %}

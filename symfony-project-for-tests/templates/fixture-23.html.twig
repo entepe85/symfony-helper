@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+{# this fixture designed to test functions, filters and test with identical names #}
+
+<p>IMAGETYPE_PNG = {{ constant('IMAGETYPE_PNG') }}</p>
+<p>{{ 4 is constant('IMAGETYPE_PNG') ? '4 is' : '4 is not' }} IMAGETYPE_PNG</p>
+
+<p>{{ date('2017-12-03') | date('Y.m.d') }}</p>
+
+{% endblock %}
