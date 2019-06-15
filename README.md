@@ -83,7 +83,7 @@ Also, install `vscode-symfony-helper.php` into the `public/` folder of the proje
 
 ## Hints
 
-* It type of a variable aren't recognized in twig, try `@var` annotation.
+* If type of a variable aren't recognized in twig, try `@var` annotation.
 
 ## Roadmap
 
