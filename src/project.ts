@@ -4468,6 +4468,22 @@ export class Project {
             }
 
             if (nameTokenInfo.type === 'classMethod') {
+                // it looks like a hack
+                let propName: string | undefined;
+                if (nameTokenInfo.methodName.startsWith('get') || nameTokenInfo.methodName.startsWith('has')) {
+                    propName = nameTokenInfo.methodName.substr(3);
+                } else if (nameTokenInfo.methodName.startsWith('is')) {
+                    propName = nameTokenInfo.methodName.substr(2);
+                }
+                if (propName !== undefined && propName.length > 0) {
+                    propName = propName[0].toLowerCase() + propName.substr(1);
+
+                    let loc = await this.phpClassLocation(nameTokenInfo.className, 'property', propName);
+                    if (loc !== null) {
+                        return loc;
+                    }
+                }
+
                 return this.phpClassLocation(nameTokenInfo.className, 'method', nameTokenInfo.methodName);
             } else if (nameTokenInfo.type === 'classProperty') {
                 return this.phpClassLocation(nameTokenInfo.className, 'property', nameTokenInfo.propertyName);
@@ -5472,7 +5488,21 @@ export class Project {
             let hoverMarkdown: string | null = null;
 
             if (nameTokenInfo.type === 'classMethod') {
-                hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'method', nameTokenInfo.methodName);
+                // it's a hack. I should test body of method for used field
+                let propName: string | undefined;
+                if (nameTokenInfo.methodName.startsWith('get') || nameTokenInfo.methodName.startsWith('has')) {
+                    propName = nameTokenInfo.methodName.substr(3);
+                } else if (nameTokenInfo.methodName.startsWith('is')) {
+                    propName = nameTokenInfo.methodName.substr(2);
+                }
+                if (propName !== undefined && propName.length > 0) {
+                    propName = propName[0].toLowerCase() + propName.substr(1);
+                    hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'property', propName);
+                }
+
+                if (hoverMarkdown === null) {
+                    hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'method', nameTokenInfo.methodName);
+                }
             } else if (nameTokenInfo.type === 'classProperty') {
                 hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'property', nameTokenInfo.propertyName);
             }
