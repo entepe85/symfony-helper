@@ -91,7 +91,7 @@ Also, install `vscode-symfony-helper.php` into the `public/` folder of the proje
 * Support twig and dql in arbitrary php projects (it also means older versions of symfony)
 * Support dql query builder (also refactoring to dql and from dql)
 * Make sure that language server is really reusable
-* Rewrite php parser in ~~rust~~ typescript or rust and use as javascript/wasm module. External parser process annoys me.
+* Rewrite php parser (in typescript or rust) and use it as javascript/wasm module. External parser process annoys me.
 
 ## Real State of the Project
 
