@@ -77,13 +77,14 @@ Also, install `vscode-symfony-helper.php` into the `public/` folder of the proje
 
 ## Configuring
 
-1. Add `php` to `emmet.excludeLanguages`, because emmet gives useless suggestions in dql queries.
-2. For best speed, set `symfonyHelper.phpParser.phpPath` to `php` without `xdebug`
-3. This extension doesn't really make sense without a vscode extension for php. The best one is probably [PHP Intelephense](https://marketplace.visualstudio.com/items?itemName=bmewburn.vscode-intelephense-client).
+1. Extension needs a globally installed php interpreter (see `symfonyHelper.phpParser.phpPath` setting)
+2. For best speed, set `symfonyHelper.phpParser.phpPath` to php without `xdebug`
 
 ## Hints
 
 * If type of a variable aren't recognized in twig, try `@var` annotation.
+* Add `php` to `emmet.excludeLanguages`, because emmet gives useless suggestions in dql queries.
+* This extension doesn't really make sense without a vscode extension for php. The best one is probably [PHP Intelephense](https://marketplace.visualstudio.com/items?itemName=bmewburn.vscode-intelephense-client).
 
 ## Roadmap
 
