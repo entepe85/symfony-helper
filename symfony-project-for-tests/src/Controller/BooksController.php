@@ -123,4 +123,14 @@ class BooksController extends AbstractController
     {
         $em->createQuery('SELECT a.id, a.title FROM App:Article a');
     }
+
+    /**
+     * @Route("/10")
+     */
+    public function page10(EntityManagerInterface $em)
+    {
+        $authors = $em->createQuery('SELECT a FROM App:Author a')->getResult();
+
+        return $this->render('books/10.html.twig', ['authors' => $authors]);
+    }
 }

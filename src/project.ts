@@ -326,7 +326,7 @@ function methodParamsSymbolTable(method: nikic.Stmt_ClassMethod, nameResolverDat
     return symbols;
 }
 
-function twigCompletionsForClass(morePhpClass: php.PhpClassMoreInfo, editRange: Range) {
+function twigCompletionsForClass(phpClass: PhpClass, morePhpClass: php.PhpClassMoreInfo, editRange: Range) {
     let items: CompletionItem[] = [];
 
     for (let property of morePhpClass.properties) {
@@ -352,7 +352,7 @@ function twigCompletionsForClass(morePhpClass: php.PhpClassMoreInfo, editRange: 
                 continue;
             }
 
-            let label;
+            let label: string;
 
             if ((method.name.startsWith('get') || method.name.startsWith('has')) && method.name.length > 3) {
                 label = method.name.substr(3);
@@ -364,13 +364,27 @@ function twigCompletionsForClass(morePhpClass: php.PhpClassMoreInfo, editRange: 
                 label = method.name;
             }
 
-            items.push({
+            let item: CompletionItem = {
                 label: label,
                 textEdit: {
                     newText: label,
                     range: editRange,
                 },
-            });
+            };
+
+            // it's a hack. I should test method body for used fields.
+            if (phpClass.entity !== undefined) {
+                let field = phpClass.entity.fields.find(row => row.name === label);
+                if (field !== undefined) {
+                    item.detail = field.type;
+                    item.documentation = {
+                        kind: MarkupKind.Markdown,
+                        value: field.hoverMarkdown,
+                    };
+                }
+            }
+
+            items.push(item);
         }
     }
 
@@ -1207,6 +1221,9 @@ export class Project {
             }
         };
 
+        // should be executed before collecting render calls
+        await this.scanDoctrineEntityNamespaces();
+
         // searching services in xml-files in 'vendor/
         {
             let xmlFiles = await findFiles(folderFsPath + '/vendor/**/*.xml');
@@ -1365,8 +1382,6 @@ export class Project {
         await this.scanContainerParameters();
 
         await this.scanAutowired();
-
-        await this.scanDoctrineEntityNamespaces();
 
         // searching for parameters in 'config/services.yaml'
         do {
@@ -2846,12 +2861,17 @@ export class Project {
                 if (typeBeforeDot instanceof php.ObjectType) {
                     let className = typeBeforeDot.getClassName();
 
+                    let phpClass = this.getPhpClass(className);
+                    if (phpClass === null) {
+                        break;
+                    }
+
                     let morePhpClass = await this.getMorePhpClass(className);
                     if (morePhpClass === null) {
                         break;
                     }
 
-                    return twigCompletionsForClass(morePhpClass, editRange);
+                    return twigCompletionsForClass(phpClass, morePhpClass, editRange);
                 } else if (typeBeforeDot instanceof php.ArrayType) {
                     let knownValues = typeBeforeDot.getKnownValues();
 

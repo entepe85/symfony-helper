@@ -182,4 +182,18 @@ describe('completion for entity in template', function () {
             assert.ok(actualLabels.indexOf(label) < 0);
         }
     });
+
+    it('should use field description', async function () {
+        let service = await getService();
+        let documentUri = projectUri + '/templates/books/10.html.twig';
+
+        let actual = await service.onCompletition({
+            textDocument: { uri: documentUri },
+            position: Position.create(3, 12),
+        });
+
+        let item = actual.items.find(row => row.label === 'name') as any
+
+        assert.ok(item.documentation.value.indexOf('Summary of author name') >= 0);
+    });
 });
