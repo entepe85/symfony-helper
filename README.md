@@ -1,12 +1,16 @@
 # Symfony Helper
 
-A vscode extension (and language server) for symfony projects (starting with version 4.0 of symfony)
+A VSCode extension (and language server) for Symfony projects (starting with version 4.0 of Symfony)
 
 ## Some previews
 
 Search for references to entity field in dql and twig.
 
 ![references](assets/show-references.gif)
+
+Completion in dql
+
+![dql-completion](assets/show-dql-completion.gif)
 
 Completion of route in `href`.
 
@@ -24,16 +28,12 @@ Completion of autowired typehints (start typing with '.')
 ### Twig
 
 * Support of user-defined and vendor-defined functions, filters, tests and globals
+* Support of variables defined in `AbstractController#render()`, `{%set%}` and `twig.yaml`
 * Support of macros
-* Support of render parameters from `AbstractController#render()` and `AbstractController#renderView()`
-* Support of globals defined in `twig.yaml`
 * Support of properties and methods of objects
-* Support of first argument of `path()` and `url()` functions
-* Support of argument of `constant()` function
+* Support of first argument of functions `path()`, `url()`, `constant()`
 * Support of template names in `extends` and `include` tags
 * Support of block names
-* Support of variables defined in `{%set%}`
-* Completion for results of some raw sql queries.
 * Special completion of route name in `href`
 * Smarter snippets for tags
     * only shown outside of `{%%}`, `{{}}` and `{##}`
@@ -54,9 +54,9 @@ Completion of autowired typehints (start typing with '.')
 
 ### PHP
 * Completion of autowired typehints (start typing with '.' because I don't want intersection with php intellisense)
-* Support of `UrlGeneratorInterface#generate()` and `AbstractController#generateUrl()`
-* Support of first argument of `AbstractController#render()` and `AbstractController#renderView()`
-* Support of argument of `AbstractController#get()` and `AbstractController#getParameter()`
+* Support of first argument of methods `generateUrl()`, `render()`, `get()`, `getParameter()` of `AbstractController`
+* Support of first argument of `UrlGeneratorInterface#generate()`
+
 
 ### YAML
 
@@ -73,7 +73,7 @@ In service definition files
 
 See `symfonyHelper.consoleHelper.*` settings.
 
-Also, install `vscode-symfony-helper.php` into the `public/` folder of the project with `Install Http Helper` command.
+Also, install `vscode-symfony-helper.php` into the `public/` folder of project with `Install Http Helper` command.
 
 ## Configuring
 
@@ -88,19 +88,15 @@ Also, install `vscode-symfony-helper.php` into the `public/` folder of the proje
 
 ## Roadmap
 
-* Support twig and dql in arbitrary php projects (it also means older versions of symfony)
-* Support dql query builder (also refactoring to dql and from dql)
+* Support twig and dql in arbitrary php projects (it also means `older versions of symfony`)
+* Support dql query builder (and also refactoring to dql and from dql)
 * Make sure that language server is really reusable
 * Rewrite php parser (in typescript or rust) and use it as javascript/wasm module. External parser process annoys me.
 
 ## Real State of the Project
 
-Many features are unfinished or inconsistent.
+Many features are unfinished and inconsistent.
 
-Project code needs serious refactoring.
+Source code needs serious refactoring.
 
-It was tested only on symfony 4.2 on my linux machine.
-
-It seems usable on windows.
-
-I don't know whether it works on Mac OS.
+Extension was properly tested only on one Symfony 4.2 project on my linux machine.

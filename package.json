@@ -1,13 +1,13 @@
 {
     "name": "symfony-helper",
     "displayName": "Symfony Helper",
-    "description": "Useful services (completions, hover, etc.) and commands for php, dql, and twig in symfony projects",
+    "description": "Useful services (completions, hover, etc.) and commands for php, dql, and twig in Symfony projects",
     "publisher": "tmrdh",
     "author": {
         "name": "Timur Morduhai",
         "email": "timur.morduhai@outlook.com"
     },
-    "version": "1.0.1",
+    "version": "1.0.2",
     "engines": {
         "vscode": "^1.30.0"
     },

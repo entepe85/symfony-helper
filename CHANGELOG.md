@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 1.0.2 (17 June 2019)
+
+* Tiny changes in README.md
+
 ## Version 1.0.1 (16 June 2019)
 
 * Prefer fields (not accessors) for hover and definition for entity fields in twig
