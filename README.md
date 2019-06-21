@@ -3,6 +3,7 @@
 A VSCode extension (and language server) for Symfony projects (starting with version 4.0 of Symfony)
 
 [![Build Status](https://travis-ci.org/tmrdh/symfony-helper.svg?branch=master)](https://travis-ci.org/tmrdh/symfony-helper)
+[![Coverage Status](https://coveralls.io/repos/github/tmrdh/symfony-helper/badge.svg?branch=master)](https://coveralls.io/github/tmrdh/symfony-helper?branch=master)
 
 ## Some previews
 

@@ -134,7 +134,8 @@
         "test": "npm run compile && mocha --no-timeouts out/test/server",
         "test2": "npm run compile && COMMANDS_HELPER_TYPE=http mocha --no-timeouts out/test/server # start symfony local server manually",
         "test3": "npm run compile && FORCE_NODE_8_9=true mocha --no-timeouts out/test/server",
-        "coverage": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=html mocha --no-timeouts --require ts-node/register --require source-map-support/register ./test/server/*.ts"
+        "coverage": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=html mocha --no-timeouts --require ts-node/register --require source-map-support/register ./test/server/*.ts",
+        "coverage-lcov": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=lcov mocha --no-timeouts --require ts-node/register --require source-map-support/register ./test/server/*.ts"
     },
     "dependencies": {
         "axios": "~0.18.0",
