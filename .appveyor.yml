@@ -1,0 +1,18 @@
+install:
+    - ps: Set-Service wuauserv -StartupType "Automatic"; Start-Service wuauserv # weird magic for 'cinst php'
+    - cinst php --version 7.3.0
+    - echo extension=C:\tools\php73\ext\php_openssl.dll >> C:\tools\php73\php.ini
+    - echo extension=C:\tools\php73\ext\php_mbstring.dll >> C:\tools\php73\php.ini
+    - echo extension=C:\tools\php73\ext\php_curl.dll >> C:\tools\php73\php.ini
+    - echo zend_extension=C:\tools\php73\ext\php_opcache.dll >> C:\tools\php73\php.ini
+    - set PATH=C:\tools\php73;%PATH%
+    - appveyor DownloadFile https://getcomposer.org/download/1.8.6/composer.phar
+    - php composer.phar i --working-dir=php-bin
+    - php composer.phar i --working-dir=symfony-project-for-tests
+    - ps: Install-Product node 10.2.0
+    - npm i
+
+build: off
+
+test_script:
+    - npm test
