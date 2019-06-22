@@ -10,7 +10,7 @@
 use App\Kernel;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
-use Symfony\Component\Console\Input\StringInput;
+use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 $isCli = php_sapi_name() === 'cli';
@@ -61,7 +61,29 @@ if ($type === 'directCommand') {
     $application = new Application($kernel);
     $application->setAutoExit(false);
 
-    $input = new StringInput($message);
+    if ($message === 'getParameters') {
+        $arrayMessage = [
+            'command' => 'debug:container',
+            '--parameters' => true,
+            '--format' => 'json',
+        ];
+    } else if ($message === 'getAutowiredServices') {
+        $arrayMessage = [
+            'command' => 'debug:autowiring',
+            '--all' => true,
+            '--no-ansi' => true,
+        ];
+    } else if ($message === 'getRoutes') {
+        $arrayMessage = [
+            'command' => 'debug:router',
+            '--format' => 'json',
+        ];
+    } else {
+        echo json_encode(['result' => 'internal-error', 'message' => 'unexpected "directCommand"']);
+        return;
+    }
+
+    $input = new ArrayInput($arrayMessage);
 
     $output = new BufferedOutput();
     $application->run($input, $output);

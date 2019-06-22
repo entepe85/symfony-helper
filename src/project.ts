@@ -1670,10 +1670,10 @@ export class Project {
             if (settings.type === 'direct') {
                 routesRaw = await exec(
                     settings.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'debug:router --format=json']
+                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getRoutes']
                 );
             } else if (settings.type === 'http') {
-                routesRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'debug:router --format=json');
+                routesRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'getRoutes');
             }
         } catch {}
 
@@ -1709,17 +1709,17 @@ export class Project {
             if (settings.type === 'direct') {
                 parametersRaw = await exec(
                     settings.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'debug:container --parameters --format=json']
+                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getParameters']
                 );
             } else if (settings.type === 'http') {
-                parametersRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'debug:container --parameters --format=json');
+                parametersRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'getParameters');
+            }
 
-                // why response is not clean json?
-                if (!parametersRaw.trim().endsWith('}')) {
-                    let jsonEndIndex = parametersRaw.lastIndexOf('}');
-                    if (jsonEndIndex > 0) {
-                        parametersRaw = parametersRaw.substr(0, jsonEndIndex + 1);
-                    }
+            // why response is not clean json?
+            if (parametersRaw !== null && !parametersRaw.trim().endsWith('}')) {
+                let jsonEndIndex = parametersRaw.lastIndexOf('}');
+                if (jsonEndIndex > 0) {
+                    parametersRaw = parametersRaw.substr(0, jsonEndIndex + 1);
                 }
             }
         } catch {}
@@ -1751,10 +1751,10 @@ export class Project {
             if (settings.type === 'direct') {
                 responseRaw = await exec(
                     settings.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'debug:autowiring --all --no-ansi']
+                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getAutowiredServices']
                 );
             } else if (settings.type === 'http') {
-                responseRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'debug:autowiring --all --no-ansi');
+                responseRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'getAutowiredServices');
             }
         } catch {}
 
