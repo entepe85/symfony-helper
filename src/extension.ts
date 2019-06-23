@@ -114,14 +114,17 @@ export function activate(context: ExtensionContext) {
         }
 
         let workspaceFolderUri = workspaceFolder.uri.toString();
-        if (!baseTemplateUri.startsWith(workspaceFolderUri + '/templates/')) {
-            await window.showErrorMessage('Template must be in \'templates/\' folder');
-            return;
-        }
+        let isBaseFromTemplatesFolder = baseTemplateUri.startsWith(workspaceFolderUri + '/templates/');
 
         let suffix = '.html.twig';
 
-        let prefix = path.dirname(baseTemplateUri).substr((workspaceFolderUri + '/').length) + '/';
+        let prefix;
+
+        if (isBaseFromTemplatesFolder) {
+            prefix = path.dirname(baseTemplateUri).substr((workspaceFolderUri + '/').length) + '/';
+        } else {
+            prefix = 'templates/';
+        }
 
         // relative path in project 'templates/...'
         let input = await window.showInputBox({

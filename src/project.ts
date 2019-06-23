@@ -990,7 +990,7 @@ interface TemplateMacroDescription {
 }
 
 interface TemplateDescription {
-    name: string; // 'name' is path inside of 'templates/'
+    name: string; // 1. path relative to 'templates/'; 2. '@SomeBundle/...'
     fileUri: string;
     extends?: string; // value of {%extends%}. don't remove '!' from '@!AnyBundle/...'.
     tokens: TwigToken[];
@@ -7342,6 +7342,14 @@ export class Project {
         let result = this.autowiredServices.concat(moreServices);
 
         return result;
+    }
+
+    public getTemplateFromUri(fileUri: string): TemplateDescription | null {
+        if (this.templates[fileUri] === undefined) {
+            return null;
+        }
+
+        return this.templates[fileUri];
     }
 
     /**

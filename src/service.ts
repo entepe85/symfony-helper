@@ -352,13 +352,14 @@ export class Service {
         let project = this.findFileProject(baseTemplateUri);
 
         if (project === null) {
-            return { success: false, message: 'Could not find project of extended template' };
+            return { success: false, message: 'Could not find project' };
         }
 
         let projectUri = project.getFolderUri();
 
-        if (!baseTemplateUri.startsWith(projectUri + '/templates/')) {
-            return { success: false, message: 'Extended template must be in \'templates/\' folder' };
+        let templateInfo = project.getTemplateFromUri(baseTemplateUri);
+        if (templateInfo === null) {
+            return { success: false, message: 'Could not recognize template' };
         }
 
         if (!newTemplateRelativePath.startsWith('templates/')) {
@@ -373,7 +374,7 @@ export class Service {
             return { success: false, message: 'File already exists' };
         }
 
-        let baseTemplateName = baseTemplateUri.substr((projectUri + '/templates/').length);
+        let baseTemplateName = templateInfo.name;
 
         let projectPath = URI.parse(projectUri).fsPath;
         let configFilePath = projectPath + '/.symfony-helper.json';
