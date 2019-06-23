@@ -4,6 +4,7 @@
 
 * Basic support for templates from bundles
     * jump to template from template name
+    * extending with `Extend Template` command
     * completion of template names
     * definition, hover and completion for block names
 
