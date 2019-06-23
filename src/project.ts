@@ -991,7 +991,8 @@ interface TemplateMacroDescription {
 
 interface TemplateDescription {
     name: string; // 'name' is path inside of 'templates/'
-    extends?: string;
+    fileUri: string;
+    extends?: string; // value of {%extends%}. don't remove '!' from '@!AnyBundle/...'.
     tokens: TwigToken[];
     blocks: TemplateBlockInfo[];
     macros: TemplateMacroDescription[];
@@ -1085,7 +1086,9 @@ export class Project {
 
     private services: { [id: string]: ServiceXmlDescription } = Object.create(null);
 
+    // it seems that 'TemplateDescription#name' is unique key
     private templates: { [fileUri: string]: TemplateDescription} = Object.create(null);
+
     private twigYaml?: {
         uri: string,
         globals: { name: string, offset: number, value: string }[],
@@ -1357,7 +1360,7 @@ export class Project {
 
                 let templateName = fileUri.substr(this.folderUri.length + '/templates/'.length);
 
-                let descr = this.scanTwigTemplate(templateName, code);
+                let descr = this.scanTwigTemplate(fileUri, templateName, code);
 
                 this.templates[fileUri] = descr;
             }
@@ -1377,9 +1380,10 @@ export class Project {
                             continue;
                         }
 
-                        let templateName = '@' + phpClass.bundle.name + '/' + fileUri.substr(phpClass.bundle.folderUri.length + '/Resources/views/'.length);
+                        let bundleName = phpClass.bundle.name.substr(0, phpClass.bundle.name.length - 'Bundle'.length);
+                        let templateName = '@' + bundleName + '/' + fileUri.substr(phpClass.bundle.folderUri.length + '/Resources/views/'.length);
 
-                        let descr = this.scanTwigTemplate(templateName, code);
+                        let descr = this.scanTwigTemplate(fileUri, templateName, code);
 
                         this.templates[fileUri] = descr;
                     }
@@ -1547,18 +1551,19 @@ export class Project {
         return phpClass;
     }
 
-    private scanTwigTemplate(templateName: string, code: string) {
+    private scanTwigTemplate(fileUri: string, templateName: string, code: string) {
         let tokens = tokenizeTwig(code);
         let twigPieces = findTwigPieces(tokens);
 
         let descr: TemplateDescription = {
+            fileUri,
             name: templateName,
             tokens: tokens,
             blocks: [],
             macros: [],
         };
 
-        let extendsMatch = code.match(/{%\s*extends\s+['"]([\w\./\-]+)['"]/);
+        let extendsMatch = code.match(/{%\s*extends\s+['"]([\w!@\./\-]+)['"]/);
         if (extendsMatch) {
             descr.extends = extendsMatch[1];
         }
@@ -4339,7 +4344,16 @@ export class Project {
                 let locations: Location[] = [];
 
                 for (let definition of result.definitions) {
-                    let definitionDocument = await this.getDocument(this.folderUri + '/templates/' + definition.templateName);
+                    if (definition.templateName === template.name) {
+                        continue;
+                    }
+
+                    let templateInfo = this.getTemplate(definition.templateName);
+                    if (templateInfo === null) {
+                        continue;
+                    }
+
+                    let definitionDocument = await this.getDocument(templateInfo.fileUri);
                     if (definitionDocument === null) {
                         continue;
                     }
@@ -4347,7 +4361,7 @@ export class Project {
                     let definitionPosition = definitionDocument.positionAt(definition.offset);
 
                     locations.push({
-                        uri: this.folderUri + '/templates/' + definition.templateName,
+                        uri: templateInfo.fileUri,
                         range: Range.create(definitionPosition, definitionPosition),
                     });
                 }
@@ -5721,6 +5735,43 @@ export class Project {
         return result;
     }
 
+    /**
+     * Finds definitions of block for given template
+     */
+    private findBlockDefinitions(templateName: string, blockName: string) {
+        let result: { templateName: string, offset: number }[] = [];
+
+        let currentTemplateName: string | undefined = templateName;
+
+        for (let i = 0; i < 19; i++ /* protection from infinite cycle */) {
+            if (currentTemplateName === undefined) {
+                break;
+            }
+
+            let currentTemplate = this.getTemplate(currentTemplateName);
+            if (currentTemplate === null) {
+                break;
+            }
+
+            for (let block of currentTemplate.blocks) {
+                if (block.name === blockName) {
+                    result.push({
+                        templateName: currentTemplateName,
+                        offset: block.offset,
+                    });
+                }
+            }
+
+            if (currentTemplate.extends === undefined) {
+                break;
+            }
+
+            currentTemplateName = currentTemplate.extends;
+        }
+
+        return result;
+    }
+
     private findServiceDescription(fileUri: string, offset: number) {
         for (let serviceId in this.services) {
             let service = this.services[serviceId];
@@ -6299,12 +6350,7 @@ export class Project {
         let nameToken = tokens[i];
         let blockName = twigTokenValue(code, nameToken);
 
-        let blocks = this.collectAllTemplateBlocks(template.extends);
-
-        let foundBlocks = blocks[blockName];
-        if (foundBlocks === undefined) {
-            return null;
-        }
+        let foundBlocks = this.findBlockDefinitions(template.extends, blockName);
 
         return {
             name: blockName,
@@ -7121,7 +7167,7 @@ export class Project {
 
                     let templateName = documentUri.substr(this.folderUri.length + '/templates/'.length);
 
-                    let descr = this.scanTwigTemplate(templateName, code);
+                    let descr = this.scanTwigTemplate(documentUri, templateName, code);
 
                     this.templates[documentUri] = descr;
                 } while (false);
@@ -7298,7 +7344,29 @@ export class Project {
         return result;
     }
 
+    /**
+     * Gets template from template name
+     *
+     * @param name      For templates from bundles, can start both from '@' and '@!'
+     */
     private getTemplate(name: string) {
+        if (name[0] === '@' && name[1] !== '!') {
+            let match = name.match(/^@(\w+)\//);
+            if (match !== null) {
+                let bundleName = match[1];
+                let pathPart = name.substr(match[0].length);
+                let overrideName = 'bundles/' + bundleName + 'Bundle/' + pathPart;
+
+                for (let fileUri in this.templates) {
+                    let template = this.templates[fileUri];
+
+                    if (template.name === overrideName) {
+                        return template;
+                    }
+                }
+            }
+        }
+
         for (let fileUri in this.templates) {
             let template = this.templates[fileUri];
 

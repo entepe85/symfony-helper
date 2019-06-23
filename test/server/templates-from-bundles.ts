@@ -31,4 +31,39 @@ describe('templates from bundles', function () {
             assert.deepEqual(actual, expected, `fixture ${i} failed`);
         }
     });
+
+    it('definition of block should work', async function () {
+        let service = await getService();
+
+        let actual = await service.onDefinition({
+            textDocument: { uri: projectUri + '/templates/template-50.html.twig' },
+            position: Position.create(2, 16),
+        });
+
+        let expected: Definition = [
+            {
+                uri: projectUri + '/vendor/megacorp/core-bundle/src/Resources/views/basic-layout.html.twig',
+                range: Range.create(7, 4, 7, 4),
+            }
+        ];
+
+        assert.deepEqual(actual, expected);
+    });
+
+    it('completion of block name should work', async function () {
+        let service = await getService();
+
+        let actual = await service.onCompletition({
+            textDocument: { uri: projectUri + '/templates/template-50.html.twig' },
+            position: Position.create(2, 9),
+        });
+
+        let actualLabels = actual.items.map(row => row.label);
+
+        let expectedLabels = ['content', 'megacorp_special'];
+
+        for (let label of expectedLabels) {
+            assert.ok(actualLabels.indexOf(label) >= 0);
+        }
+    });
 });
