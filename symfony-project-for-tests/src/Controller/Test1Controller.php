@@ -13,4 +13,16 @@ class Test1Controller extends AbstractController
     {
         return $this->render('template-50.html.twig');
     }
+
+
+
+
+
+    /**
+     * @Route("/test1/2")
+     */
+    public function page2()
+    {
+        return $this->render('@MegacorpCore/special.html.twig');
+    }
 }

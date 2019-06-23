@@ -21,10 +21,10 @@ describe('jump to twig template from php-string with template path', function ()
 
             let expected: Definition | null = null;
             if (result) {
-                expected = {
+                expected = [{
                     uri: projectUri + '/templates/fixture-3.html.twig',
                     range: Range.create(0, 0, 0, 0),
-                };
+                }];
             }
 
             assert.deepEqual(actual, expected);

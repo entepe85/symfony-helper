@@ -4270,10 +4270,15 @@ export class Project {
 
         // go to template
         if (scalarString.value.endsWith('.twig')) {
-            return {
-                uri: this.folderUri + '/templates/' + scalarString.value,
-                range: Range.create(0, 0, 0, 0),
-            };
+            let templateName = scalarString.value;
+            let templateInfo = this.getTemplate(templateName);
+
+            if (templateInfo !== null) {
+                return [{
+                    uri: templateInfo.fileUri,
+                    range: Range.create(0, 0, 0, 0),
+                }];
+            }
         }
 
         return null;
