@@ -2417,7 +2417,7 @@ export class Project {
                         continue;
                     }
 
-                    // fast hack. should be improved.
+                    // fast hack. should be improved and tested.
                     if (data.prefix[0] === '@') {
                         if (templateName[0] !== '@') {
                             continue;
@@ -3886,7 +3886,7 @@ export class Project {
         let lines = document.getText().split('\n');
         let line = lines[position.line].substring(0, position.character);
 
-        let match = line.match(/[^\w](render|renderView)\s*\(\s*(['"]?[\w\./\-]*)?$/);
+        let match = line.match(/[^\w](render|renderView)\s*\(\s*(['"]?[@!\w\./\-]*)?$/);
         let isQuotePlaced = false;
         let existingPrefix = '';
         if (match) {
@@ -3903,7 +3903,7 @@ export class Project {
             if (position.line > 1) {
                 let prevLine = lines[position.line - 1];
                 let prevLineMatch = prevLine.match(/[^\w](render|renderView)\s*\(\s*$/);
-                let lineMatch = line.match(/\s*(['"]?[\w\./\-]*)?$/);
+                let lineMatch = line.match(/\s*(['"]?[@!\w\./\-]*)?$/);
                 if (!(prevLineMatch && lineMatch)) {
                     return [];
                 }
@@ -3930,8 +3930,18 @@ export class Project {
                 continue;
             }
 
-            if (name[0] === '@') {
-                continue;
+            // fast hack. should be improved and tested.
+            if (existingPrefix[0] === '@') {
+                if (name[0] !== '@') {
+                    continue;
+                }
+                if (!name.toLowerCase().includes(existingPrefix.substr(1).toLowerCase())) {
+                    continue;
+                }
+            } else {
+                if (name[0] === '@') {
+                    continue;
+                }
             }
 
             let newText = name;
