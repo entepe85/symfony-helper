@@ -2384,6 +2384,10 @@ export class Project {
 
                     let templateName = templateInfo.name;
 
+                    if (templateName.startsWith('bundles/')) {
+                        continue;
+                    }
+
                     items.push({
                         label: templateName,
                         kind: CompletionItemKind.File,

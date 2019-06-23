@@ -29,6 +29,21 @@ describe('autocomplete template name in template', function () {
         }
     });
 
+    it(`template name should not start with 'bundles/'`, async function () {
+        let service = await getService();
+
+        let actual = await service.onCompletition({
+            textDocument: { uri: projectUri + '/templates/fixture-8.html.twig' },
+            position: Position.create(0, 12),
+        });
+
+        let actualLabels = actual.items.map(item => item.label);
+
+        for (let label of actualLabels) {
+            assert.ok(!label.startsWith('bundles/'));
+        }
+    });
+
     it('should work good after \'.\' symbol', async function () {
         let service = await getService();
 
