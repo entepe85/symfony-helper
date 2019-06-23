@@ -1,10 +1,20 @@
 {
     "type": "project",
     "license": "proprietary",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../megacorp-core-bundle",
+            "options": {
+                "symlink": false
+            }
+        }
+    ],
     "require": {
         "php": "^7.1.3",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "megacorp/core-bundle": "^1.0",
         "sensio/framework-extra-bundle": "^5.1",
         "symfony/asset": "4.2.*",
         "symfony/console": "4.2.*",

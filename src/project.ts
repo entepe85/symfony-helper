@@ -4348,6 +4348,36 @@ export class Project {
             let result = this.twigTestTemplateName(code, tokens, offset);
 
             if (result !== null) {
+                if (result[0] === '@') {
+                    let match = result.match(/^@!?(\w+)\//);
+                    if (match !== null) {
+                        let bundleName = match[1];
+                        let bundleInfo = this.getBundleInfo(bundleName + 'Bundle');
+                        if (bundleInfo !== null) {
+                            let templateName = result.substr(match[0].length);
+
+                            let locations: Location[] = [];
+
+                            if (result[1] !== '!') {
+                                let overridePath = '/templates/bundles/' + bundleName + 'Bundle/' + templateName;
+                                if (await fileExists(this.getFolderPath() + overridePath)) {
+                                    locations.push({
+                                        uri: this.folderUri + overridePath,
+                                        range: Range.create(0, 0, 0, 0),
+                                    });
+                                }
+                            }
+
+                            locations.push({
+                                uri: bundleInfo.folderUri + '/Resources/views/' + templateName,
+                                range: Range.create(0, 0, 0, 0),
+                            });
+
+                            return locations;
+                        }
+                    }
+                }
+
                 return {
                     uri: this.folderUri + '/templates/' + result,
                     range: Range.create(0, 0, 0, 0),
