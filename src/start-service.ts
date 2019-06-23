@@ -28,7 +28,10 @@ connection.onInitialize(() => {
                 change: documents.syncKind,
             },
             completionProvider: {
-                triggerCharacters: ['.', '"', "'", ':'], // '.' for dql, '"' and "'" for completion in '$this->getParameter()', ':' for twig
+                // '.' for dql,
+                // '"' and "'" for completion in '$this->getParameter()'
+                // ':' and '@' for twig
+                triggerCharacters: ['.', '"', "'", ':', '@'],
             },
             definitionProvider: true,
             foldingRangeProvider: {

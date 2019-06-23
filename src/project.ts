@@ -2379,7 +2379,7 @@ export class Project {
 
                     let match;
 
-                    match = textToCursor.match(/{%\s*(include|extends|embed|use)\s+(['"])([\w\./\-]*)$/);
+                    match = textToCursor.match(/{%\s*(include|extends|embed|use)\s+(['"])([@!\w\./\-]*)$/);
                     if (match !== null) {
                         data = {
                             prefix: match[3],
@@ -2388,7 +2388,7 @@ export class Project {
                         break;
                     }
 
-                    match = textToCursor.match(/{%\s*(import|from)\s+(['"])([\w\./\-]*)$/);
+                    match = textToCursor.match(/{%\s*(import|from)\s+(['"])([@!\w\./\-]*)$/);
                     if (match !== null) {
                         data = {
                             prefix: match[3],
@@ -2417,8 +2417,18 @@ export class Project {
                         continue;
                     }
 
-                    if (templateName[0] === '@') {
-                        continue;
+                    // fast hack. should be improved.
+                    if (data.prefix[0] === '@') {
+                        if (templateName[0] !== '@') {
+                            continue;
+                        }
+                        if (!templateName.toLowerCase().includes(data.prefix.substr(1).toLowerCase())) {
+                            continue;
+                        }
+                    } else {
+                        if (templateName[0] === '@') {
+                            continue;
+                        }
                     }
 
                     items.push({
