@@ -1355,9 +1355,35 @@ export class Project {
                     continue;
                 }
 
-                let descr = this.scanTwigTemplate(fileUri, code);
+                let templateName = fileUri.substr(this.folderUri.length + '/templates/'.length);
+
+                let descr = this.scanTwigTemplate(templateName, code);
 
                 this.templates[fileUri] = descr;
+            }
+
+            for (let fileUri in this.phpClasses) {
+                let phpClass = this.phpClasses[fileUri];
+
+                if (phpClass.bundle !== undefined) {
+                    let bundleFolderPath = URI.parse(phpClass.bundle.folderUri).fsPath;
+                    let bundleTemplateFiles = await findFiles(bundleFolderPath + '/Resources/views/**/*.twig');
+
+                    for (let filePath of bundleTemplateFiles) {
+                        let fileUri = URI.file(filePath).toString();
+
+                        let code = await getCode(filePath);
+                        if (code === null) {
+                            continue;
+                        }
+
+                        let templateName = '@' + phpClass.bundle.name + '/' + fileUri.substr(phpClass.bundle.folderUri.length + '/Resources/views/'.length);
+
+                        let descr = this.scanTwigTemplate(templateName, code);
+
+                        this.templates[fileUri] = descr;
+                    }
+                }
             }
         }
 
@@ -1521,9 +1547,7 @@ export class Project {
         return phpClass;
     }
 
-    private scanTwigTemplate(fileUri: string, code: string) {
-        let templateName = fileUri.substr(this.folderUri.length + '/templates/'.length);
-
+    private scanTwigTemplate(templateName: string, code: string) {
         let tokens = tokenizeTwig(code);
         let twigPieces = findTwigPieces(tokens);
 
@@ -2385,6 +2409,10 @@ export class Project {
                     let templateName = templateInfo.name;
 
                     if (templateName.startsWith('bundles/')) {
+                        continue;
+                    }
+
+                    if (templateName[0] === '@') {
                         continue;
                     }
 
@@ -3883,6 +3911,14 @@ export class Project {
         for (let fileUri in this.templates) {
             let name = this.templates[fileUri].name;
 
+            if (name.startsWith('bundles/')) {
+                continue;
+            }
+
+            if (name[0] === '@') {
+                continue;
+            }
+
             let newText = name;
             if (!isQuotePlaced) {
                 newText = '\'' + name + '\'';
@@ -4736,11 +4772,18 @@ export class Project {
         }
 
         for (let fileUri in this.templates) {
+            let descr = this.templates[fileUri];
+
+            // speed optimization
+            if (descr.name[0] === '@') {
+                continue;
+            }
+
             let templateDocument = await this.getDocument(fileUri);
             if (templateDocument === null) {
                 continue;
             }
-            let descr = this.templates[fileUri];
+
             let templateTokens = descr.tokens;
 
             let templateResults = this.findInTemplate(templateDocument.getText(), templateTokens, element.name, findInTemplateType);
@@ -4926,6 +4969,11 @@ export class Project {
 
         for (let fileUri in this.templates) {
             let template = this.templates[fileUri];
+
+            // speed optimization
+            if (template.name[0] === '@') {
+                continue;
+            }
 
             let doc = await this.getDocument(fileUri);
             if (doc === null) {
@@ -7071,7 +7119,9 @@ export class Project {
 
                     let code = document.getText();
 
-                    let descr = this.scanTwigTemplate(documentUri, code);
+                    let templateName = documentUri.substr(this.folderUri.length + '/templates/'.length);
+
+                    let descr = this.scanTwigTemplate(templateName, code);
 
                     this.templates[documentUri] = descr;
                 } while (false);

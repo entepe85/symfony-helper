@@ -15,6 +15,7 @@ describe('templates from bundles', function () {
             { from: [0, 48, documentUri], to: [bundleViewsFolder + '/basic-layout.html.twig'] },
             { from: [4, 12, documentUri], to: [overriddenBundleViewsFolder + '/widgets/table.html.twig', bundleViewsFolder + '/widgets/table.html.twig'] }, // overridden template
             { from: [5, 12, documentUri], to: [bundleViewsFolder + '/widgets/table.html.twig'] }, // overridden template with '!'
+            { from: [2, 16, bundleViewsFolder + '/widgets/table.html.twig'], to: [bundleViewsFolder + '/widgets/table-row.html.twig'] }, // template from bundle folder
         ];
 
         for (let i = 0; i < fixtures.length; i++) {
