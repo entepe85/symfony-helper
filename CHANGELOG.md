@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 1.0.3 (23 June 2019)
+
+* Basic support for templates from bundles
+    * jump to template from template name
+    * completion of template names
+    * definition, hover and completion for block names
+
 ## Version 1.0.2 (17 June 2019)
 
 * Tiny changes in README.md

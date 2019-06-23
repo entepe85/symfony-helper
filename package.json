@@ -7,7 +7,7 @@
         "name": "Timur Morduhai",
         "email": "timur.morduhai@outlook.com"
     },
-    "version": "1.0.2",
+    "version": "1.0.3",
     "engines": {
         "vscode": "^1.30.0"
     },

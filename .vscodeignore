@@ -12,6 +12,7 @@ tslint.json
 .nyc_output
 coverage
 symfony-project-for-tests
+megacorp-core-bundle
 node_modules/lodash/fp
 node_modules/lodash/*.js
 !node_modules/lodash/lodash.js
