@@ -22,7 +22,7 @@
         "Snippets"
     ],
     "activationEvents": [
-        "workspaceContains:symfony.lock"
+        "workspaceContains:composer.json"
     ],
     "keywords": [
         "symfony",

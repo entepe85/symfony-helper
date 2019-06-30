@@ -6,6 +6,7 @@ import * as nikic from '../../src/nikic-php-parser';
 import URI from 'vscode-uri';
 
 export let projectUri = URI.file(path.join(packagePath, 'symfony-4.2-project')).toString();
+export let project34Uri = URI.file(path.join(packagePath, 'symfony-3.4-project')).toString();
 
 let service: Service;
 
@@ -45,7 +46,10 @@ export async function getService(): Promise<Service> {
             });
         }
 
-        await service.setProjects([{uri: projectUri, name: path.basename(projectUri) }]);
+        await service.setProjects([
+            {uri: projectUri, name: path.basename(projectUri) },
+            {uri: project34Uri, name: path.basename(project34Uri) },
+        ]);
     }
 
     return service;

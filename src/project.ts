@@ -1121,7 +1121,10 @@ export class Project {
 
     private getConsoleHelperSettings?: (uri: string) => Promise<ConsoleHelperSettings|null>;
 
-    constructor(name: string, folderUri: string, allDocuments: AllTextDocuments) {
+    private is3: boolean; // whether version 3 of symfony used
+    private templatesFolderUri: string;
+
+    constructor(name: string, folderUri: string, allDocuments: AllTextDocuments, subtype?: string) {
         this.name = name;
 
         this.folderUri = folderUri;
@@ -1159,6 +1162,14 @@ export class Project {
                 leading: false,
             }
         );
+
+        this.is3 = subtype === '3';
+
+        if (this.is3) {
+            this.templatesFolderUri = this.folderUri + '/app/Resources/views';
+        } else {
+            this.templatesFolderUri = this.folderUri + '/templates';
+        }
     }
 
     private setRoute(name: string, routePath: string, controller: string): void {
@@ -1199,6 +1210,7 @@ export class Project {
         try {
             await this.doScan();
         } catch {
+            console.log(`project.ts: failed scanning of project '${this.getName()}'`);
         }
 
         this.isScanning = false;
@@ -1348,7 +1360,8 @@ export class Project {
 
         // searching for templates
         {
-            let templateFiles = await findFiles(folderFsPath + '/templates/**/*.twig');
+            let templatesFolderPath = URI.parse(this.templatesFolderUri).fsPath;
+            let templateFiles = await findFiles(templatesFolderPath + '/**/*.twig');
 
             for (let filePath of templateFiles) {
                 let fileUri = URI.file(filePath).toString();
@@ -2278,10 +2291,10 @@ export class Project {
         let offset = document.offsetAt(position);
         let stmts = twigParse(text, tokens, pieces);
 
-        if (!document.uri.startsWith(this.folderUri + '/templates/')) {
+        if (!document.uri.startsWith(this.templatesFolderUri+'/')) {
             return [];
         }
-        let currentTemplateName = document.uri.substr((this.folderUri + '/templates/').length);
+        let currentTemplateName = document.uri.substr((this.templatesFolderUri + '/').length);
 
         let currentPiece: TwigPiece | null = null;
         for (let p of pieces) {
@@ -3010,7 +3023,7 @@ export class Project {
             }
 
             for (let call of calls) {
-                if (templateUri === this.folderUri + '/templates/' + call.name) {
+                if (templateUri === this.templatesFolderUri + '/' + call.name) {
                     result.push(call);
                 }
             }
@@ -3022,11 +3035,11 @@ export class Project {
     private async completeVariableOrFunctionInTemplate(document: TextDocument, position: Position, tokens: TwigToken[], twigPieces: TwigPiece[]): Promise<CompletionItem[]> {
         let items: CompletionItem[] = [];
 
-        if (!document.uri.startsWith(this.folderUri + '/templates/')) {
+        if (!document.uri.startsWith(this.templatesFolderUri + '/')) {
             return items;
         }
 
-        let templateName = document.uri.substr((this.folderUri + '/templates/').length);
+        let templateName = document.uri.substr((this.templatesFolderUri + '/').length);
 
         let text = document.getText();
 
@@ -4458,7 +4471,7 @@ export class Project {
                 }
 
                 return {
-                    uri: this.folderUri + '/templates/' + result,
+                    uri: this.templatesFolderUri + '/' + result,
                     range: Range.create(0, 0, 0, 0),
                 };
             }
@@ -4479,7 +4492,7 @@ export class Project {
 
                 if (macroTemplate !== null) {
                     let macro = macroTemplate.macros.find(row => row.name === macroName);
-                    let templateDocument = await this.getDocument(this.folderUri + '/templates/' + macroTemplate.name);
+                    let templateDocument = await this.getDocument(this.templatesFolderUri + '/' + macroTemplate.name);
 
                     if (macro !== undefined && templateDocument !== null) {
                         let macroPosition = templateDocument.positionAt(macro.offset);
@@ -4546,7 +4559,7 @@ export class Project {
                     }
                 } else if (result.type === 'macroFileImport') {
                     return {
-                        uri: this.folderUri + '/templates/' + result.templateName,
+                        uri: this.templatesFolderUri + '/' + result.templateName,
                         range: Range.create(0, 0, 0, 0),
                     };
                 }
@@ -4648,11 +4661,11 @@ export class Project {
 
         // request from twig-file
         do {
-            if (!(documentUri.startsWith(this.folderUri + '/templates/') && documentUri.endsWith('.twig'))) {
+            if (!(documentUri.startsWith(this.templatesFolderUri + '/') && documentUri.endsWith('.twig'))) {
                 break;
             }
 
-            let templateName = documentUri.substr((this.folderUri + '/templates/').length);
+            let templateName = documentUri.substr((this.templatesFolderUri + '/').length);
 
             let code = document.getText();
             let offset = document.offsetAt(position);
@@ -7178,7 +7191,7 @@ export class Project {
         }
 
         // scanning twig-files in 'templates/'
-        if (documentUri.startsWith(this.folderUri + '/templates/') && documentUri.endsWith('.twig')) {
+        if (documentUri.startsWith(this.templatesFolderUri + '/') && documentUri.endsWith('.twig')) {
             if (action === 'deleted') {
                 delete this.templates[documentUri];
             } else if (action === 'createdOrChanged') {
@@ -7481,10 +7494,10 @@ export class Project {
             return null;
         }
 
-        if (!document.uri.startsWith(this.folderUri + '/templates/')) {
+        if (!document.uri.startsWith(this.templatesFolderUri + '/')) {
             return null;
         }
-        let currentTemplateName = document.uri.substr((this.folderUri + '/templates/').length);
+        let currentTemplateName = document.uri.substr((this.templatesFolderUri + '/').length);
 
         let code = document.getText();
         let offset = document.offsetAt(position);

@@ -69,15 +69,29 @@ export class Service {
     }
 
     public async setProjects(folders: WorkspaceFolder[]) {
-        let newFolders = [];
+        let newProjectsInfo: { folder: WorkspaceFolder, subtype?: string }[] = [];
         for (let folder of folders) {
             let lockfilePath = URI.parse(folder.uri + '/symfony.lock').fsPath;
             if (await fileExists(lockfilePath)) {
-                newFolders.push(folder);
+                newProjectsInfo.push({ folder });
+            }
+
+            let composerJsonPath = URI.parse(folder.uri + '/composer.json').fsPath;
+            if (await fileExists(composerJsonPath)) {
+                let composerJsonContent = await readFile(composerJsonPath);
+                try {
+                    let json = JSON.parse(composerJsonContent);
+                    if (json.require && json.require['symfony/symfony']) {
+                        let versionPart = json.require['symfony/symfony'].substr(0, 2);
+                        if (versionPart === '3.') {
+                            newProjectsInfo.push({folder, subtype: '3'});
+                        }
+                    }
+                } catch {}
             }
         }
 
-        let newFoldersUris = newFolders.map(row => row.uri);
+        let newFoldersUris = newProjectsInfo.map(row => row.folder.uri);
 
         // delete deleted projects
         let deleteUris = [];
@@ -92,14 +106,14 @@ export class Service {
 
         let newProjects = [];
 
-        for (let folder of newFolders) {
-            let folderUri = folder.uri;
+        for (let info of newProjectsInfo) {
+            let folderUri = info.folder.uri;
 
             if (this.projects[folderUri] !== undefined) {
                 continue;
             }
 
-            let project = new Project(folder.name, folderUri, this.allDocuments);
+            let project = new Project(info.folder.name, folderUri, this.allDocuments, info.subtype);
 
             if (this.getConsoleHelperSettings !== undefined) {
                 project.setConsoleHelperSettingsResolver(this.getConsoleHelperSettings);
@@ -119,13 +133,16 @@ export class Service {
 
         if (projects.length > 0) {
             this.isScanning = true;
+
             for (let p of projects) {
                 try {
                     if (this.connection !== undefined) {
                         this.connection.sendRequest('statusBarMessage', { message: `indexing '${p.getName()}' ...` });
                     }
                     await p.scan();
-                } catch {}
+                } catch {
+                    console.log(`service.ts: failed scanning of project '${p.getName()}'`);
+                }
             }
             this.isScanning = false;
 
