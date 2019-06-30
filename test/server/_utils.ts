@@ -5,7 +5,7 @@ import { AllTextDocuments, packagePath } from '../../src/utils';
 import * as nikic from '../../src/nikic-php-parser';
 import URI from 'vscode-uri';
 
-export let projectUri = URI.file(path.join(packagePath, 'symfony-project-for-tests')).toString();
+export let projectUri = URI.file(path.join(packagePath, 'symfony-4.2-project')).toString();
 
 let service: Service;
 
@@ -27,7 +27,7 @@ export async function getService(): Promise<Service> {
 
         if (process.env.COMMANDS_HELPER_TYPE === 'http') {
             // I should start http server here
-            fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-project-for-tests/public/vscode-symfony-helper.php');
+            fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-4.2-project/public/vscode-symfony-helper.php');
             service.setConsoleHelperSettingsResolver(async () => {
                 return {
                     type: 'http',
