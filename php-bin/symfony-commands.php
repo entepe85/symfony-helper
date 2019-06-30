@@ -7,7 +7,6 @@
 
 // script returns json encoded message ['result' => 'error'|'internal-error'|'success', 'message'=>string]
 
-use App\Kernel;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -53,7 +52,11 @@ if ($isCli) {
 
 // we have $type and $message now
 
-$kernel = new Kernel('dev', true);
+if (class_exists('App\Kernel')) {
+    $kernel = new App\Kernel('dev', true); // symfony  >=4.0
+} else {
+    $kernel = new AppKernel('dev', true); // symfony <= 3.4
+}
 $kernel->boot();
 $container = $kernel->getContainer();
 

@@ -6407,14 +6407,23 @@ export class Project {
 
         let controller = route.controller;
         let doubleColonPosition = controller.indexOf('::');
-        if (doubleColonPosition < 0) {
-            return null;
+        if (doubleColonPosition >= 0) {
+            let className = controller.substring(0, doubleColonPosition);
+            let methodName = controller.substr(doubleColonPosition + 2);
+
+            return this.phpClassLocation(className, 'method', methodName);
         }
 
-        let className = controller.substring(0, doubleColonPosition);
-        let methodName = controller.substr(doubleColonPosition + 2);
+        let controllerPieces = controller.split(':');
 
-        return this.phpClassLocation(className, 'method', methodName);
+        if (controllerPieces.length === 3) {
+            let className = controllerPieces[0] + '\\Controller\\' + controllerPieces[1] + 'Controller';
+            let methodName = controllerPieces[2] + 'Action';
+
+            return this.phpClassLocation(className, 'method', methodName);
+        }
+
+        return null;
     }
 
     private routeHoverMarkdown(name: string) {

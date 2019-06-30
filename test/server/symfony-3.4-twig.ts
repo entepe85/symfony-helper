@@ -35,4 +35,20 @@ describe('twig in symfony 3.4', function () {
             range: Range.create(4, 12, 4, 24),
         });
     });
+
+    it('should support definition for routes', async function () {
+        let service = await getService();
+
+        let actual = await service.onDefinition({
+            textDocument: { uri: templatesUri + '/default/index.html.twig' },
+            position: Position.create(5, 29),
+        });
+
+        let expected: Definition  = {
+            uri: project34Uri + '/src/AppBundle/Controller/DefaultController.php',
+            range: Range.create(13, 4, 13, 4),
+        };
+
+        assert.deepEqual(actual, expected);
+    });
 });
