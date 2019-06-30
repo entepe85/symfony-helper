@@ -1371,7 +1371,7 @@ export class Project {
                     continue;
                 }
 
-                let templateName = fileUri.substr(this.folderUri.length + '/templates/'.length);
+                let templateName = fileUri.substr(this.templatesFolderUri.length + 1);
 
                 let descr = this.scanTwigTemplate(fileUri, templateName, code);
 
@@ -7203,7 +7203,7 @@ export class Project {
 
                     let code = document.getText();
 
-                    let templateName = documentUri.substr(this.folderUri.length + '/templates/'.length);
+                    let templateName = documentUri.substr(this.templatesFolderUri.length + 1);
 
                     let descr = this.scanTwigTemplate(documentUri, templateName, code);
 

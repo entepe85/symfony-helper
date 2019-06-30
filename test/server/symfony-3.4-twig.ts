@@ -20,4 +20,19 @@ describe('twig in symfony 3.4', function () {
 
         assert.deepEqual(actual, expected);
     });
+
+    it('should support completion for templates', async function () {
+        let service = await getService();
+
+        let actual = await service.onCompletition({
+            textDocument: { uri: templatesUri + '/default/index.html.twig' },
+            position: Position.create(4, 24),
+        });
+
+        let item = actual.items.find(row => row.label === 'pieces/pieceA.html.twig');
+        assert.deepEqual(item!.textEdit, {
+            newText: 'pieces/pieceA.html.twig',
+            range: Range.create(4, 12, 4, 24),
+        });
+    });
 });
