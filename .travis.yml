@@ -8,8 +8,8 @@ node_js:
 install:
     - wget https://getcomposer.org/download/1.8.6/composer.phar
     - php composer.phar install --working-dir php-bin
-    - php composer.phar install --working-dir symfony-3.4-project
-    - php composer.phar install --working-dir symfony-4.2-project
+    - php composer.phar install --working-dir symfony-3.4-project --no-interaction
+    - php composer.phar install --working-dir symfony-4.2-project --no-interaction
     - npm i
 
 after_script:
