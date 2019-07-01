@@ -549,11 +549,14 @@ export class Service {
 
         let projectUri = project.getFolderUri();
 
-        if (!templateUri.startsWith(projectUri + '/templates/')) {
-            return { success: false, message: 'Template must be in \'templates/\' folder' };
+        if (!templateUri.endsWith('.twig')) {
+            return { success: false, message: 'This command is only for twig templates' };
         }
 
-        let templateName = templateUri.substr((projectUri + '/templates/').length);
+        let templateName = project.templateName(templateUri.substr(projectUri.length + 1));
+        if (templateName === null) {
+            return { success: false, message: 'Could not find template name' };
+        }
 
         let phpScriptPath = path.join(packagePath, 'php-bin/symfony-commands.php');
 

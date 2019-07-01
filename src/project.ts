@@ -7360,6 +7360,19 @@ export class Project {
         }
     }
 
+    private getBundles() {
+        let result = [];
+
+        for (let fileUri in this.phpClasses) {
+            let bundleInfo = this.phpClasses[fileUri].bundle;
+            if (bundleInfo !== undefined) {
+                result.push(bundleInfo)
+            }
+        }
+
+        return result;
+    }
+
     private getBundleInfo(name: string) {
         for (let fileUri in this.phpClasses) {
             let bundleInfo = this.phpClasses[fileUri].bundle;
@@ -7730,6 +7743,31 @@ export class Project {
                     return element.implementation ? element.implementation.returnType : new php.AnyType();
                 }
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds template name from path relative to 'this.folderUri'
+     */
+    public templateName(path: string) {
+        if (path.startsWith('vendor/')) {
+            let bundles = this.getBundles();
+            let templateUri = this.folderUri + '/' + path;
+
+            for (let b of bundles) {
+                let bundleViewsFolderUri = b.folderUri + '/Resources/views/';
+
+                if (templateUri.startsWith(bundleViewsFolderUri)) {
+                    let shortName = b.name.substr(0, b.name.length - 6);
+                    return '@' + shortName + '/' + templateUri.substr(bundleViewsFolderUri.length);
+                }
+            }
+        } else if (path.startsWith('templates/') && !this.is3) {
+            return path.substr('templates/'.length);
+        } else if (path.startsWith('app/Resources/views/') && this.is3) {
+            return path.substr('app/Resources/views/'.length);
         }
 
         return null;

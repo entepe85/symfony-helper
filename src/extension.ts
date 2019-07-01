@@ -196,11 +196,6 @@ export function activate(context: ExtensionContext) {
 
         let uri = editor.document.uri.toString();
 
-        if (!uri.endsWith('.twig')) {
-            await window.showErrorMessage('This command is only for twig templates');
-            return;
-        }
-
         let response = await client.sendRequest<{ success: boolean, message: string }>('openCompiledTemplate', {
             uri: uri,
         });
