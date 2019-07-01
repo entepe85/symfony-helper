@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import URI from 'vscode-uri';
 import { projectUri, project34Uri, getService } from './_utils';
 
 describe('open compiled template', function () {
@@ -19,7 +20,7 @@ describe('open compiled template', function () {
 
             assert.ok(result.success, `fixture ${i} is not successfull`);
             assert.ok(
-                ('file://' + result.message).startsWith(base + '/var/cache/') && result.message.endsWith('.php'),
+                URI.file(result.message).toString().startsWith(base + '/var/cache/') && result.message.endsWith('.php'),
                 `fixture ${i} resulted in unexpected uri`
             );
         }
