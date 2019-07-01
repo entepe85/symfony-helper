@@ -364,7 +364,7 @@ export class Service {
 
     public async commandExtendTemplate(params: any): Promise<{ success: boolean, message: string, blocks?: { name: string, detail: string }[] }> {
         let baseTemplateUri: string = params.baseTemplateUri;
-        let newTemplateRelativePath: string = params.newTemplateRelativePath; // must start with 'templates/')
+        let newTemplateRelativePath: string = params.newTemplateRelativePath;
 
         let project = this.findFileProject(baseTemplateUri);
 
@@ -379,8 +379,10 @@ export class Service {
             return { success: false, message: 'Could not recognize template' };
         }
 
-        if (!newTemplateRelativePath.startsWith('templates/')) {
-            return { success: false, message: 'New template must be in \'templates/\' folder' };
+        let templatesFolderPath = project.templatesFolderUri.substr(project.getFolderUri().length + 1);
+
+        if (!newTemplateRelativePath.startsWith(templatesFolderPath)) {
+            return { success: false, message: `New template must be in '${templatesFolderPath}' folder` };
         }
 
         let newTemplateUri = projectUri + '/' + newTemplateRelativePath;
@@ -537,6 +539,28 @@ export class Service {
         }
 
         return { success: true, message: newTemplateUri };
+    }
+
+    public getNewTemplateFolder(params: any): { success: boolean, message: string } {
+        let baseTemplateUri: string = params.baseTemplateUri;
+
+        let project = this.findFileProject(baseTemplateUri);
+
+        if (project === null) {
+            return { success: false, message: 'Could not find project' };
+        }
+
+        let isBaseFromTemplatesFolder = baseTemplateUri.startsWith(project.templatesFolderUri + '/');
+
+        let prefix;
+
+        if (isBaseFromTemplatesFolder) {
+            prefix = path.dirname(baseTemplateUri).substr(project.getFolderUri().length + 1) + '/';
+        } else {
+            prefix = project.templatesFolderUri.substr(project.getFolderUri().length + 1) + '/';
+        }
+
+        return { success: true, message: prefix };
     }
 
     public async commandOpenCompiledTemplate(params: any): Promise<{ success: boolean, message: string }> {

@@ -1122,7 +1122,7 @@ export class Project {
     private getConsoleHelperSettings?: (uri: string) => Promise<ConsoleHelperSettings|null>;
 
     private is3: boolean; // whether version 3 of symfony used
-    private templatesFolderUri: string;
+    public readonly templatesFolderUri: string;
 
     constructor(name: string, folderUri: string, allDocuments: AllTextDocuments, subtype?: string) {
         this.name = name;

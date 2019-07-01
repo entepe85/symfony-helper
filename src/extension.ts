@@ -106,6 +106,16 @@ export function activate(context: ExtensionContext) {
             return;
         }
 
+        let suffix = baseTemplateUri.endsWith('.html.twig') ? '.html.twig' : '.twig';
+
+        let newTemplateFolderResponse = await client.sendRequest<{ success: boolean, message: string }>('getNewTemplateFolder', { baseTemplateUri });
+        if (!newTemplateFolderResponse.success) {
+            await window.showErrorMessage(newTemplateFolderResponse.message);
+            return;
+        }
+
+        let prefix = newTemplateFolderResponse.message;
+
         let workspaceFolder = workspace.getWorkspaceFolder(Uri.parse(baseTemplateUri));
 
         if (!workspaceFolder) {
@@ -113,20 +123,6 @@ export function activate(context: ExtensionContext) {
             return;
         }
 
-        let workspaceFolderUri = workspaceFolder.uri.toString();
-        let isBaseFromTemplatesFolder = baseTemplateUri.startsWith(workspaceFolderUri + '/templates/');
-
-        let suffix = '.html.twig';
-
-        let prefix;
-
-        if (isBaseFromTemplatesFolder) {
-            prefix = path.dirname(baseTemplateUri).substr((workspaceFolderUri + '/').length) + '/';
-        } else {
-            prefix = 'templates/';
-        }
-
-        // relative path in project 'templates/...'
         let input = await window.showInputBox({
             prompt: 'new file path',
             value: prefix + suffix,
@@ -341,7 +337,7 @@ class ComplexFileWatcher implements Disposable {
 
         if (folders !== undefined) {
             for (let f of folders) {
-                let w1 = workspace.createFileSystemWatcher(new RelativePattern(f, '{config,src,templates}/**/*.{php,twig,yaml,xml}'));
+                let w1 = workspace.createFileSystemWatcher(new RelativePattern(f, '{config,src,templates,app}/**/*.{php,twig,yaml,xml}'));
                 let w2 = workspace.createFileSystemWatcher(new RelativePattern(f, 'composer.lock'));
                 let watchers = [w1, w2];
 

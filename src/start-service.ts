@@ -123,6 +123,7 @@ connection.onReferences((params) => service.onReferences(params));
 connection.onSignatureHelp((params) => service.onSignatureHelp(params));
 
 connection.onRequest('extendTemplate', params => service.commandExtendTemplate(params));
+connection.onRequest('getNewTemplateFolder', params => service.getNewTemplateFolder(params));
 connection.onRequest('openCompiledTemplate', params => service.commandOpenCompiledTemplate(params));
 connection.onRequest('toggleTwigComment', params => service.commandToggleTwigComment(params));
 connection.onRequest('rebuildIndexes', async () => {
