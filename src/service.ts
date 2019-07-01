@@ -609,12 +609,6 @@ export class Service {
             return { success: false, message: 'Could not find project of template' };
         }
 
-        let projectUri = project.getFolderUri();
-
-        if (!templateUri.startsWith(projectUri + '/templates/')) {
-            return { success: false, message: 'Template must be in \'templates/\' folder' };
-        }
-
         let document = await this.getDocument(templateUri);
         if (document === null) {
             return { success: false, message: 'Could not find template' };

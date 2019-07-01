@@ -990,7 +990,7 @@ interface TemplateMacroDescription {
 }
 
 interface TemplateDescription {
-    name: string; // 1. path relative to 'templates/'; 2. '@SomeBundle/...'
+    name: string; // which is used in 'render()'
     fileUri: string;
     extends?: string; // value of {%extends%}. don't remove '!' from '@!AnyBundle/...'.
     tokens: TwigToken[];
@@ -7199,7 +7199,7 @@ export class Project {
             }
         }
 
-        // scanning twig-files in 'templates/'
+        // scanning twig-files
         if (documentUri.startsWith(this.templatesFolderUri + '/') && documentUri.endsWith('.twig')) {
             if (action === 'deleted') {
                 delete this.templates[documentUri];
