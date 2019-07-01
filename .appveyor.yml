@@ -8,6 +8,7 @@ install:
     - set PATH=C:\tools\php73;%PATH%
     - appveyor DownloadFile https://getcomposer.org/download/1.8.6/composer.phar
     - php composer.phar i --working-dir=php-bin
+    - php composer.phar i --working-dir=symfony-3.4-project
     - php composer.phar i --working-dir=symfony-4.2-project
     - ps: Install-Product node 10.2.0
     - npm i

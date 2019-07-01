@@ -11,6 +11,7 @@ tslint.json
 **/*.ts
 .nyc_output
 coverage
+symfony-3.4-project
 symfony-4.2-project
 megacorp-core-bundle
 node_modules/lodash/fp

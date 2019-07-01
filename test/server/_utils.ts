@@ -28,6 +28,7 @@ export async function getService(): Promise<Service> {
 
         if (process.env.COMMANDS_HELPER_TYPE === 'http') {
             // I should start http server here
+            fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-3.4-project/public/vscode-symfony-helper.php');
             fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-4.2-project/public/vscode-symfony-helper.php');
             service.setConsoleHelperSettingsResolver(async () => {
                 return {
