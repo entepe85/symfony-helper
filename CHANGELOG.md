@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.0.4 (2 July 2019)
+
+* Basic support of Symfony 3.4
+* Fixed command `Open Compiled Template` for containers and virtual machines.
+
 ## Version 1.0.3 (23 June 2019)
 
 * Basic support for templates from bundles

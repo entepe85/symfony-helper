@@ -6,6 +6,9 @@ A VSCode extension (and language server) for Symfony projects (starting with ver
 [![Windows Build status](https://ci.appveyor.com/api/projects/status/06dgvoqb55ieb8p9?svg=true)](https://ci.appveyor.com/project/tmrdh/symfony-helper)
 [![Coverage Status](https://coveralls.io/repos/github/tmrdh/symfony-helper/badge.svg?branch=master)](https://coveralls.io/github/tmrdh/symfony-helper?branch=master)
 
+New in version 1.0.4<br>
+:star: :star: :star: basic support of Symfony 3.4 :star: :star: :star:
+
 ## Some previews
 
 Search for references to entity field in dql and twig.
@@ -51,7 +54,7 @@ Completion of autowired typehints (start typing with '.')
 * `Open Compiled Template` command<br>
   It opens compiled form of template from `var/cache/dev/twig/`
 
-### DQL
+### Doctrine and DQL
 
 * Support of entities and entity fields in dql string literals
 * Definition and hover for `repositoryClass` and `targetEntity` in annotations of entity classes
@@ -75,9 +78,9 @@ In service definition files
 
 ### Containers and virtual machines (docker, vagrant, ...)
 
-See `symfonyHelper.consoleHelper.*` settings.
-
-Also, install `vscode-symfony-helper.php` into the `public/` folder of project with `Install Http Helper` command.
+1) Install `vscode-symfony-helper.php` into the `public/` or `web/` folder of your project with `Install Http Helper` command.
+2) Configure web server of container to access installed file with browser.
+3) Properly set `symfonyHelper.consoleHelper.*` settings.
 
 ## Configuring
 
