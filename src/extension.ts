@@ -26,7 +26,6 @@ import {
     TransportKind,
 } from 'vscode-languageclient';
 
-import * as path from 'path';
 import * as fs from 'fs';
 
 let client: LanguageClient;
@@ -200,7 +199,7 @@ export function activate(context: ExtensionContext) {
             try {
                 await window.showTextDocument(Uri.file(response.message));
             } catch (e) {
-                await window.showErrorMessage('Could not open created file');
+                await window.showErrorMessage('Could not open file');
             }
         } else {
             await window.showErrorMessage(response.message);
