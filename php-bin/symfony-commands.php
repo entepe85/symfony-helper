@@ -120,11 +120,13 @@ if ($type === 'otherCommand') {
 
         $reflector = new ReflectionClass($className);
         try {
-            $pathOfClass = $reflector->getFileName();
-            if ($pathOfClass === false) {
+            $absPathOfClass = $reflector->getFileName();
+            if ($absPathOfClass === false) {
                 echo json_encode(['result' => 'error', 'message' => 'Could not find compiled template']);
             } else {
-                echo json_encode(['result' => 'success', 'message' => $pathOfClass]);
+                $projectDir = $container->getParameter('kernel.project_dir');
+                $relPathOfClass = substr($absPathOfClass, strlen($projectDir) + 1);
+                echo json_encode(['result' => 'success', 'message' => $relPathOfClass]);
             }
         } catch (\Exception $e) {
             echo json_encode(['result' => 'error', 'message' => 'Could not find compiled template']);

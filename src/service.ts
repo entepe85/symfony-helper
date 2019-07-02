@@ -572,6 +572,7 @@ export class Service {
         }
 
         let projectUri = project.getFolderUri();
+        let projectFsPath = URI.parse(projectUri).fsPath;
 
         if (!templateUri.endsWith('.twig')) {
             return { success: false, message: 'This command is only for twig templates' };
@@ -596,7 +597,6 @@ export class Service {
             }
 
             if (settings.type === 'direct') {
-                let projectFsPath = URI.parse(projectUri).fsPath;
                 responseRaw = await exec(settings.phpPath, [phpScriptPath, projectFsPath, 'otherCommand', 'findCompiledTemplate ' + templateName]);
             } else if (settings.type === 'http') {
                 responseRaw = await requestHttpCommandsHelper(settings.webPath, 'otherCommand', 'findCompiledTemplate ' + templateName);
@@ -620,7 +620,7 @@ export class Service {
             }
         }
 
-        return { success: true, message: response.message };
+        return { success: true, message: path.join(projectFsPath, response.message) };
     }
 
     public async commandToggleTwigComment(params: any): Promise<{ success: boolean, message: string }> {
