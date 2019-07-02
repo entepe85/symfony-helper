@@ -27,6 +27,7 @@ import {
 } from 'vscode-languageclient';
 
 import * as fs from 'fs';
+import { fileExists } from './utils';
 
 let client: LanguageClient;
 
@@ -70,7 +71,11 @@ export function activate(context: ExtensionContext) {
         }
 
         try {
-            fs.copyFileSync(packageDirectory + '/php-bin/symfony-commands.php', folder.uri.fsPath + '/public/vscode-symfony-helper.php');
+            if (fileExists(folder.uri.fsPath + '/web')) {
+                fs.copyFileSync(packageDirectory + '/php-bin/symfony-commands.php', folder.uri.fsPath + '/web/vscode-symfony-helper.php');
+            } else {
+                fs.copyFileSync(packageDirectory + '/php-bin/symfony-commands.php', folder.uri.fsPath + '/public/vscode-symfony-helper.php');
+            }
             await window.showInformationMessage('Helper installed');
         } catch {
             await window.showErrorMessage('Could not install helper');
