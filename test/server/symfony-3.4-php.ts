@@ -29,4 +29,20 @@ describe('twig in symfony 3.4', function () {
             assert.deepEqual(actual, expected, `fixture ${i} failed`);
         }
     });
+
+    it('should support definition for services', async function () {
+        let service = await getService();
+
+        let actual = await service.onDefinition({
+            textDocument: { uri: controllersUri + '/DefaultController.php' },
+            position: Position.create(15, 38),
+        });
+
+        let expected: Definition  = {
+            uri: project34Uri + '/vendor/symfony/symfony/src/Symfony/Bundle/FrameworkBundle/Resources/config/form.xml',
+            range: Range.create(104, 8, 104, 8),
+        };
+
+        assert.deepEqual(actual, expected);
+    });
 });

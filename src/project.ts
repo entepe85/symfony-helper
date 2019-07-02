@@ -3601,20 +3601,16 @@ export class Project {
             return items;
         } while (false);
 
-        // completion of parameters and services in AbstractController
+        // completion of parameters and services in controllers
         do {
-            if (!document.uri.startsWith(this.folderUri + '/src/Controller/')) {
-                break;
-            }
-
-            if (code.indexOf('extends AbstractController') < 0) {
+            if (!this.isController(document)) {
                 break;
             }
 
             let codeToCursor = code.substr(0, offset);
 
             {
-                // completion of parameters in AbstractController
+                // completion of parameters
                 let match = codeToCursor.match(/\$this\s*->\s*getParameter\s*\(\s*['"]([\w\.]*)$/);
                 if (match !== null) {
                     let prefix = match[1];
@@ -3634,7 +3630,7 @@ export class Project {
             }
 
             {
-                // completion of services in AbstractController
+                // completion of services
                 let match = codeToCursor.match(/\$this\s*->\s*get\s*\(\s*['"]([\w\.]*)$/);
                 if (match !== null) {
                     let prefix = match[1];
@@ -3679,18 +3675,8 @@ export class Project {
 
             let codeToCursor = code.substr(0, offset);
 
-            let isControllerGenerator: boolean = false;
-            do {
-                if (!document.uri.startsWith(this.folderUri + '/src/Controller/')) {
-                    break;
-                }
-
-                if (code.indexOf('extends AbstractController') < 0) {
-                    break;
-                }
-
-                isControllerGenerator = codeToCursor.match(/\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/) !== null;
-            } while (false);
+            let isControllerGenerator = this.isController(document)
+                && codeToCursor.match(/\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/) !== null;
 
             if (!isUrlGenerator && !isControllerGenerator) {
                 break;
@@ -5982,11 +5968,7 @@ export class Project {
 
         // test for '$this->getParameter()'
         do {
-            if (!document.uri.startsWith(this.folderUri + '/src/Controller/')) {
-                break;
-            }
-
-            if (code.indexOf('extends AbstractController') < 0) {
+            if (!this.isController(document)) {
                 break;
             }
 
@@ -6017,11 +5999,7 @@ export class Project {
 
         // test for '$this->generateUrl()'
         do {
-            if (!document.uri.startsWith(this.folderUri + '/src/Controller/')) {
-                break;
-            }
-
-            if (code.indexOf('extends AbstractController') < 0) {
+            if (!this.isController(document)) {
                 break;
             }
 
@@ -6063,11 +6041,7 @@ export class Project {
     }
 
     private phpTestServiceName(document: TextDocument, code: string, offset: number, scalarString: nikic.Scalar_String) {
-        if (!document.uri.startsWith(this.folderUri + '/src/Controller/')) {
-            return null;
-        }
-
-        if (code.indexOf('extends AbstractController') < 0) {
+        if (!this.isController(document)) {
             return null;
         }
 
@@ -7771,5 +7745,15 @@ export class Project {
         }
 
         return null;
+    }
+
+    private isController(document: TextDocument): boolean {
+        let code = document.getText();
+
+        return document.uri.startsWith(this.folderUri + '/src/')
+            && (
+                code.includes('extends AbstractController')
+                || code.includes('extends Controller')
+            );
     }
 }

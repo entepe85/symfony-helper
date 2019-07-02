@@ -13,6 +13,8 @@ class DefaultController extends Controller
      */
     public function indexAction()
     {
+        $this->get('form.type.language');
+
         return $this->render('default/index.html.twig', [
             'paramA' => 12,
             'paramB' => 13,
