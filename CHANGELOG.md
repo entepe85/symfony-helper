@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 1.0.5 (2 July 2019)
+
+* Urgent fix for README.md
+
 ## Version 1.0.4 (2 July 2019)
 
 * Basic support of Symfony 3.4
