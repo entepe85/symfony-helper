@@ -3,13 +3,9 @@ import * as twig from '../../src/twig';
 
 describe('scope walker', function () {
     let findVariables = async (code: string, offset: number): Promise<twig.ScopeValues> => {
-        let tokens = twig.tokenize(code);
+        let parsed = twig.fullParse(code);
 
-        let pieces = twig.findTwigPieces(tokens);
-
-        let stmts = twig.parse(code, tokens, pieces);
-
-        let variables = await twig.findVariables(stmts, pieces, tokens, code, offset, new twig.Scope(), async () => null, () => null) as any;
+        let variables = await twig.findVariables(parsed, offset, new twig.Scope(), async () => null, () => null) as any;
 
         return variables;
     };

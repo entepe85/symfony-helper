@@ -49,9 +49,9 @@ export function typeToString(type: TokenType): string {
 }
 
 export interface Token {
-    type: TokenType;
-    offset: number;
-    length: number;
+    readonly type: TokenType;
+    readonly offset: number;
+    readonly length: number;
 }
 
 function escapeRegex(s: string): string {
@@ -368,11 +368,11 @@ export function tokenize(code: string) {
 }
 
 export interface TwigPiece {
-    type: 'comment' | 'var' | 'block';
-    start: number;
-    end: number;
-    startToken: number;
-    endToken: number;
+    readonly type: 'comment' | 'var' | 'block';
+    readonly start: number;
+    readonly end: number;
+    readonly startToken: number;
+    readonly endToken: number;
 }
 
 export function findTwigPieces(tokens: Token[]): TwigPiece[] {
@@ -447,7 +447,9 @@ export function findTwigPieces(tokens: Token[]): TwigPiece[] {
 /**
  * Returns full macro file imports as map from alias name to template name
  */
-export function twigFileMacroImports(code: string, tokens: Token[], pieces: TwigPiece[]) {
+export function twigFileMacroImports(parsed: ParsedTwig) {
+    let { code, tokens, pieces } = parsed;
+
     let result: { [alias: string]: string } = Object.create(null);
 
     for (let piece of pieces) {
@@ -476,7 +478,9 @@ export function twigFileMacroImports(code: string, tokens: Token[], pieces: Twig
 /**
  * Returns individual macro imports created with {%from%}
  */
-export function twigMacroImports(code: string, tokens: Token[], pieces: TwigPiece[]) {
+export function twigMacroImports(parsed: ParsedTwig) {
+    let { code, tokens, pieces } = parsed;
+
     let result: { [alias: string]: { templateName: string, macroName: string }} = Object.create(null);
 
     for (let piece of pieces) {
@@ -514,7 +518,7 @@ export function twigMacroImports(code: string, tokens: Token[], pieces: TwigPiec
     return result;
 }
 
-export function macroArguments(piece: TwigPiece, tokens: Token[], code: string) {
+export function macroArguments(piece: TwigPiece, tokens: ReadonlyArray<Token>, code: string) {
     let result = [];
 
     for (let i = piece.startToken + 4; i <= piece.endToken; i++) {
@@ -529,7 +533,7 @@ export function macroArguments(piece: TwigPiece, tokens: Token[], code: string) 
 /**
  * Returns index of found token or null.
  */
-export function tokenUnderCursor(tokens: Token[], type: TokenType, cursorOffset: number): number | null {
+export function tokenUnderCursor(tokens: ReadonlyArray<Token>, type: TokenType, cursorOffset: number): number | null {
     for (let i = 0; i < tokens.length; i++) {
         let t = tokens[i];
         if (t.type === type) {
@@ -545,7 +549,7 @@ export function tokenUnderCursor(tokens: Token[], type: TokenType, cursorOffset:
 /**
  * Returns index of found token or null.
  */
-export function stringTokenContainingCursor(tokens: Token[], cursorOffset: number): number | null {
+export function stringTokenContainingCursor(tokens: ReadonlyArray<Token>, cursorOffset: number): number | null {
     for (let i = 0; i < tokens.length; i++) {
         let t = tokens[i];
 
@@ -946,7 +950,7 @@ export function parse(code: string, tokens: Token[], pieces: TwigPiece[]) {
 /**
  * Returns deepest statement containing offset with restriction that offset not in any piece
  */
-export function deepestStatement(stmts: Statement[], offset: number, pieces: TwigPiece[], piecesTested: boolean = false): Statement | null {
+export function deepestStatement(stmts: ReadonlyArray<Statement>, offset: number, pieces: ReadonlyArray<TwigPiece>, piecesTested: boolean = false): Statement | null {
     // not all 'pieces' are in 'stmts'
     if (!piecesTested) {
         for (let p of pieces) {
@@ -1099,7 +1103,7 @@ type ExpressionAccessPath = AccessPathElement[];
 /**
  * Collects expressions of form 'name[].name().name()[].'
  */
-export function parseExpression(code: string, tokens: Token[], firstToken: number, lastToken: number) {
+export function parseExpression(code: string, tokens: ReadonlyArray<Token>, firstToken: number, lastToken: number) {
     let accessPaths: ExpressionAccessPath[] = [];
     let subExpressions: { firstToken: number, lastToken: number }[] = [];
 
@@ -1269,20 +1273,20 @@ type FunctionTypeResolver = (name: string) => php.Type | null;
 
 // right now it's one time usage class
 class TreeWalker {
-    private stmts: Statement[];
-    private pieces: TwigPiece[];
-    private tokens: Token[];
+    private stmts: ReadonlyArray<Statement>;
+    private pieces: ReadonlyArray<TwigPiece>;
+    private tokens: ReadonlyArray<Token>;
     private code: string;
     private initialScope: Scope;
     private expressionData: ExpressionData = { names: {}, dots: {} };
     private phpClassInfoResolver: php.PhpClassMoreInfoResolver;
     private functionTypeResolver: FunctionTypeResolver;
 
-    public constructor(stmts: Statement[], pieces: TwigPiece[], tokens: Token[], code: string, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
-        this.stmts = stmts;
-        this.pieces = pieces;
-        this.tokens = tokens;
-        this.code = code;
+    public constructor(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+        this.stmts = parsed.stmts;
+        this.pieces = parsed.pieces;
+        this.tokens = parsed.tokens;
+        this.code = parsed.code;
         this.initialScope = initialScope;
         this.phpClassInfoResolver = phpClassInfoResolver;
         this.functionTypeResolver = functionTypeResolver;
@@ -1309,7 +1313,7 @@ class TreeWalker {
         return this.expressionData;
     }
 
-    private async processNodes(stmts: Statement[], scope: Scope, callback: TreeWalkerCallback) {
+    private async processNodes(stmts: ReadonlyArray<Statement>, scope: Scope, callback: TreeWalkerCallback) {
         for (let stmt of stmts) {
             await this.processNode(stmt, scope, callback);
         }
@@ -1561,14 +1565,36 @@ class TreeWalker {
     }
 }
 
-export async function findVariables(stmts: Statement[], pieces: TwigPiece[], tokens: Token[], code: string, offset: number, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
-    let treeWalker = new TreeWalker(stmts, pieces, tokens, code, initialScope, phpClassInfoResolver, functionTypeResolver);
+export async function findVariables(parsed: ParsedTwig, offset: number, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+    let treeWalker = new TreeWalker(parsed, initialScope, phpClassInfoResolver, functionTypeResolver);
     let result = await treeWalker.getValues(offset);
     return result;
 }
 
-export async function findExpressionData(stmts: Statement[], pieces: TwigPiece[], tokens: Token[], code: string, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
-    let treeWalker = new TreeWalker(stmts, pieces, tokens, code, initialScope, phpClassInfoResolver, functionTypeResolver);
+export async function findExpressionData(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+    let treeWalker = new TreeWalker(parsed, initialScope, phpClassInfoResolver, functionTypeResolver);
     let result = await treeWalker.getExpressionData();
     return result;
+}
+
+export interface ParsedTwig {
+    readonly code: string;
+    readonly tokens: ReadonlyArray<Token>;
+    readonly pieces: ReadonlyArray<TwigPiece>;
+    readonly stmts: ReadonlyArray<Statement>;
+}
+
+export function fullParse(code: string): ParsedTwig {
+    let tokens = tokenize(code);
+    let pieces = findTwigPieces(tokens);
+
+    let parser = new Parser(code, tokens, pieces);
+    let stmts = parser.parse();
+
+    return {
+        code,
+        tokens,
+        pieces,
+        stmts,
+    };
 }

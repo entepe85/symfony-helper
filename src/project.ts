@@ -39,7 +39,6 @@ import {
     findTwigPieces,
     twigFileMacroImports,
     twigMacroImports,
-    parse as twigParse,
     deepestStatement,
     typesOfSimplestStatementWithStatements,
     SimplestStatementWithStatements,
@@ -48,6 +47,8 @@ import {
     findExpressionData,
     Scope,
     tokenUnderCursor,
+    fullParse as twigFullParse,
+    ParsedTwig,
 } from './twig';
 
 import * as php from './php';
@@ -2291,10 +2292,11 @@ export class Project {
 
     private async completeTwig(document: TextDocument, position: Position): Promise<CompletionItem[]> {
         let text = document.getText();
-        let tokens = tokenizeTwig(text);
-        let pieces = findTwigPieces(tokens);
         let offset = document.offsetAt(position);
-        let stmts = twigParse(text, tokens, pieces);
+
+        let parsed = twigFullParse(text);
+
+        let { tokens, pieces } = parsed;
 
         if (!document.uri.startsWith(this.templatesFolderUri+'/')) {
             return [];
@@ -2847,7 +2849,7 @@ export class Project {
                 let alias = match[2];
                 let prefix = match[3];
 
-                let fileMacroImports = twigFileMacroImports(text, tokens, pieces);
+                let fileMacroImports = twigFileMacroImports(parsed);
                 if (fileMacroImports[alias] === undefined) {
                     break;
                 }
@@ -2917,7 +2919,12 @@ export class Project {
                     initialScope.setValue(name, params[name]);
                 }
 
-                let { dots } = await findExpressionData(stmts, pieces, tokens, text, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+                let { dots } = await findExpressionData(
+                    parsed,
+                    initialScope,
+                    (className: string) => this.getMorePhpClass(className),
+                    (name: string) => this.twigFunctionReturnType(name)
+                );
 
                 if (dots[prefixDotTokenIndex] === undefined) {
                     break;
@@ -2964,7 +2971,7 @@ export class Project {
                     break;
                 }
 
-                return this.completeVariableOrFunctionInTemplate(document, position, tokens, pieces);
+                return this.completeVariableOrFunctionInTemplate(document, position, parsed);
             } while (false);
 
             return [];
@@ -3014,7 +3021,7 @@ export class Project {
                 return items;
             } while (false);
 
-            return this.completeTwigTags(document, position, tokens, pieces);
+            return this.completeTwigTags(document, position, parsed);
         }
     }
 
@@ -3037,7 +3044,9 @@ export class Project {
         return result;
     }
 
-    private async completeVariableOrFunctionInTemplate(document: TextDocument, position: Position, tokens: TwigToken[], twigPieces: TwigPiece[]): Promise<CompletionItem[]> {
+    private async completeVariableOrFunctionInTemplate(document: TextDocument, position: Position, parsed: ParsedTwig): Promise<CompletionItem[]> {
+        let { code, pieces } = parsed;
+
         let items: CompletionItem[] = [];
 
         if (!document.uri.startsWith(this.templatesFolderUri + '/')) {
@@ -3046,16 +3055,14 @@ export class Project {
 
         let templateName = document.uri.substr((this.templatesFolderUri + '/').length);
 
-        let text = document.getText();
-
         let offset = document.offsetAt(position);
 
-        if (text[offset - 1] === '.') {
+        if (code[offset - 1] === '.') {
             return items;
         }
 
         let activeTwigPiece;
-        for (let piece of twigPieces) {
+        for (let piece of pieces) {
             if (piece.start < offset && offset < piece.end) {
                 activeTwigPiece = piece;
             }
@@ -3066,7 +3073,7 @@ export class Project {
         }
 
         let identifierLeft = '';
-        let twigPieceLeft = text.substring(activeTwigPiece.start, offset);
+        let twigPieceLeft = code.substring(activeTwigPiece.start, offset);
         let leftMatch = twigPieceLeft.match(/(\w+)$/);
         if (leftMatch) {
             identifierLeft = leftMatch[1];
@@ -3173,10 +3180,14 @@ export class Project {
         }
 
         {
-            let stmts = twigParse(text, tokens, twigPieces);
-
             let initialScope = new Scope();
-            let variables = await findVariables(stmts, twigPieces, tokens, text, offset, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+            let variables = await findVariables(
+                parsed,
+                offset,
+                initialScope,
+                (className: string) => this.getMorePhpClass(className),
+                (name: string) => this.twigFunctionReturnType(name)
+            );
             if (variables !== undefined) {
                 for (let name in variables) {
                     items.push({
@@ -3193,7 +3204,7 @@ export class Project {
 
         // local aliases for macro file imports
         {
-            let fileMacroImports = twigFileMacroImports(text, tokens, twigPieces);
+            let fileMacroImports = twigFileMacroImports(parsed);
 
             for (let alias in fileMacroImports) {
                 let macrosTemplateName = fileMacroImports[alias];
@@ -3219,7 +3230,7 @@ export class Project {
 
         // macro imports from {%from%}
         {
-            let macroImports = twigMacroImports(text, tokens, twigPieces);
+            let macroImports = twigMacroImports(parsed);
 
             for (let alias in macroImports) {
                 let { macroName, templateName: macroTemplateName } = macroImports[alias];
@@ -3259,13 +3270,12 @@ export class Project {
         return items;
     }
 
-    private completeTwigTags(document: TextDocument, position: Position, tokens: TwigToken[], pieces: TwigPiece[]): CompletionItem[] {
+    private completeTwigTags(document: TextDocument, position: Position, parsed: ParsedTwig): CompletionItem[] {
+        let { code, pieces, stmts } = parsed;
+
         let items: CompletionItem[] = [];
 
-        let code = document.getText();
         let offset = document.offsetAt(position);
-
-        let stmts = twigParse(code, tokens, pieces);
 
         for (let piece of pieces) {
             if (piece.start < offset && offset < piece.end) {
@@ -4350,8 +4360,9 @@ export class Project {
 
         let code = document.getText();
         let offset = document.offsetAt(position);
-        let tokens = tokenizeTwig(code);
-        let pieces = findTwigPieces(tokens);
+
+        let parsed = twigFullParse(code);
+        let { tokens, pieces } = parsed;
 
         let cursorPiece: TwigPiece | null = null;
         for (let p of pieces) {
@@ -4470,10 +4481,10 @@ export class Project {
 
         // test '{%from%} for imported macros' and 'macro calls'
         {
-            let result = this.twigTestMacroImport(code, tokens, pieces, offset);
+            let result = this.twigTestMacroImport(parsed, offset);
 
             if (result === null) {
-                result = this.twigTestMacroCall(code, tokens, pieces, offset);
+                result = this.twigTestMacroCall(parsed, offset);
             }
 
             if (result !== null) {
@@ -4499,7 +4510,7 @@ export class Project {
 
         // tests for variables and functions
         {
-            let result = this.twigTestObject(document.uri, code, tokens, pieces, offset);
+            let result = this.twigTestObject(document.uri, parsed, offset);
 
             if (result !== null) {
                 if (result.type === 'function') {
@@ -4564,8 +4575,6 @@ export class Project {
                 break;
             }
 
-            let stmts = twigParse(code, tokens, pieces);
-
             let initialScope = new Scope();
 
             let params = this.collectRenderCallsParams(template.name);
@@ -4573,7 +4582,12 @@ export class Project {
                 initialScope.setValue(name, params[name]);
             }
 
-            let expressionData = await findExpressionData(stmts, pieces, tokens, code, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+            let expressionData = await findExpressionData(
+                parsed,
+                initialScope,
+                (className: string) => this.getMorePhpClass(className),
+                (name: string) => this.twigFunctionReturnType(name)
+            );
 
             let nameTokenInfo = expressionData.names[nameTokenUnderCursorIndex];
             if (nameTokenInfo === undefined) {
@@ -4660,13 +4674,12 @@ export class Project {
 
             let code = document.getText();
             let offset = document.offsetAt(position);
-            let tokens = tokenizeTwig(code);
-            let pieces = findTwigPieces(tokens);
-            let stmts = twigParse(code, tokens, pieces);
+            let parsed = twigFullParse(code);
+            let { tokens } = parsed;
 
             // references of twig function, test or filter
             {
-                let testResult = this.twigTestObject(documentUri, code, tokens, pieces, offset);
+                let testResult = this.twigTestObject(documentUri, parsed, offset);
                 if (testResult !== null) {
                     if (testResult.type === 'function') {
                         let extensionElement = testResult.element;
@@ -4691,7 +4704,12 @@ export class Project {
                     initialScope.setValue(name, callParams[name]);
                 }
 
-                let { names } = await findExpressionData(stmts, pieces, tokens, code, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+                let { names } = await findExpressionData(
+                    parsed,
+                    initialScope,
+                    (className: string) => this.getMorePhpClass(className),
+                    (name: string) => this.twigFunctionReturnType(name)
+                );
 
                 if (names[tokenUnderCursorIndex] === undefined) {
                     break;
@@ -5023,9 +5041,8 @@ export class Project {
                 continue;
             }
             let code = doc.getText();
-            let tokens = tokenizeTwig(code);
-            let pieces = findTwigPieces(tokens);
-            let stmts = twigParse(code, tokens, pieces);
+            let parsed = twigFullParse(code);
+            let { tokens } = parsed;
 
             let initialScope = new Scope();
 
@@ -5034,7 +5051,12 @@ export class Project {
                 initialScope.setValue(name, params[name]);
             }
 
-            let { names } = await findExpressionData(stmts, pieces, tokens, code, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+            let { names } = await findExpressionData(
+                parsed,
+                initialScope,
+                (className: string) => this.getMorePhpClass(className),
+                (name: string) => this.twigFunctionReturnType(name)
+            );
 
             for (let tokenIndex in names) {
                 let nameInfo = names[tokenIndex];
@@ -5365,8 +5387,10 @@ export class Project {
 
         let code = document.getText();
         let offset = document.offsetAt(position);
-        let tokens = tokenizeTwig(code);
-        let pieces = findTwigPieces(tokens);
+
+        let parsed = twigFullParse(code);
+
+        let { tokens, pieces } = parsed;
 
         let cursorPiece: TwigPiece | null = null;
         for (let p of pieces) {
@@ -5463,10 +5487,10 @@ export class Project {
         }
 
         {
-            let result = this.twigTestMacroImport(code, tokens, pieces, offset);
+            let result = this.twigTestMacroImport(parsed, offset);
 
             if (result === null) {
-                result = this.twigTestMacroCall(code, tokens, pieces, offset);
+                result = this.twigTestMacroCall(parsed, offset);
             }
 
             if (result !== null) {
@@ -5503,7 +5527,7 @@ export class Project {
 
         // tests for variables and functions
         {
-            let result = this.twigTestObject(document.uri, code, tokens, pieces, offset);
+            let result = this.twigTestObject(document.uri, parsed, offset);
 
             if (result !== null) {
                 if (result.type === 'function') {
@@ -5593,8 +5617,6 @@ export class Project {
                 break;
             }
 
-            let stmts = twigParse(code, tokens, pieces);
-
             let initialScope = new Scope();
 
             let params = this.collectRenderCallsParams(template.name);
@@ -5602,7 +5624,12 @@ export class Project {
                 initialScope.setValue(name, params[name]);
             }
 
-            let expressionData = await findExpressionData(stmts, pieces, tokens, code, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+            let expressionData = await findExpressionData(
+                parsed,
+                initialScope,
+                (className: string) => this.getMorePhpClass(className),
+                (name: string) => this.twigFunctionReturnType(name)
+            );
 
             let nameTokenInfo = expressionData.names[nameTokenUnderCursorIndex];
             if (nameTokenInfo === undefined) {
@@ -6344,7 +6371,7 @@ export class Project {
     /**
      * Search for name of '{% block %}'
      */
-    private async twigTestBlockName(code: string, tokens: TwigToken[], template: TemplateDescription, offset: number) {
+    private async twigTestBlockName(code: string, tokens: ReadonlyArray<TwigToken>, template: TemplateDescription, offset: number) {
         let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
         let i = tokenIndex;
 
@@ -6416,7 +6443,7 @@ export class Project {
         return hoverValue;
     }
 
-    private twigTestRouteName(code: string, tokens: TwigToken[], offset: number) {
+    private twigTestRouteName(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
         let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.STRING, offset);
         let i = tokenIndex;
 
@@ -6442,7 +6469,7 @@ export class Project {
         };
     }
 
-    private async twigTestConstantFunction(code: string, tokens: TwigToken[], offset: number) {
+    private async twigTestConstantFunction(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
         let tokenIndex = twigStringTokenContainingCursor(tokens, offset);
         let i = tokenIndex;
 
@@ -6505,7 +6532,7 @@ export class Project {
         return null;
     }
 
-    private twigTestTemplateName(code: string, tokens: TwigToken[], offset: number) {
+    private twigTestTemplateName(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
         let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.STRING, offset);
         let i = tokenIndex;
 
@@ -6527,7 +6554,9 @@ export class Project {
     /**
      * Search for imported macro name in {%from%}
      */
-    private twigTestMacroImport(code: string, tokens: TwigToken[], pieces: TwigPiece[], offset: number) {
+    private twigTestMacroImport(parsed: ParsedTwig, offset: number) {
+        let { code, tokens, pieces } = parsed;
+
         let piece: TwigPiece | undefined;
 
         for (let p of pieces) {
@@ -6581,7 +6610,9 @@ export class Project {
         };
     }
 
-    private twigTestMacroCall(code: string, tokens: TwigToken[], pieces: TwigPiece[], offset: number) {
+    private twigTestMacroCall(parsed: ParsedTwig, offset: number) {
+        let { code, tokens, pieces } = parsed;
+
         let cursorTokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
         if (cursorTokenIndex === null) {
             return null;
@@ -6608,8 +6639,8 @@ export class Project {
             return null;
         }
 
-        let fileMacroImports = twigFileMacroImports(code, tokens, pieces);
-        let macroImports = twigMacroImports(code, tokens, pieces);
+        let fileMacroImports = twigFileMacroImports(parsed);
+        let macroImports = twigMacroImports(parsed);
 
         let cursorToken = tokens[cursorTokenIndex];
         let cursorTokenText = twigTokenValue(code, cursorToken);
@@ -6666,7 +6697,9 @@ export class Project {
     /**
      * Tests for variables (local and global) and functions (functions, tests and filters)
      */
-    private twigTestObject(documentUri: string, code: string, tokens: TwigToken[], pieces: TwigPiece[], offset: number): TwigTestObjectResult | null {
+    private twigTestObject(documentUri: string, parsed: ParsedTwig, offset: number): TwigTestObjectResult | null {
+        let { code, tokens } = parsed;
+
         let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
         let i = tokenIndex;
 
@@ -6696,7 +6729,7 @@ export class Project {
 
         // search for imported macro collections
         {
-            let fileMacroImports = twigFileMacroImports(code, tokens, pieces);
+            let fileMacroImports = twigFileMacroImports(parsed);
             if (fileMacroImports[name] !== undefined) {
                 return {
                     type: 'macroFileImport',
@@ -7502,8 +7535,9 @@ export class Project {
 
         let code = document.getText();
         let offset = document.offsetAt(position);
-        let tokens = tokenizeTwig(code);
-        let pieces = findTwigPieces(tokens);
+
+        let parsed = twigFullParse(code);
+        let { tokens, pieces } = parsed;
 
         let cursorPiece: TwigPiece | null = null;
         for (let p of pieces) {
@@ -7562,7 +7596,7 @@ export class Project {
 
         // first test macro calls
         do {
-            let macroTestResult = this.twigTestMacroCall(code, tokens, pieces, tokens[lastCall.nameTokenIndex].offset);
+            let macroTestResult = this.twigTestMacroCall(parsed, tokens[lastCall.nameTokenIndex].offset);
             if (macroTestResult === null) {
                 break;
             }
@@ -7610,7 +7644,7 @@ export class Project {
             }
         }
 
-        let tokenTestResult = this.twigTestObject(document.uri, code, tokens, pieces, tokens[lastCall.nameTokenIndex].offset);
+        let tokenTestResult = this.twigTestObject(document.uri, parsed, tokens[lastCall.nameTokenIndex].offset);
 
         if (tokenTestResult !== null) {
             if (tokenTestResult.type === 'function') {
@@ -7653,8 +7687,12 @@ export class Project {
             initialScope.setValue(name, params[name]);
         }
 
-        let stmts = twigParse(code, tokens, pieces);
-        let { names } = await findExpressionData(stmts, pieces, tokens, code, initialScope, (className: string) => this.getMorePhpClass(className), (name: string) => this.twigFunctionReturnType(name));
+        let { names } = await findExpressionData(
+            parsed,
+            initialScope,
+            (className: string) => this.getMorePhpClass(className),
+            (name: string) => this.twigFunctionReturnType(name)
+        );
 
         if (names[lastCall.nameTokenIndex] !== undefined) {
             let nameInfo = names[lastCall.nameTokenIndex];
