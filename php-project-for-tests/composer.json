@@ -1,0 +1,12 @@
+{
+    "require": {
+        "symfony/http-foundation": "^4.3",
+        "twig/twig": "^2.11",
+        "doctrine/orm": "^2.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Project\\": "php-classes/"
+        }
+    }
+}

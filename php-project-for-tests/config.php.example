@@ -1,0 +1,5 @@
+<?php
+// copy this file to 'config.php' and rewrite as needed
+define('PROJECT_MODE', 'dev'); // can be 'dev' or 'prod'
+define('DB_DRIVER', 'pdo_pgsql');
+define('DB_URL', 'pgsql://user:password@127.0.0.1:5432/dbname');

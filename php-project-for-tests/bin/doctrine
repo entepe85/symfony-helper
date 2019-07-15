@@ -1,0 +1,13 @@
+#!/usr/bin/env php
+<?php
+require_once __DIR__ . '/../bootstrap.php';
+
+use Doctrine\ORM\Tools\Console\ConsoleRunner;
+
+$commands = [];
+
+$em = getEntityManager();
+
+$helperSet = ConsoleRunner::createHelperSet($em);
+
+ConsoleRunner::run($helperSet, $commands);

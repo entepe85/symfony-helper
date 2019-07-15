@@ -1,0 +1,13 @@
+{% extends 'layout.twig' %}
+
+{% block body %}
+
+<p>List of products</p>
+
+{% for p in products %}
+    <p><a href="/catalog/{{ p.id }}">{{ p.name }}</a><br>{{ p.price }}</p>
+{% endfor %}
+
+{% include 'catalog/_piece.twig' %}
+
+{% endblock %}
