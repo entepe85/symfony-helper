@@ -64,7 +64,7 @@ export function activate(context: ExtensionContext) {
 
     context.subscriptions.push(client.start());
 
-    context.subscriptions.push(commands.registerCommand('symfonyHelper.installHttpConsoleHelper', async function () {
+    context.subscriptions.push(commands.registerCommand('symfonyHelper.installHttpConsoleHelper', async () => {
         let folder = await window.showWorkspaceFolderPick();
         if (folder === undefined) {
             return;
@@ -82,7 +82,7 @@ export function activate(context: ExtensionContext) {
         }
     }));
 
-    context.subscriptions.push(commands.registerCommand('symfonyHelper.rebuildIndexes', async function () {
+    context.subscriptions.push(commands.registerCommand('symfonyHelper.rebuildIndexes', async () => {
         let response = await client.sendRequest<{success: true} | { success: false, message: string }>('rebuildIndexes');
 
         if (!response.success) {
@@ -90,11 +90,11 @@ export function activate(context: ExtensionContext) {
         }
     }));
 
-    context.subscriptions.push(commands.registerCommand('symfonyHelper.restartPhpParser', async function () {
+    context.subscriptions.push(commands.registerCommand('symfonyHelper.restartPhpParser', async () => {
         client.sendRequest('restartPhpParser');
     }));
 
-    context.subscriptions.push(commands.registerCommand('symfonyHelper.extendTemplate', async function (resource) {
+    context.subscriptions.push(commands.registerCommand('symfonyHelper.extendTemplate', async (resource) => {
         let baseTemplateUri: string | undefined; // absolute path to extended template
 
         if (resource) {
@@ -138,7 +138,7 @@ export function activate(context: ExtensionContext) {
         }
 
         let response = await client.sendRequest<{ success: boolean, message: string, blocks?: { name: string, detail: string }[] }>('extendTemplate', {
-            baseTemplateUri: baseTemplateUri,
+            baseTemplateUri,
             newTemplateRelativePath: input,
         });
 
@@ -168,7 +168,7 @@ export function activate(context: ExtensionContext) {
                 }
 
                 let response2 = await client.sendRequest<{ success: boolean, message: string, blocks?: { name: string, detail: string }[] }>('extendTemplate', {
-                    baseTemplateUri: baseTemplateUri,
+                    baseTemplateUri,
                     newTemplateRelativePath: input,
                     selectedBlocks: selected.map(row => row.label),
                 });
@@ -188,7 +188,7 @@ export function activate(context: ExtensionContext) {
         }
     }));
 
-    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.openCompiledTemplate', async function (editor: TextEditor) {
+    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.openCompiledTemplate', async (editor: TextEditor) => {
         if (editor.document.uri.scheme !== 'file') {
             await window.showErrorMessage('This command is only for real files');
             return;
@@ -196,9 +196,7 @@ export function activate(context: ExtensionContext) {
 
         let uri = editor.document.uri.toString();
 
-        let response = await client.sendRequest<{ success: boolean, message: string }>('openCompiledTemplate', {
-            uri: uri,
-        });
+        let response = await client.sendRequest<{ success: boolean, message: string }>('openCompiledTemplate', { uri });
 
         if (response.success) {
             try {
@@ -211,7 +209,7 @@ export function activate(context: ExtensionContext) {
         }
     }));
 
-    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.toggleTwigComment', async function (editor: TextEditor) {
+    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.toggleTwigComment', async (editor: TextEditor) => {
         if (editor.document.uri.scheme !== 'file') {
             await window.showErrorMessage('This command is only for real files');
             return;
@@ -225,7 +223,7 @@ export function activate(context: ExtensionContext) {
         }
 
         let response = await client.sendRequest<{ success: boolean, message: string }>('toggleTwigComment', {
-            uri: uri,
+            uri,
             start: editor.selection.start,
             end: editor.selection.end,
         });

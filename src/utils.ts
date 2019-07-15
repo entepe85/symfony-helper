@@ -144,7 +144,7 @@ function parsePhpDocBlockTag(line: string): PhpDocBlockTag | null {
 
         return {
             type: 'var',
-            typeString: typeString,
+            typeString,
         };
     }
 
@@ -249,7 +249,7 @@ export function parsePhpDocBlock(text: string): { summary?: string, description?
     }
 
     let result: { summary?: string, description?: string, tags: any[] } = {
-        tags: tags,
+        tags,
     };
 
     if (summaryLines.length > 0) {

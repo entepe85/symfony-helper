@@ -74,7 +74,7 @@ connection.onInitialized(async () => {
     connection.client.register(DidChangeConfigurationNotification.type, undefined);
 
     nikic.setErrorCallback((message) => {
-        connection.sendRequest('errorMessage', { message: message });
+        connection.sendRequest('errorMessage', { message });
     });
 
     let { portForParser, phpPathForParser } = await getConfiguration();

@@ -402,7 +402,7 @@ export function findTwigPieces(tokens: Token[]): TwigPiece[] {
                     result.push({
                         start: tokens[startToken].offset,
                         end: tokens[i].offset + tokens[i].length,
-                        startToken: startToken,
+                        startToken,
                         endToken: i,
                         type: 'comment',
                     });
@@ -416,8 +416,8 @@ export function findTwigPieces(tokens: Token[]): TwigPiece[] {
                     result.push({
                         start: tokens[startToken].offset,
                         end: tokens[endToken].offset + tokens[endToken].length,
-                        startToken: startToken,
-                        endToken: endToken,
+                        startToken,
+                        endToken,
                         type: 'block',
                     });
                     state = 'none';
@@ -430,8 +430,8 @@ export function findTwigPieces(tokens: Token[]): TwigPiece[] {
                     result.push({
                         start: tokens[startToken].offset,
                         end: tokens[endToken].offset + tokens[endToken].length,
-                        startToken: startToken,
-                        endToken: endToken,
+                        startToken,
+                        endToken,
                         type: 'var',
                     });
                     state = 'none';
@@ -628,8 +628,8 @@ function parseSimpleBlock(pieceIndex: number, piece: TwigPiece, tokens: Token[])
 
     if (piece.endToken >= piece.startToken + 4 && tokens[piece.endToken].type === TokenType.BLOCK_END && tokens[piece.startToken + 2].type === TokenType.NAME) {
         return {
+            pieceIndex,
             type: 'simple-block',
-            pieceIndex: pieceIndex,
         };
     }
 
@@ -646,8 +646,8 @@ function parseSimpleSet(pieceIndex: number, piece: TwigPiece, tokens: Token[]): 
     }
 
     return {
+        pieceIndex,
         type: 'simple-set',
-        pieceIndex: pieceIndex,
     };
 }
 
@@ -751,8 +751,8 @@ class Parser {
 
         let result: SimplestStatementWithStatements = {
             type: name,
-            startPiece: startPiece,
-            stmts: stmts,
+            startPiece,
+            stmts,
         };
 
         if (this.currentPiece === undefined) {
@@ -778,8 +778,8 @@ class Parser {
 
         let result: StatementIf = {
             type: 'if',
-            startPiece: startPiece,
-            stmts: stmts,
+            startPiece,
+            stmts,
         };
 
         if (this.currentPiece === undefined) {
@@ -809,7 +809,7 @@ class Parser {
 
             let elseStmts = this.parseStatements();
             result.elsePart = {
-                pieceIndex: pieceIndex,
+                pieceIndex,
                 stmts: elseStmts,
             };
 
@@ -834,8 +834,8 @@ class Parser {
 
         let result: StatementFor = {
             type: 'for',
-            startPiece: startPiece,
-            stmts: stmts,
+            startPiece,
+            stmts,
         };
 
         if (this.currentPiece === undefined) {
@@ -850,7 +850,7 @@ class Parser {
 
             let elseStmts = this.parseStatements();
             result.elsePart = {
-                pieceIndex: pieceIndex,
+                pieceIndex,
                 stmts: elseStmts,
             };
             this.stack.pop();
@@ -1039,7 +1039,9 @@ export function deepestStatement(stmts: Statement[], offset: number, pieces: Twi
     return null;
 }
 
-export type ScopeValues = { [name: string]: php.Type };
+export interface ScopeValues {
+    [name: string]: php.Type;
+}
 
 export class Scope {
     private parent?: Scope;
@@ -1194,7 +1196,7 @@ export function parseExpression(code: string, tokens: Token[], firstToken: numbe
 
                         if (closingBraceIndex === undefined) {
                             if (currentTokenIndex + 1 <= lastToken) {
-                                subExpressions.push({ firstToken: currentTokenIndex + 1, lastToken: lastToken});
+                                subExpressions.push({ firstToken: currentTokenIndex + 1, lastToken });
                             }
                         } else {
                             if (currentTokenIndex + 1 <= closingBraceIndex - 1) {
@@ -1477,7 +1479,7 @@ class TreeWalker {
                     do {
                         if (vars[name] !== undefined) {
                             phpType = vars[name];
-                            namesData[accessElement.tokenIndex] = { type: 'variable', phpType: phpType };
+                            namesData[accessElement.tokenIndex] = { type: 'variable', phpType };
                             break;
                         }
 
@@ -1488,7 +1490,7 @@ class TreeWalker {
                         }
 
                         phpType = new php.AnyType();
-                        namesData[accessElement.tokenIndex] = { type: 'variable', phpType: phpType };
+                        namesData[accessElement.tokenIndex] = { type: 'variable', phpType };
                     } while (false);
 
                     accessPathPrefixType = phpType;
@@ -1510,7 +1512,7 @@ class TreeWalker {
                             // search for class property
                             for (let p of moreClassInfo.properties) {
                                 if (p.name === tokenText && p.isPublic) {
-                                    namesData[accessElement.tokenIndex] = { type: 'classProperty', className: className, propertyName: tokenText };
+                                    namesData[accessElement.tokenIndex] = { type: 'classProperty', className, propertyName: tokenText };
                                     accessPathPrefixType = p.type;
                                     continue access_elements_loop;
                                 }
@@ -1519,7 +1521,7 @@ class TreeWalker {
                             // search for class method
                             for (let m of moreClassInfo.methods) {
                                 if (m.name === tokenText && m.isPublic) {
-                                    namesData[accessElement.tokenIndex] = { type: 'classMethod', className: className, methodName: m.name };
+                                    namesData[accessElement.tokenIndex] = { type: 'classMethod', className, methodName: m.name };
                                     accessPathPrefixType = m.returnType;
                                     continue access_elements_loop;
                                 }
@@ -1529,7 +1531,7 @@ class TreeWalker {
                             for (let prefix of ['get', 'is', 'has']) {
                                 for (let m of moreClassInfo.methods) {
                                     if ((m.name === prefix + tokenText[0].toUpperCase() + tokenText.substr(1)) && m.isPublic) {
-                                        namesData[accessElement.tokenIndex] = { type: 'classMethod', className: className, methodName: m.name };
+                                        namesData[accessElement.tokenIndex] = { type: 'classMethod', className, methodName: m.name };
                                         accessPathPrefixType = m.returnType;
                                         continue access_elements_loop;
                                     }

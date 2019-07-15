@@ -106,8 +106,8 @@ export function tokenize(input: string): Token[] {
         }
 
         tokens.push({
+            type,
             position: match.position,
-            type: type,
             value: match.value,
         });
     }

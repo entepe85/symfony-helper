@@ -438,7 +438,7 @@ export class Service {
 
                 newFileLayout.push({
                     name: blockName,
-                    layout: layout,
+                    layout,
                     parent: false,
                 });
             }
@@ -495,7 +495,7 @@ export class Service {
                     });
                 }
 
-                return { success: false, message: '', blocks: blocks };
+                return { success: false, message: '', blocks };
             }
         }
 

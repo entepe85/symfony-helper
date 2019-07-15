@@ -12,7 +12,6 @@
         "interface-name": false,
         "array-type": false,
         "forin": false,
-        "object-literal-shorthand": false,
         "trailing-comma": [
             true,
             {
@@ -25,10 +24,8 @@
         "max-classes-per-file": false,
         "no-empty": [true, "allow-empty-catch"],
         "member-ordering": false,
-        "only-arrow-functions": false,
         "space-before-function-paren": [true, {"anonymous": "always", "named": "never"}],
         "no-unused-expression": true,
-        "no-parameter-reassignment": true,
-        "interface-over-type-literal": false
+        "no-parameter-reassignment": true
     }
 }

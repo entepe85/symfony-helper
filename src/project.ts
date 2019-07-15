@@ -365,7 +365,7 @@ function twigCompletionsForClass(phpClass: PhpClass, morePhpClass: php.PhpClassM
             }
 
             let item: CompletionItem = {
-                label: label,
+                label,
                 textEdit: {
                     newText: label,
                     range: editRange,
@@ -562,7 +562,7 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
 
             for (let c of stmt.consts) {
                 let constData: php.PhpClassConstant = {
-                    isPublic: isPublic,
+                    isPublic,
                     name: c.name.name,
                     offset: (stmt.consts.length === 1) ? offset : c.attributes.startFilePos,
                 };
@@ -609,9 +609,9 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
 
             /* tslint:disable no-bitwise */
             let methodData: php.PhpClassMethod = {
+                isPublic,
                 name: stmt.name.name,
                 offset: stmt.attributes.startFilePos,
-                isPublic: isPublic,
                 isStatic: (stmt.flags & nikic.ClassModifier.MODIFIER_STATIC) > 0,
                 params: [],
                 returnType: new php.AnyType(),
@@ -979,7 +979,12 @@ interface ServiceXmlDescription {
     class?: string;
 }
 
-type TemplateBlockInfo = { templateName: string, name: string, offset: number, layout: 'short'|'one-line'|'lines' };
+interface TemplateBlockInfo {
+    templateName: string;
+    name: string;
+    offset: number;
+    layout: 'short'|'one-line'|'lines';
+}
 
 interface TemplateMacroDescription {
     name: string;
@@ -1278,8 +1283,8 @@ export class Project {
                     let serviceId = tag.attributes.id;
 
                     let serviceDescription: ServiceXmlDescription = {
+                        fileUri,
                         id: serviceId,
-                        fileUri: fileUri,
                         tagStartOffset: tagStart,
                         tagEndOffset: parser.position,
                     };
@@ -1469,13 +1474,13 @@ export class Project {
         }
 
         let phpClass: PhpClass = {
-            fullClassName: fullClassName,
-            fileUri: fileUri,
+            fullClassName,
+            fileUri,
+            hasConstants,
             offset: classMatch.index + classMatch[2].length,
             nameStartOffset: classMatch.index + classMatch[1].length,
             nameEndOffset: classMatch.index + classMatch[1].length + classMatch[6].length,
             type: (classMatch[5] === 'class') ? 'class' : 'interface',
-            hasConstants: hasConstants,
         };
 
         if (code.match(this.TWIG_REGEXP)) {
@@ -1570,8 +1575,8 @@ export class Project {
 
         let descr: TemplateDescription = {
             fileUri,
+            tokens,
             name: templateName,
-            tokens: tokens,
             blocks: [],
             macros: [],
         };
@@ -1605,7 +1610,7 @@ export class Project {
                         }
                     }
 
-                    descr.blocks.push({ templateName: templateName, name: blockMatch[1], offset: piece.start, layout: blockLayout });
+                    descr.blocks.push({ templateName, name: blockMatch[1], offset: piece.start, layout: blockLayout });
                 }
 
                 // search for macro definition
@@ -1919,7 +1924,7 @@ export class Project {
                 let templateName = firstArg.value.value;
 
                 let renderCall: TemplateRenderCall = {
-                    callerUri: callerUri,
+                    callerUri,
                     className: callerClassName,
                     methodName: methodNode.name.name,
                     name: templateName,
@@ -2608,10 +2613,10 @@ export class Project {
                         let newText = fullClassName.replace(/\\/g, '\\\\');
 
                         items.push({
-                            label: label,
+                            label,
                             kind: (phpClass.type === 'class') ? CompletionItemKind.Class : CompletionItemKind.Interface,
                             textEdit: {
-                                newText: newText,
+                                newText,
                                 range: editRange,
                             },
                             detail: fullClassName,
@@ -2790,23 +2795,23 @@ export class Project {
 
                     items.push({
                         label: 'false',
+                        detail,
                         textEdit: {
                             newText: 'false',
                             range: editRange,
                         },
-                        detail: detail,
                     });
 
                     for (let s of strategies) {
                         let label = `'${s}'`;
 
                         items.push({
-                            label: label,
+                            label,
+                            detail,
                             textEdit: {
                                 newText: label,
                                 range: editRange,
                             },
-                            detail: detail,
                         });
                     }
                 } else {
@@ -2815,11 +2820,11 @@ export class Project {
                     for (let s of strategies) {
                         items.push({
                             label: s,
+                            detail,
                             textEdit: {
                                 newText: s,
                                 range: editRange,
                             },
-                            detail: detail,
                         });
                     }
                 }
@@ -3237,7 +3242,7 @@ export class Project {
                 items.push({
                     label: alias,
                     detail: macro.definitionString,
-                    documentation: documentation,
+                    documentation,
                 });
             }
         }
@@ -3450,7 +3455,7 @@ export class Project {
                 label: '%' + label,
                 filterText: (filterText === undefined) ? label : filterText,
                 textEdit: {
-                    range: range,
+                    range,
                     newText: macro,
                 },
                 insertTextFormat: InsertTextFormat.Snippet,
@@ -3468,7 +3473,7 @@ export class Project {
             label: '{{ ...|raw }}',
             filterText: 'raw',
             textEdit: {
-                range: range,
+                range,
                 newText: '{{ $1|raw }}',
             },
             insertTextFormat: InsertTextFormat.Snippet,
@@ -3563,7 +3568,7 @@ export class Project {
                     if (use) {
                         let classBaseditem: CompletionItem = {
                             label: '.' + className,
-                            textEdit: { newText: newText, range: editRange },
+                            textEdit: { newText, range: editRange },
                             detail: fullClassName,
                         };
 
@@ -3585,7 +3590,7 @@ export class Project {
                     if (use) {
                         let idBasedItem: CompletionItem = {
                             label: '.' + serviceId,
-                            textEdit: { newText: newText, range: editRange },
+                            textEdit: { newText, range: editRange },
                             detail: fullClassName,
                         };
 
@@ -6061,7 +6066,7 @@ export class Project {
         }
 
         return {
-            service: service,
+            service,
             hoverLeftOffset: scalarString.attributes.startFilePos,
             hoverRightOffset: scalarString.attributes.endFilePos + 1,
         };
@@ -6476,7 +6481,7 @@ export class Project {
 
         if (rawClassNameLeftOffset <= offset && offset <= rawClassNameRightOffset) {
             return {
-                className: className,
+                className,
                 hoverLeftOffset: rawClassNameLeftOffset,
                 hoverRightOffset: rawClassNameRightOffset,
             };
@@ -6569,8 +6574,8 @@ export class Project {
 
         const nameToken = nameTokenUnderCursor.token;
         return {
+            templateName,
             macroName: twigTokenValue(code, nameToken),
-            templateName: templateName,
             hoverLeftOffset: nameToken.offset,
             hoverRightOffset: nameToken.offset + nameToken.length,
         };
@@ -6757,9 +6762,9 @@ export class Project {
                         if (row.name === name) {
                             return {
                                 type: 'global',
-                                fileUri: fileUri,
+                                fileUri,
+                                name,
                                 offset: row.nameStartOffset,
-                                name: name,
                                 hoverLeftOffset: nameToken.offset,
                                 hoverRightOffset: nameToken.offset + nameToken.length,
                             };
@@ -6789,8 +6794,8 @@ export class Project {
                     if (element.name === name) {
                         return {
                             type: 'function',
-                            fileUri: fileUri,
-                            element: element,
+                            fileUri,
+                            element,
                             hoverLeftOffset: nameToken.offset,
                             hoverRightOffset: nameToken.offset + nameToken.length,
                         };
@@ -6860,8 +6865,8 @@ export class Project {
                 return {
                     type: 'entityClass',
                     className: entityClass,
-                    hoverLeftOffset: hoverLeftOffset,
-                    hoverRightOffset: hoverRightOffset,
+                    hoverLeftOffset,
+                    hoverRightOffset,
                 };
             }
         }
@@ -6900,8 +6905,8 @@ export class Project {
             type: 'entityField',
             className: identifierToEntity[accessPath[0]],
             accessPath: accessPath.slice(1),
-            hoverLeftOffset: hoverLeftOffset,
-            hoverRightOffset: hoverRightOffset,
+            hoverLeftOffset,
+            hoverRightOffset,
         };
     }
 
@@ -6945,7 +6950,7 @@ export class Project {
 
         if (rawClassNameLeftOffset <= offset && offset <= rawClassNameRightOffset) {
             return {
-                className: className,
+                className,
                 hoverLeftOffset: rawClassNameLeftOffset,
                 hoverRightOffset: rawClassNameRightOffset,
             };
@@ -7340,7 +7345,7 @@ export class Project {
         for (let fileUri in this.phpClasses) {
             let bundleInfo = this.phpClasses[fileUri].bundle;
             if (bundleInfo !== undefined) {
-                result.push(bundleInfo)
+                result.push(bundleInfo);
             }
         }
 
@@ -7725,10 +7730,10 @@ export class Project {
     /**
      * Finds template name from path relative to 'this.folderUri'
      */
-    public templateName(path: string) {
-        if (path.startsWith('vendor/')) {
+    public templateName(relativePath: string) {
+        if (relativePath.startsWith('vendor/')) {
             let bundles = this.getBundles();
-            let templateUri = this.folderUri + '/' + path;
+            let templateUri = this.folderUri + '/' + relativePath;
 
             for (let b of bundles) {
                 let bundleViewsFolderUri = b.folderUri + '/Resources/views/';
@@ -7738,10 +7743,10 @@ export class Project {
                     return '@' + shortName + '/' + templateUri.substr(bundleViewsFolderUri.length);
                 }
             }
-        } else if (path.startsWith('templates/') && !this.is3) {
-            return path.substr('templates/'.length);
-        } else if (path.startsWith('app/Resources/views/') && this.is3) {
-            return path.substr('app/Resources/views/'.length);
+        } else if (relativePath.startsWith('templates/') && !this.is3) {
+            return relativePath.substr('templates/'.length);
+        } else if (relativePath.startsWith('app/Resources/views/') && this.is3) {
+            return relativePath.substr('app/Resources/views/'.length);
         }
 
         return null;
