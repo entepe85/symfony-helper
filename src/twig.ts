@@ -568,7 +568,7 @@ export function tokenValue(orginalText: string, token: Token): string {
 
 // don't forget to synchronize
 type TypesOfSimplestStatementWithStatements = 'autoescape' | 'block' | 'embed' | 'filter' | 'macro' | 'sandbox' | 'spaceless' | 'verbatim' | 'with' | 'set';
-export let typesOfSimplestStatementWithStatements = ['autoescape', 'block', 'embed', 'filter', 'macro', 'sandbox', 'spaceless', 'verbatim', 'with', 'set'];
+export const typesOfSimplestStatementWithStatements: ReadonlyArray<string> = ['autoescape', 'block', 'embed', 'filter', 'macro', 'sandbox', 'spaceless', 'verbatim', 'with', 'set'];
 
 export interface SimplestStatementWithStatements {
     type: TypesOfSimplestStatementWithStatements;

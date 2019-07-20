@@ -5,9 +5,9 @@ import { AllTextDocuments, packagePath, SymfonyHelperSettings } from '../../src/
 import * as nikic from '../../src/nikic-php-parser';
 import URI from 'vscode-uri';
 
-export let projectUri = URI.file(path.join(packagePath, 'symfony-4.2-project')).toString();
-export let project34Uri = URI.file(path.join(packagePath, 'symfony-3.4-project')).toString();
-export let projectAnyPhpUri = URI.file(path.join(packagePath, 'php-project-for-tests')).toString();
+export const projectUri = URI.file(path.join(packagePath, 'symfony-4.2-project')).toString();
+export const project34Uri = URI.file(path.join(packagePath, 'symfony-3.4-project')).toString();
+export const projectAnyPhpUri = URI.file(path.join(packagePath, 'php-project-for-tests')).toString();
 
 let service: Service;
 
