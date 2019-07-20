@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { Position, Range, Definition } from 'vscode-languageserver';
 import { project34Uri, getService } from './_utils';
 
-describe('twig in symfony 3.4', function () {
+describe('php in symfony 3.4', function () {
     let controllersUri = project34Uri + '/src/AppBundle/Controller';
 
     it('should support definition for dql', async function () {
