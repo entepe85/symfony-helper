@@ -16,5 +16,6 @@
 /.web-server-pid
 ###< symfony/web-server-bundle ###
 
+/.vscode/
 /public/vscode-symfony-helper.php
 /.symfony-helper.json

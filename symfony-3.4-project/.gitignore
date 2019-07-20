@@ -15,3 +15,7 @@
 !var/SymfonyRequirements.php
 /vendor/
 /web/bundles/
+
+/.vscode/
+/web/vscode-symfony-helper.php
+/.symfony-helper.json

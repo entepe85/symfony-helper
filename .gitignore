@@ -4,6 +4,3 @@ out/
 php-bin/vendor/
 coverage/
 .nyc_output/
-php-project-for-tests/.vscode/
-symfony-3.4-project/.vscode/
-symfony-4.2-project/.vscode/

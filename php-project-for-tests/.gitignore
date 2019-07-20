@@ -1,3 +1,5 @@
 /vendor/
 /cache/
 /config.php
+
+/.vscode/

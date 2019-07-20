@@ -9,6 +9,14 @@ export const projectUri = URI.file(path.join(packagePath, 'symfony-4.2-project')
 export const project34Uri = URI.file(path.join(packagePath, 'symfony-3.4-project')).toString();
 export const projectAnyPhpUri = URI.file(path.join(packagePath, 'php-project-for-tests')).toString();
 
+let portA = 6300;
+let portB = 6301;
+
+export const serversConf = [
+    { port: portA, folderPath: path.join(packagePath, 'symfony-4.2-project', 'public') },
+    { port: portB, folderPath: path.join(packagePath, 'symfony-3.4-project', 'web') },
+];
+
 let service: Service;
 
 let fakeFiles = [
@@ -33,15 +41,27 @@ export async function getService(): Promise<Service> {
             let templatesFolder = (uri === projectAnyPhpUri) ? 'views' : 'templates';
 
             if (process.env.COMMANDS_HELPER_TYPE === 'http') {
-                fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-3.4-project/public/vscode-symfony-helper.php');
+                fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-3.4-project/web/vscode-symfony-helper.php');
                 fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-4.2-project/public/vscode-symfony-helper.php');
 
-                result = {
-                    consoleHelper: {
+                let consoleHelperSettings: { type: 'http', phpPath: string, webPath: string };
+
+                if (uri === projectUri) {
+                    consoleHelperSettings = {
                         type: 'http',
                         phpPath: '',
-                        webPath: 'http://localhost:8000/vscode-symfony-helper.php',
-                    },
+                        webPath: 'http://localhost:' + portA + '/vscode-symfony-helper.php',
+                    };
+                } else {
+                    consoleHelperSettings = {
+                        type: 'http',
+                        phpPath: '',
+                        webPath: 'http://localhost:' + portB + '/vscode-symfony-helper.php',
+                    };
+                }
+
+                result = {
+                    consoleHelper: consoleHelperSettings,
                     templatesFolder,
                 }
             } else {
