@@ -947,6 +947,7 @@ export function parse(code: string, tokens: Token[], pieces: TwigPiece[]) {
     return parser.parse();
 }
 
+/* tslint:disable strict-boolean-expressions */
 /**
  * Returns deepest statement containing offset with restriction that offset not in any piece
  */
@@ -1042,6 +1043,7 @@ export function deepestStatement(stmts: ReadonlyArray<Statement>, offset: number
 
     return null;
 }
+/* tslint:enable strict-boolean-expressions */
 
 export interface ScopeValues {
     [name: string]: php.Type;
@@ -1345,7 +1347,7 @@ class TreeWalker {
                     type = await this.processExpression(piece.startToken + 4, piece.endToken, scope);
                 }
 
-                scope.setValue(name, type || new php.AnyType());
+                scope.setValue(name, (type === undefined) ? new php.AnyType() : type);
             } else {
                 // multiassignment {% set x, y, z = ... %}
                 let expectName = true;

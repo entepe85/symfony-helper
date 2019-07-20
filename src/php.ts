@@ -130,7 +130,7 @@ export class ArrayType extends Type {
     }
 
     public getKnownValues() {
-        return this.knownValues;
+        return (this.knownValues === undefined) ? {} : this.knownValues;
     }
 
     public equals(type: Type): boolean {
@@ -138,9 +138,9 @@ export class ArrayType extends Type {
             return false;
         }
 
-        let values1 = this.knownValues || {};
+        let values1 = (this.knownValues === undefined) ? {} : this.knownValues;
         let keys1 = Object.keys(values1);
-        let values2 = type.getKnownValues() || {};
+        let values2 = type.getKnownValues();
         let keys2 = Object.keys(values2);
 
         keys1.push(...keys2);

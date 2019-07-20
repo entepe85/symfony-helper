@@ -812,14 +812,11 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
             offset: stmt.attributes.startFilePos,
             comment: propComment,
             type: fieldType,
+            isEmbedded,
         };
 
         if (joinType === 'ManyToOne' || joinType === 'ManyToMany' || joinType === 'OneToOne' || joinType === 'OneToMany') {
             fieldData.joinType = joinType;
-        }
-
-        if (isEmbedded) {
-            fieldData.isEmbedded = true;
         }
 
         fields.push(fieldData);
@@ -851,7 +848,7 @@ interface EntityFieldData {
     hoverMarkdown: string;
     type: string;
     joinType?: 'ManyToOne' | 'ManyToMany' | 'OneToOne' | 'OneToMany';
-    isEmbedded?: true;
+    isEmbedded: boolean;
 }
 
 function isLooksLikeDQL(str: string): boolean {
@@ -909,11 +906,11 @@ function collectEntitiesAliases(tokens: DqlToken[], entities: { [className: stri
                 let existingAlias = tokens[i+1].value;
                 let existingAliasField = tokens[i+3].value;
 
-                if (result[existingAlias] && entities[result[existingAlias]]) {
+                if (result[existingAlias] !== undefined && entities[result[existingAlias]] !== undefined) {
                     let entityData = entities[result[existingAlias]];
-                    let field = entityData.fields.filter(row => row.name === existingAliasField)[0];
+                    let field = entityData.fields.find(row => row.name === existingAliasField);
 
-                    if (field && field.joinType) {
+                    if (field !== undefined && field.joinType !== undefined) {
                         result[alias] = field.type;
                     }
                 }
@@ -943,10 +940,10 @@ function parseSymfonyRoutePath(routePath: string): string[] {
     let match;
     do {
         match = regexp.exec(routePath);
-        if (match) {
+        if (match !== null) {
             params.push(match[1]);
         }
-    } while (match);
+    } while (match !== null);
 
     return params;
 }
@@ -1052,7 +1049,7 @@ function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string)
         prefix = '... |';
     }
 
-    if (element.implementation) {
+    if (element.implementation !== undefined) {
         let impl = element.implementation;
         let paramsNames = impl.params.map(row => row.name);
 
@@ -1062,7 +1059,7 @@ function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string)
         }
 
         helpPieces.push(prefix + ' ' + element.name + paramsPart);
-        if (impl.help) {
+        if (impl.help !== undefined) {
             helpPieces.push(impl.help);
         }
     } else {
@@ -1501,7 +1498,7 @@ export class Project {
         let className = classMatch[6];
         let fullClassName;
         let namespaceMatch = code.match(this.NAMESPACE_REGEXP);
-        if (namespaceMatch) {
+        if (namespaceMatch !== null) {
             fullClassName = namespaceMatch[1] + '\\' + className;
         } else {
             fullClassName = className;
@@ -1526,7 +1523,7 @@ export class Project {
             type: (classMatch[5] === 'class') ? 'class' : 'interface',
         };
 
-        if (code.match(this.TWIG_REGEXP)) {
+        if (code.match(this.TWIG_REGEXP) !== null) {
             let { elements, globals } = await findTwigExtensionElements(code);
             if (elements.length > 0) {
                 phpClass.twigExtensionElements = elements;
@@ -1625,7 +1622,7 @@ export class Project {
         };
 
         let extendsMatch = code.match(/{%\s*extends\s+['"]([\w!@\./\-]+)['"]/);
-        if (extendsMatch) {
+        if (extendsMatch !== null) {
             descr.extends = extendsMatch[1];
         }
 
@@ -1635,15 +1632,15 @@ export class Project {
             if (piece.type === 'block') {
                 let str = code.substring(piece.start, piece.end);
                 let blockMatch = str.match(/^{%\s*block\s+(\w+)/);
-                if (blockMatch) {
+                if (blockMatch !== null) {
                     let blockLayout: 'short'|'one-line'|'lines' = 'short';
 
-                    if (str.match(/^{%\s*block\s+(\w+)\s*%}/)) {
+                    if (str.match(/^{%\s*block\s+(\w+)\s*%}/) !== null) {
                         let nextNewlineIndex = code.indexOf('\n', piece.end);
 
                         if (nextNewlineIndex > 0) {
                             let lineSuffix = code.substring(piece.end, nextNewlineIndex);
-                            if (lineSuffix.match(/{%\s*endblock\s*%}/)) {
+                            if (lineSuffix.match(/{%\s*endblock\s*%}/) !== null) {
                                 blockLayout = 'one-line';
                             } else {
                                 blockLayout = 'lines';
@@ -2353,10 +2350,10 @@ export class Project {
             }
         }
 
-        if (currentPiece) {
+        if (currentPiece !== null) {
             let currentPieceToCursor = text.substring(currentPiece.start, offset);
 
-            if (currentPieceToCursor.match(/^{%\s*end\w*\s+$/)) {
+            if (currentPieceToCursor.match(/^{%\s*end\w*\s+$/) !== null) {
                 return [];
             }
 
@@ -2742,11 +2739,11 @@ export class Project {
             {
                 let match = currentPieceToCursor.match(/is\s+not\s+(\w*)$/);
                 let match2 = currentPieceToCursor.match(/is\s+(\w*)$/);
-                if (match || match2) {
+                if (match !== null || match2 !== null) {
                     let prefix = '';
-                    if (match) {
+                    if (match !== null) {
                         prefix = match[1];
-                    } else if (match2) {
+                    } else if (match2 !== null) {
                         prefix = match2[1];
                     }
 
@@ -3022,7 +3019,7 @@ export class Project {
             do {
                 let textToCursor = text.substring(0, offset);
                 let match = textToCursor.match(/[^\w]href="([\w-]*)$/);
-                if (!match) {
+                if (match === null) {
                     break;
                 }
 
@@ -3110,14 +3107,14 @@ export class Project {
             }
         }
 
-        if (!activeTwigPiece) {
+        if (activeTwigPiece === undefined) {
             return items;
         }
 
         let identifierLeft = '';
         let twigPieceLeft = code.substring(activeTwigPiece.start, offset);
         let leftMatch = twigPieceLeft.match(/(\w+)$/);
-        if (leftMatch) {
+        if (leftMatch !== null) {
             identifierLeft = leftMatch[1];
         }
 
@@ -3139,7 +3136,7 @@ export class Project {
                         for (let param of renderCall.params) {
                             let name = param.name;
 
-                            if (!preItems[name]) {
+                            if (preItems[name] === undefined) {
                                 preItems[name] = {
                                     label: name,
                                     kind: CompletionItemKind.Variable,
@@ -3189,7 +3186,7 @@ export class Project {
         }
 
         // collecting globals from 'twig.yaml'
-        if (this.twigYaml) {
+        if (this.twigYaml !== undefined) {
             for (let global of this.twigYaml.globals) {
                 items.push({
                     label: global.name,
@@ -3327,7 +3324,7 @@ export class Project {
 
         let codeToCursor = code.substr(0, offset);
         let match = codeToCursor.match(/(\w+)$/);
-        let prefix = match ? match[1] : '';
+        let prefix = (match !== null) ? match[1] : '';
         let range = Range.create(
             document.positionAt(offset - prefix.length),
             position
@@ -3485,7 +3482,7 @@ export class Project {
 
                     let prefixBeforePrefix = code.substring(lastNewLineBeforeCursor + 1, offset - prefix.length);
 
-                    if (prefixBeforePrefix.match(/^\s*$/)) {
+                    if (prefixBeforePrefix.match(/^\s*$/) !== null) {
                         for (let row of moreData) {
                             row.additionalTextEdit = {
                                 newText: startPiecePrefix,
@@ -3845,7 +3842,7 @@ export class Project {
         }
 
         let textBetweenDotAndCursor = scalarString.value.substring(tokens[dotBeforeCursorIndex].position + 1, cursorOffsetInString);
-        if (!textBetweenDotAndCursor.match(/^\w*$/)) {
+        if (textBetweenDotAndCursor.match(/^\w*$/) === null) {
             return [];
         }
 
@@ -3945,7 +3942,7 @@ export class Project {
         let match = line.match(/[^\w](render|renderView)\s*\(\s*(['"]?[@!\w\./\-]*)?$/);
         let isQuotePlaced = false;
         let existingPrefix = '';
-        if (match) {
+        if (match !== null) {
             if (match[2] !== undefined) {
                 if (match[2][0] === '"' || match[2][0] === '\'') {
                     existingPrefix = match[2].substr(1);
@@ -3960,7 +3957,7 @@ export class Project {
                 let prevLine = lines[position.line - 1];
                 let prevLineMatch = prevLine.match(/[^\w](render|renderView)\s*\(\s*$/);
                 let lineMatch = line.match(/\s*(['"]?[@!\w\./\-]*)?$/);
-                if (!(prevLineMatch && lineMatch)) {
+                if (prevLineMatch === null || lineMatch === null) {
                     return [];
                 }
 
@@ -4561,7 +4558,7 @@ export class Project {
                     if (extensionDocument !== null) {
                         let elementPosition: Position;
 
-                        if (result.element.implementation) {
+                        if (result.element.implementation !== undefined) {
                             elementPosition = extensionDocument.positionAt(result.element.implementation.offset);
                         } else {
                             elementPosition = extensionDocument.positionAt(result.element.constructorOffset);
@@ -5786,7 +5783,7 @@ export class Project {
 
     private serviceHoverMarkdown(service: ServiceXmlDescription): string {
         let pieces = ['```'];
-        if (service.class) {
+        if (service.class !== undefined) {
             pieces.push('class ' + service.class);
         }
         pieces.push('defined in ' + service.fileUri.substr(this.folderUri.length + 1));
@@ -5816,7 +5813,7 @@ export class Project {
             }
 
             for (let block of parentTemplate.blocks) {
-                if (!result[block.name]) {
+                if (result[block.name] === undefined) {
                     result[block.name] = [];
                 }
 
@@ -5895,7 +5892,7 @@ export class Project {
         let tagString = document.getText().substring(description.tagStartOffset, description.tagEndOffset);
 
         let aliasMatch = tagString.match(aliasRegexp);
-        if (!aliasMatch || aliasMatch.index === undefined) {
+        if (aliasMatch === null || aliasMatch.index === undefined) {
             return null;
         }
 
@@ -5937,13 +5934,13 @@ export class Project {
 
         // first test 'class', then 'id'
         let classMatch = tagString.match(classRegexp);
-        if (classMatch && classMatch.index !== undefined) {
+        if (classMatch !== null && classMatch.index !== undefined) {
             className = classMatch[1];
             matchIndex = classMatch.index;
             prefixLength = 'class="'.length;
         } else {
             let idMatch = tagString.match(classlikeIdRegexp);
-            if (idMatch && idMatch.index !== undefined) {
+            if (idMatch !== null && idMatch.index !== undefined) {
                 className = idMatch[1];
                 matchIndex = idMatch.index;
                 prefixLength = 'id="'.length;
@@ -6762,9 +6759,9 @@ export class Project {
 
         let isFilterPlace = false;
         {
-            if (codeToCursor.match(/\|\s*(\w*)$/)) {
+            if (codeToCursor.match(/\|\s*(\w*)$/) !== null) {
                 isFilterPlace = true;
-            } else if (codeToCursor.match(/^{%\s*filter\s+(\w*)$/)) {
+            } else if (codeToCursor.match(/^{%\s*filter\s+(\w*)$/) !== null) {
                 isFilterPlace = true;
             }
         }
@@ -6813,7 +6810,7 @@ export class Project {
 
         // search for globals
         {
-            if (this.twigYaml) {
+            if (this.twigYaml !== undefined) {
                 for (let global of this.twigYaml.globals) {
                     if (global.name === name) {
                         return {
@@ -7058,7 +7055,7 @@ export class Project {
         let value = resourceScalar.value;
 
         let match = value.match(/^@(\w*)(\/[\w/\.]*)$/);
-        if (!match) {
+        if (match === null) {
             return null;
         }
 
@@ -7782,7 +7779,7 @@ export class Project {
     }
 
     public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>) {
-        this.getSettings = () => { return resolver(this.folderUri); };
+        this.getSettings = () => resolver(this.folderUri);
     }
 
     /**
@@ -7799,7 +7796,7 @@ export class Project {
 
             for (let element of extensionElements) {
                 if (element.type === 'function' && element.name === functionName) {
-                    return element.implementation ? element.implementation.returnType : new php.AnyType();
+                    return (element.implementation !== undefined) ? element.implementation.returnType : new php.AnyType();
                 }
             }
         }

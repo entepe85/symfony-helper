@@ -426,7 +426,7 @@ export class Service {
             for (let blockName of selectedBlocks) {
                 let layout = 'lines';
 
-                if (blocksData[blockName]) {
+                if (blocksData[blockName] !== undefined) {
                     let blockData = blocksData[blockName];
                     layout = blockData[blockData.length - 1].layout;
                 }
@@ -648,7 +648,7 @@ export class Service {
 
         let edits: any = Object.create(null);
 
-        if (commentUnderCursor) {
+        if (commentUnderCursor !== undefined) {
             let deletions: Range[] = [];
 
             if (text.substr(commentUnderCursor.end - 3, 3) === ' #}') {

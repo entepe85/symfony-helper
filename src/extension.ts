@@ -71,7 +71,7 @@ export function activate(context: ExtensionContext) {
         }
 
         try {
-            if (fileExists(folder.uri.fsPath + '/web')) {
+            if (await fileExists(folder.uri.fsPath + '/web')) {
                 fs.copyFileSync(packageDirectory + '/php-bin/symfony-commands.php', folder.uri.fsPath + '/web/vscode-symfony-helper.php');
             } else {
                 fs.copyFileSync(packageDirectory + '/php-bin/symfony-commands.php', folder.uri.fsPath + '/public/vscode-symfony-helper.php');
@@ -101,7 +101,7 @@ export function activate(context: ExtensionContext) {
             if (resource.fsPath && resource.fsPath.endsWith('.twig') && resource.scheme === 'file') {
                 baseTemplateUri = Uri.file(resource.fsPath).toString();
             }
-        } else if (window.activeTextEditor) {
+        } else if (window.activeTextEditor !== undefined) {
             baseTemplateUri = window.activeTextEditor.document.uri.toString();
         }
 
@@ -122,7 +122,7 @@ export function activate(context: ExtensionContext) {
 
         let workspaceFolder = workspace.getWorkspaceFolder(Uri.parse(baseTemplateUri));
 
-        if (!workspaceFolder) {
+        if (workspaceFolder === undefined) {
             await window.showErrorMessage('Template must be from workspace');
             return;
         }
@@ -149,7 +149,7 @@ export function activate(context: ExtensionContext) {
                 await window.showErrorMessage('Could not open created file');
             }
         } else {
-            if (response.blocks) {
+            if (response.blocks !== undefined) {
                 // select blocks and try again
 
                 let items: QuickPickItem[] = [];
@@ -317,7 +317,7 @@ export function activate(context: ExtensionContext) {
 }
 
 export function deactivate() {
-    if (!client) {
+    if (client === undefined) {
         return undefined;
     }
 

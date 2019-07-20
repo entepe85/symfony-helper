@@ -103,9 +103,9 @@ export class AllTextDocuments {
     }
 
     public async get(uri: string): Promise<TextDocument | null> {
-        if (this.documents) {
+        if (this.documents !== undefined) {
             let document = this.documents.get(uri);
-            if (document) {
+            if (document !== undefined) {
                 return document;
             }
         }
@@ -282,10 +282,10 @@ export function sqlSelectFields(sql: string): string[] {
     let match;
     do {
         match = regexp.exec(sqlLowerCase);
-        if (match) {
+        if (match !== null) {
             tokens.push(match[0]);
         }
-    } while (match);
+    } while (match !== null);
 
     if (tokens.length === 0 || tokens[0] !== 'select' || tokens.indexOf('from') < 0) {
         return [];
@@ -317,7 +317,7 @@ export function sqlSelectFields(sql: string): string[] {
             break;
         }
 
-        if (token.match(/^\w+$/)) {
+        if (token.match(/^\w+$/) !== null) {
             if (i + 1 < tokens.length) {
                 if (tokens[i+1] === ',' || tokens[i+1] === 'from') {
                     result.push(token);

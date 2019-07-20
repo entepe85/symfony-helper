@@ -3,6 +3,7 @@
         "tslint:recommended"
     ],
     "rules": {
+        "strict-boolean-expressions": true,
         "quotemark": [true, "single", "avoid-escape"],
         "prefer-const": false,
         "ordered-imports": false,
