@@ -38,7 +38,17 @@ import {
 
 import * as nikic from './nikic-php-parser';
 
-import { fileExists, readFile, writeFile, createDirectory, exec, AllTextDocuments, packagePath, requestHttpCommandsHelper, ConsoleHelperSettings } from './utils';
+import {
+    fileExists,
+    readFile,
+    writeFile,
+    createDirectory,
+    exec,
+    AllTextDocuments,
+    packagePath,
+    requestHttpCommandsHelper,
+    SymfonyHelperSettings
+} from './utils';
 
 import { Project } from './project';
 
@@ -58,7 +68,7 @@ export class Service {
 
     private isScanning = false;
 
-    private getConsoleHelperSettings?: (uri: string) => Promise<ConsoleHelperSettings|null>;
+    private getSettings?: (uri: string) => Promise<SymfonyHelperSettings|null>;
 
     constructor(allDocuments: AllTextDocuments) {
         this.allDocuments = allDocuments;
@@ -69,34 +79,19 @@ export class Service {
     }
 
     public async setProjects(folders: WorkspaceFolder[]) {
-        let newProjectsInfo: { folder: WorkspaceFolder, subtype?: string }[] = [];
+        let filteredFolders: WorkspaceFolder[] = [];
         for (let folder of folders) {
-            let lockfilePath = URI.parse(folder.uri + '/symfony.lock').fsPath;
-            if (await fileExists(lockfilePath)) {
-                newProjectsInfo.push({ folder });
-            }
-
             let composerJsonPath = URI.parse(folder.uri + '/composer.json').fsPath;
             if (await fileExists(composerJsonPath)) {
-                let composerJsonContent = await readFile(composerJsonPath);
-                try {
-                    let json = JSON.parse(composerJsonContent);
-                    if (json.require && json.require['symfony/symfony']) {
-                        let versionPart = json.require['symfony/symfony'].substr(0, 2);
-                        if (versionPart === '3.') {
-                            newProjectsInfo.push({folder, subtype: '3'});
-                        }
-                    }
-                } catch {}
+                filteredFolders.push(folder);
             }
         }
 
-        let newFoldersUris = newProjectsInfo.map(row => row.folder.uri);
-
         // delete deleted projects
+        let filteredFoldersUris = filteredFolders.map(row => row.uri);
         let deleteUris = [];
         for (let folderUri in this.projects) {
-            if (newFoldersUris.indexOf(folderUri) < 0) {
+            if (filteredFoldersUris.indexOf(folderUri) < 0) {
                 deleteUris.push(folderUri);
             }
         }
@@ -106,17 +101,17 @@ export class Service {
 
         let newProjects = [];
 
-        for (let info of newProjectsInfo) {
-            let folderUri = info.folder.uri;
+        for (let folder of filteredFolders) {
+            let folderUri = folder.uri;
 
             if (this.projects[folderUri] !== undefined) {
                 continue;
             }
 
-            let project = new Project(info.folder.name, folderUri, this.allDocuments, info.subtype);
+            let project = new Project(folder.name, folderUri, this.allDocuments);
 
-            if (this.getConsoleHelperSettings !== undefined) {
-                project.setConsoleHelperSettingsResolver(this.getConsoleHelperSettings);
+            if (this.getSettings !== undefined) {
+                project.setSettingsResolver(this.getSettings);
             }
 
             newProjects.push(project);
@@ -578,28 +573,28 @@ export class Service {
             return { success: false, message: 'This command is only for twig templates' };
         }
 
-        let templateName = project.templateName(templateUri.substr(projectUri.length + 1));
+        let templateName = project.templateName(templateUri);
         if (templateName === null) {
             return { success: false, message: 'Could not find template name' };
         }
 
         let phpScriptPath = path.join(packagePath, 'php-bin/symfony-commands.php');
 
-        if (this.getConsoleHelperSettings === undefined) {
+        if (this.getSettings === undefined) {
             return { success: false, message: 'Internal error' };
         }
 
         let responseRaw = '';
         try {
-            let settings = await this.getConsoleHelperSettings(projectUri);
+            let settings = await this.getSettings(projectUri);
             if (settings === null) {
                 return { success: false, message: 'Internal error' };
             }
 
-            if (settings.type === 'direct') {
-                responseRaw = await exec(settings.phpPath, [phpScriptPath, projectFsPath, 'otherCommand', 'findCompiledTemplate ' + templateName]);
-            } else if (settings.type === 'http') {
-                responseRaw = await requestHttpCommandsHelper(settings.webPath, 'otherCommand', 'findCompiledTemplate ' + templateName);
+            if (settings.consoleHelper.type === 'direct') {
+                responseRaw = await exec(settings.consoleHelper.phpPath, [phpScriptPath, projectFsPath, 'otherCommand', 'findCompiledTemplate ' + templateName]);
+            } else if (settings.consoleHelper.type === 'http') {
+                responseRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'otherCommand', 'findCompiledTemplate ' + templateName);
             }
         } catch {
             return { success: false, message: 'Internal error' };
@@ -710,11 +705,11 @@ export class Service {
         project.documentChanged(action, documentUri);
     }
 
-    public setConsoleHelperSettingsResolver(resolver: (uri: string) => Promise<ConsoleHelperSettings|null>) {
-        this.getConsoleHelperSettings = resolver;
+    public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>) {
+        this.getSettings = resolver;
 
         for (let folderUri in this.projects) {
-            this.projects[folderUri].setConsoleHelperSettingsResolver(resolver);
+            this.projects[folderUri].setSettingsResolver(resolver);
         }
     }
 }

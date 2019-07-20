@@ -10,7 +10,7 @@ import {
 } from 'vscode-languageserver';
 
 import { Service } from './service';
-import { AllTextDocuments, ConsoleHelperSettings } from './utils';
+import { AllTextDocuments, SymfonyHelperSettings } from './utils';
 import { stopParserProcess } from './nikic-php-parser';
 import * as nikic from './nikic-php-parser';
 
@@ -82,8 +82,13 @@ connection.onInitialized(async () => {
     // it must be finished before calling 'Service#setProjects()'
     await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
 
-    service.setConsoleHelperSettingsResolver(async (uri: string) => {
-        let result = await connection.sendRequest<ConsoleHelperSettings|null>('consoleHelperConfiguration', uri);
+    service.setSettingsResolver(async (uri: string) => {
+        let result = await connection.sendRequest<SymfonyHelperSettings|null>('getConfiguration', uri);
+
+        if (result !== null) {
+            result.templatesFolder = result.templatesFolder.replace(/^\/+|\/+$/g, ''); // trimming '/'
+        }
+
         return result;
     });
 

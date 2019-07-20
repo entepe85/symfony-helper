@@ -301,13 +301,15 @@ export function activate(context: ExtensionContext) {
                 window.showErrorMessage(request.message);
             });
 
-            // why 'connect.workspace.getConfiguration()' on server side does not work?
-            client.onRequest('consoleHelperConfiguration', (uri) => {
-                let conf = workspace.getConfiguration('symfonyHelper.consoleHelper', Uri.parse(uri));
+            client.onRequest('getConfiguration', (uri) => {
+                let conf = workspace.getConfiguration('symfonyHelper', Uri.parse(uri));
                 return {
-                    type: conf.get('type'),
-                    phpPath: conf.get('phpPath'),
-                    webPath: conf.get('webPath'),
+                    consoleHelper: {
+                        type: conf.get('consoleHelper.type'),
+                        phpPath: conf.get('consoleHelper.phpPath'),
+                        webPath: conf.get('consoleHelper.webPath'),
+                    },
+                    templatesFolder: conf.get('templatesFolder'),
                 };
             });
         })

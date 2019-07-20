@@ -23,10 +23,13 @@ import URI from 'vscode-uri';
 
 export let packagePath = path.join(__dirname, '../../');
 
-export interface ConsoleHelperSettings {
-    type: 'direct' | 'http';
-    phpPath: string;
-    webPath: string;
+export interface SymfonyHelperSettings {
+    consoleHelper: {
+        type: 'direct' | 'http';
+        phpPath: string;
+        webPath: string;
+    };
+    templatesFolder: string;
 }
 
 // this is for 'npm run coverage'

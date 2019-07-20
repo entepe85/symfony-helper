@@ -4,6 +4,7 @@
  * Licensed under the GNU General Public License
  */
 import * as path from 'path';
+import * as fs from 'fs';
 import * as yaml from 'yaml-ast-parser';
 import URI from 'vscode-uri';
 import * as sax from 'sax';
@@ -54,7 +55,18 @@ import {
 import * as php from './php';
 import * as nikic from './nikic-php-parser';
 
-import { readFile, findFiles, exec, AllTextDocuments, parsePhpDocBlock, fileExists, sqlSelectFields, packagePath, requestHttpCommandsHelper, ConsoleHelperSettings } from './utils';
+import {
+    readFile,
+    findFiles,
+    exec,
+    AllTextDocuments,
+    parsePhpDocBlock,
+    fileExists,
+    sqlSelectFields,
+    packagePath,
+    requestHttpCommandsHelper,
+    SymfonyHelperSettings
+} from './utils';
 
 import { tokenize as tokenizeDql, Token as DqlToken, TokenType as DqlTokenType } from './dql';
 import * as dql from './dql';
@@ -1076,6 +1088,12 @@ type DqlTestPositionResult = {
     hoverRightOffset: number,
 };
 
+const enum ProjectType {
+    BASIC,
+    SYMFONY3,
+    SYMFONY4,
+}
+
 /**
  * Logic for individual symfony project.
  *
@@ -1125,17 +1143,36 @@ export class Project {
 
     private isScanning: boolean = false;
 
-    private getConsoleHelperSettings?: (uri: string) => Promise<ConsoleHelperSettings|null>;
+    private getSettings: () => Promise<SymfonyHelperSettings|null> = async () => null;
 
-    private is3: boolean; // whether version 3 of symfony used
-    public readonly templatesFolderUri: string;
+    public templatesFolderUri: string;
+    private type: ProjectType = ProjectType.BASIC;
 
-    constructor(name: string, folderUri: string, allDocuments: AllTextDocuments, subtype?: string) {
+    constructor(name: string, folderUri: string, allDocuments: AllTextDocuments) {
         this.name = name;
 
         this.folderUri = folderUri;
 
         this.allDocuments = allDocuments;
+
+        let composerJsonPath = URI.parse(folderUri + '/composer.json').fsPath;
+        let lockfilePath = URI.parse(folderUri + '/symfony.lock').fsPath;
+
+        do {
+            if (fs.existsSync(lockfilePath)) {
+                this.type = ProjectType.SYMFONY4;
+                break;
+            }
+
+            try {
+                let composerJsonContent = fs.readFileSync(composerJsonPath, { encoding: 'utf8' });
+                let json = JSON.parse(composerJsonContent);
+                let versionPart = json.require['symfony/symfony'].substr(0, 2);
+                if (versionPart === '3.') {
+                    this.type = ProjectType.SYMFONY3;
+                }
+            } catch {}
+        } while (false);
 
         this.throttledScanRoutes = _.throttle(
             this.scanRoutes.bind(this),
@@ -1169,9 +1206,7 @@ export class Project {
             }
         );
 
-        this.is3 = subtype === '3';
-
-        if (this.is3) {
+        if (this.type === ProjectType.SYMFONY3) {
             this.templatesFolderUri = this.folderUri + '/app/Resources/views';
         } else {
             this.templatesFolderUri = this.folderUri + '/templates';
@@ -1224,6 +1259,13 @@ export class Project {
 
     // how to remove code duplication with 'this.documentChanged()'?
     private async doScan() {
+        if (this.type === ProjectType.BASIC) {
+            let settings = await this.getSettings();
+            if (settings !== null) {
+                this.templatesFolderUri = this.folderUri + '/' + settings.templatesFolder;
+            }
+        }
+
         let folderFsPath = this.getFolderPath();
 
         // use 'readFile()' for 'vendor/' and 'TextDocument#getText()' for everything else
@@ -1704,24 +1746,24 @@ export class Project {
     }
 
     private async scanRoutes() {
-        if (this.getConsoleHelperSettings === undefined) {
+        if (!this.isSymfonyProject()) {
             return;
         }
 
-        let settings = await this.getConsoleHelperSettings(this.folderUri);
+        let settings = await this.getSettings();
         if (settings === null) {
             return;
         }
 
         let routesRaw = null;
         try {
-            if (settings.type === 'direct') {
+            if (settings.consoleHelper.type === 'direct') {
                 routesRaw = await exec(
-                    settings.phpPath,
+                    settings.consoleHelper.phpPath,
                     [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getRoutes']
                 );
-            } else if (settings.type === 'http') {
-                routesRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'getRoutes');
+            } else if (settings.consoleHelper.type === 'http') {
+                routesRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'directCommand', 'getRoutes');
             }
         } catch {}
 
@@ -1743,24 +1785,24 @@ export class Project {
     }
 
     private async scanContainerParameters() {
-        if (this.getConsoleHelperSettings === undefined) {
+        if (!this.isSymfonyProject()) {
             return;
         }
 
-        let settings = await this.getConsoleHelperSettings(this.folderUri);
+        let settings = await this.getSettings();
         if (settings === null) {
             return;
         }
 
         let parametersRaw = null;
         try {
-            if (settings.type === 'direct') {
+            if (settings.consoleHelper.type === 'direct') {
                 parametersRaw = await exec(
-                    settings.phpPath,
+                    settings.consoleHelper.phpPath,
                     [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getParameters']
                 );
-            } else if (settings.type === 'http') {
-                parametersRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'getParameters');
+            } else if (settings.consoleHelper.type === 'http') {
+                parametersRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'directCommand', 'getParameters');
             }
 
             // why response is not clean json?
@@ -1785,24 +1827,24 @@ export class Project {
     }
 
     private async scanAutowired() {
-        if (this.getConsoleHelperSettings === undefined) {
+        if (!this.isSymfonyProject()) {
             return;
         }
 
-        let settings = await this.getConsoleHelperSettings(this.folderUri);
+        let settings = await this.getSettings();
         if (settings === null) {
             return;
         }
 
         let responseRaw;
         try {
-            if (settings.type === 'direct') {
+            if (settings.consoleHelper.type === 'direct') {
                 responseRaw = await exec(
-                    settings.phpPath,
+                    settings.consoleHelper.phpPath,
                     [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getAutowiredServices']
                 );
-            } else if (settings.type === 'http') {
-                responseRaw = await requestHttpCommandsHelper(settings.webPath, 'directCommand', 'getAutowiredServices');
+            } else if (settings.consoleHelper.type === 'http') {
+                responseRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'directCommand', 'getAutowiredServices');
             }
         } catch {}
 
@@ -1837,24 +1879,24 @@ export class Project {
     }
 
     private async scanDoctrineEntityNamespaces() {
-        if (this.getConsoleHelperSettings === undefined) {
+        if (!this.isSymfonyProject()) {
             return;
         }
 
-        let settings = await this.getConsoleHelperSettings(this.folderUri);
+        let settings = await this.getSettings();
         if (settings === null) {
             return;
         }
 
         let responseRaw: any;
         try {
-            if (settings.type === 'direct') {
+            if (settings.consoleHelper.type === 'direct') {
                 responseRaw = await exec(
-                    settings.phpPath,
+                    settings.consoleHelper.phpPath,
                     [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'otherCommand', 'getEntityNamespaces']
                 );
-            } else if (settings.type === 'http') {
-                responseRaw = await requestHttpCommandsHelper(settings.webPath, 'otherCommand', 'getEntityNamespaces');
+            } else if (settings.consoleHelper.type === 'http') {
+                responseRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'otherCommand', 'getEntityNamespaces');
             }
         } catch {
             return;
@@ -7739,8 +7781,8 @@ export class Project {
         return this.name;
     }
 
-    public setConsoleHelperSettingsResolver(resolver: (uri: string) => Promise<ConsoleHelperSettings|null>) {
-        this.getConsoleHelperSettings = resolver;
+    public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>) {
+        this.getSettings = () => { return resolver(this.folderUri); };
     }
 
     /**
@@ -7768,7 +7810,9 @@ export class Project {
     /**
      * Finds template name from path relative to 'this.folderUri'
      */
-    public templateName(relativePath: string) {
+    public templateName(templateUri: string) {
+        let relativePath = templateUri.substr(this.folderUri.length + 1);
+
         if (relativePath.startsWith('vendor/')) {
             let bundles = this.getBundles();
             let templateUri = this.folderUri + '/' + relativePath;
@@ -7781,10 +7825,18 @@ export class Project {
                     return '@' + shortName + '/' + templateUri.substr(bundleViewsFolderUri.length);
                 }
             }
-        } else if (relativePath.startsWith('templates/') && !this.is3) {
-            return relativePath.substr('templates/'.length);
-        } else if (relativePath.startsWith('app/Resources/views/') && this.is3) {
-            return relativePath.substr('app/Resources/views/'.length);
+        } else if (this.type === ProjectType.SYMFONY4) {
+            if (relativePath.startsWith('templates/')) {
+                return relativePath.substr('templates/'.length);
+            }
+        } else if (this.type === ProjectType.SYMFONY3) {
+            if (relativePath.startsWith('app/Resources/views/')) {
+                return relativePath.substr('app/Resources/views/'.length);
+            }
+        } else {
+            if (templateUri.startsWith(this.templatesFolderUri + '/')) {
+                return templateUri.substr(this.templatesFolderUri.length + 1);
+            }
         }
 
         return null;
@@ -7798,5 +7850,9 @@ export class Project {
                 code.includes('extends AbstractController')
                 || code.includes('extends Controller')
             );
+    }
+
+    private isSymfonyProject(): boolean {
+        return this.type === ProjectType.SYMFONY3 || this.type === ProjectType.SYMFONY4;
     }
 }
