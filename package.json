@@ -59,7 +59,7 @@
                     "description": "Helper for containers and virtual machines. Create with 'Install Http Helper' command. Also, see 'symfonyHelper.consoleHelper.type' setting.",
                     "scope": "resource"
                 },
-                "symfonyHelper.consoleHelper.templatesFolder": {
+                "symfonyHelper.templatesFolder": {
                     "type": "string",
                     "default": "templates",
                     "description": "Relative path to folder with twig templates (used only in non-symfony projects, first and last '/' are trimmed)",
