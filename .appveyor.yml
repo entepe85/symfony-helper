@@ -1,6 +1,6 @@
 install:
     - ps: Set-Service wuauserv -StartupType "Automatic"; Start-Service wuauserv # weird magic for 'cinst php'
-    - cinst php --version 7.3.0
+    - cinst php --version 7.2.0 # could not install symfony 2.8 with php 7.3
     - echo extension=C:\tools\php73\ext\php_openssl.dll >> C:\tools\php73\php.ini
     - echo extension=C:\tools\php73\ext\php_mbstring.dll >> C:\tools\php73\php.ini
     - echo extension=C:\tools\php73\ext\php_curl.dll >> C:\tools\php73\php.ini

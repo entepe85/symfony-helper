@@ -26,7 +26,12 @@ if ($isCli) {
 
     require_once $projectPath.'/vendor/autoload.php';
 
-    // 'config/bootstrap.php' appeared in symfony 4.2
+    // symfony 2.8
+    if (file_exists($projectPath . '/app/autoload.php')) {
+        require_once $projectPath . '/app/autoload.php';
+    }
+
+    // symfony 4.2
     if (file_exists($projectPath.'/config/bootstrap.php')) {
         require_once $projectPath.'/config/bootstrap.php';
     }
@@ -34,7 +39,12 @@ if ($isCli) {
 } else {
     require_once __DIR__ . '/../vendor/autoload.php';
 
-    // 'config/bootstrap.php' appeared in symfony 4.2
+    // symfony 2.8
+    if (file_exists(__DIR__ . '/../app/autoload.php')) {
+        require_once __DIR__ . '/../app/autoload.php';
+    }
+
+    // symfony 4.2
     if (file_exists(__DIR__ . '/../config/bootstrap.php')) {
         require_once __DIR__ . '/../config/bootstrap.php';
     }
