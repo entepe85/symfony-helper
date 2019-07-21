@@ -124,7 +124,12 @@ if ($type === 'otherCommand') {
             if ($absPathOfClass === false) {
                 echo json_encode(['result' => 'error', 'message' => 'Could not find compiled template']);
             } else {
-                $projectDir = $container->getParameter('kernel.project_dir');
+                try {
+                    $projectDir = $container->getParameter('kernel.project_dir');
+                } catch (\Exception $e) {
+                    $projectDir = realpath($container->getParameter('kernel.root_dir') . '/..');
+                }
+
                 $relPathOfClass = substr($absPathOfClass, strlen($projectDir) + 1);
                 echo json_encode(['result' => 'success', 'message' => $relPathOfClass]);
             }

@@ -7,14 +7,17 @@ import URI from 'vscode-uri';
 
 export const projectUri = URI.file(path.join(packagePath, 'symfony-4.2-project')).toString();
 export const project34Uri = URI.file(path.join(packagePath, 'symfony-3.4-project')).toString();
+export const project28Uri = URI.file(path.join(packagePath, 'symfony-2.8-project')).toString();
 export const projectAnyPhpUri = URI.file(path.join(packagePath, 'php-project-for-tests')).toString();
 
 let portA = 6300;
 let portB = 6301;
+let portC = 6302;
 
 export const serversConf = [
     { port: portA, folderPath: path.join(packagePath, 'symfony-4.2-project', 'public') },
     { port: portB, folderPath: path.join(packagePath, 'symfony-3.4-project', 'web') },
+    { port: portC, folderPath: path.join(packagePath, 'symfony-2.8-project', 'web') },
 ];
 
 let service: Service;
@@ -41,6 +44,7 @@ export async function getService(): Promise<Service> {
             let templatesFolder = (uri === projectAnyPhpUri) ? 'views' : 'templates';
 
             if (process.env.COMMANDS_HELPER_TYPE === 'http') {
+                fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-2.8-project/web/vscode-symfony-helper.php');
                 fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-3.4-project/web/vscode-symfony-helper.php');
                 fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-4.2-project/public/vscode-symfony-helper.php');
 
@@ -52,11 +56,17 @@ export async function getService(): Promise<Service> {
                         phpPath: '',
                         webPath: 'http://localhost:' + portA + '/vscode-symfony-helper.php',
                     };
-                } else {
+                } else if (uri === project34Uri) {
                     consoleHelperSettings = {
                         type: 'http',
                         phpPath: '',
                         webPath: 'http://localhost:' + portB + '/vscode-symfony-helper.php',
+                    };
+                } else {
+                    consoleHelperSettings = {
+                        type: 'http',
+                        phpPath: '',
+                        webPath: 'http://localhost:' + portC + '/vscode-symfony-helper.php',
                     };
                 }
 
@@ -81,6 +91,7 @@ export async function getService(): Promise<Service> {
         await service.setProjects([
             { uri: projectUri, name: path.basename(projectUri) },
             { uri: project34Uri, name: path.basename(project34Uri) },
+            { uri: project28Uri, name: path.basename(project28Uri) },
             { uri: projectAnyPhpUri, name: path.basename(projectAnyPhpUri) },
         ]);
     }
