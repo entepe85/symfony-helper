@@ -1087,8 +1087,7 @@ type DqlTestPositionResult = {
 
 const enum ProjectType {
     BASIC,
-    SYMFONY3,
-    SYMFONY4,
+    SYMFONY,
 }
 
 /**
@@ -1155,9 +1154,10 @@ export class Project {
         let composerJsonPath = URI.parse(folderUri + '/composer.json').fsPath;
         let lockfilePath = URI.parse(folderUri + '/symfony.lock').fsPath;
 
+        let symfonyLayout: undefined | 'before-4' | '4';
         do {
             if (fs.existsSync(lockfilePath)) {
-                this.type = ProjectType.SYMFONY4;
+                symfonyLayout = '4';
                 break;
             }
 
@@ -1165,8 +1165,8 @@ export class Project {
                 let composerJsonContent = fs.readFileSync(composerJsonPath, { encoding: 'utf8' });
                 let json = JSON.parse(composerJsonContent);
                 let versionPart = json.require['symfony/symfony'].substr(0, 2);
-                if (versionPart === '3.') {
-                    this.type = ProjectType.SYMFONY3;
+                if (versionPart === '3.' || versionPart === '2.') {
+                    symfonyLayout = 'before-4';
                 }
             } catch {}
         } while (false);
@@ -1203,8 +1203,14 @@ export class Project {
             }
         );
 
-        if (this.type === ProjectType.SYMFONY3) {
-            this.templatesFolderUri = this.folderUri + '/app/Resources/views';
+        if (symfonyLayout !== undefined) {
+            this.type = ProjectType.SYMFONY;
+
+            if (symfonyLayout === 'before-4') {
+                this.templatesFolderUri = this.folderUri + '/app/Resources/views';
+            } else {
+                this.templatesFolderUri = this.folderUri + '/templates';
+            }
         } else {
             this.templatesFolderUri = this.folderUri + '/templates';
         }
@@ -1743,7 +1749,7 @@ export class Project {
     }
 
     private async scanRoutes() {
-        if (!this.isSymfonyProject()) {
+        if (this.type !== ProjectType.SYMFONY) {
             return;
         }
 
@@ -1782,7 +1788,7 @@ export class Project {
     }
 
     private async scanContainerParameters() {
-        if (!this.isSymfonyProject()) {
+        if (this.type !== ProjectType.SYMFONY) {
             return;
         }
 
@@ -1824,7 +1830,7 @@ export class Project {
     }
 
     private async scanAutowired() {
-        if (!this.isSymfonyProject()) {
+        if (this.type !== ProjectType.SYMFONY) {
             return;
         }
 
@@ -1876,7 +1882,7 @@ export class Project {
     }
 
     private async scanDoctrineEntityNamespaces() {
-        if (!this.isSymfonyProject()) {
+        if (this.type !== ProjectType.SYMFONY) {
             return;
         }
 
@@ -7804,9 +7810,6 @@ export class Project {
         return null;
     }
 
-    /**
-     * Finds template name from path relative to 'this.folderUri'
-     */
     public templateName(templateUri: string) {
         let relativePath = templateUri.substr(this.folderUri.length + 1);
 
@@ -7822,18 +7825,8 @@ export class Project {
                     return '@' + shortName + '/' + templateUri.substr(bundleViewsFolderUri.length);
                 }
             }
-        } else if (this.type === ProjectType.SYMFONY4) {
-            if (relativePath.startsWith('templates/')) {
-                return relativePath.substr('templates/'.length);
-            }
-        } else if (this.type === ProjectType.SYMFONY3) {
-            if (relativePath.startsWith('app/Resources/views/')) {
-                return relativePath.substr('app/Resources/views/'.length);
-            }
-        } else {
-            if (templateUri.startsWith(this.templatesFolderUri + '/')) {
-                return templateUri.substr(this.templatesFolderUri.length + 1);
-            }
+        } else if (templateUri.startsWith(this.templatesFolderUri + '/')) {
+            return templateUri.substr(this.templatesFolderUri.length + 1);
         }
 
         return null;
@@ -7847,9 +7840,5 @@ export class Project {
                 code.includes('extends AbstractController')
                 || code.includes('extends Controller')
             );
-    }
-
-    private isSymfonyProject(): boolean {
-        return this.type === ProjectType.SYMFONY3 || this.type === ProjectType.SYMFONY4;
     }
 }
