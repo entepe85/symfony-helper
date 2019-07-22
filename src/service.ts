@@ -566,6 +566,10 @@ export class Service {
             return { success: false, message: 'Could not find project of template' };
         }
 
+        if (!project.isSymfony()) {
+            return { success: false, message: 'This command is only for symfony projects' };
+        }
+
         let projectUri = project.getFolderUri();
         let projectFsPath = URI.parse(projectUri).fsPath;
 

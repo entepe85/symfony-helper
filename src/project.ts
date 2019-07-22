@@ -7859,4 +7859,8 @@ export class Project {
         }
         return false;
     }
+
+    public isSymfony() {
+        return this.type === ProjectType.SYMFONY;
+    }
 }

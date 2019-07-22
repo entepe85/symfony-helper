@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { Position, Range, Definition } from 'vscode-languageserver';
 import { projectAnyPhpUri, getService } from './_utils';
 
-describe('twig in any php project', function () {
+describe('twig in non-symfony project', function () {
     it('should support definition', async function () {
         let service = await getService();
 
@@ -26,5 +26,14 @@ describe('twig in any php project', function () {
 
             assert.deepEqual(actual, expected, `fixture ${i} failed`);
         }
+    });
+
+    it('should ignore "Open Compiled Template" command', async function () {
+        let service = await getService();
+
+        let result = await service.commandOpenCompiledTemplate({ uri: projectAnyPhpUri + '/views/layout.twig' });
+
+        assert.ok(result.success === false);
+        assert.ok(result.message.includes('only for symfony projects'));
     });
 });
