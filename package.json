@@ -1,13 +1,13 @@
 {
     "name": "symfony-helper",
     "displayName": "Symfony Helper",
-    "description": "Useful services (completions, hover, etc.) and commands for php, dql, and twig in Symfony projects",
+    "description": "Support of Twig and DQL in any PHP project. Special support of Symfony projects.",
     "publisher": "tmrdh",
     "author": {
         "name": "Timur Morduhai",
         "email": "timur.morduhai@outlook.com"
     },
-    "version": "1.0.5",
+    "version": "1.0.6",
     "engines": {
         "vscode": "^1.30.0"
     },
@@ -67,7 +67,9 @@
                 },
                 "symfonyHelper.sourceFolders": {
                     "type": "array",
-                    "default": ["src"],
+                    "default": [
+                        "src"
+                    ],
                     "items": {
                         "type": "string"
                     },

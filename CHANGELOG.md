@@ -1,5 +1,10 @@
 # Changelog
 
+## Version 1.0.6 (22 July 2019)
+
+* Support of Symfony projects starting from version 2.8 of Symfony
+* Basic support of arbitrary PHP projects
+
 ## Version 1.0.5 (2 July 2019)
 
 * Urgent fix for README.md

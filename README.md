@@ -1,13 +1,15 @@
 # Symfony Helper
 
-A VSCode extension (and language server) for Symfony projects (starting with version 4.0 of Symfony)
+A VSCode extension for Twig and DQL in any PHP project. Special support of Symfony projects.
 
 [![Linux Build Status](https://travis-ci.org/tmrdh/symfony-helper.svg?branch=master)](https://travis-ci.org/tmrdh/symfony-helper)
 [![Windows Build status](https://ci.appveyor.com/api/projects/status/06dgvoqb55ieb8p9?svg=true)](https://ci.appveyor.com/project/tmrdh/symfony-helper)
 [![Coverage Status](https://coveralls.io/repos/github/tmrdh/symfony-helper/badge.svg?branch=master)](https://coveralls.io/github/tmrdh/symfony-helper?branch=master)
 
-New in version 1.0.4<br>
-<span style="color: red">⭐⭐⭐</span> basic support of Symfony 3.4 <span style="color: red">⭐⭐⭐</span>
+New in version 1.0.6
+
+* support of Symfony projects starting from version 2.8 of Symfony
+* basic support of arbitrary PHP projects (see [here](https://github.com/tmrdh/symfony-helper/wiki/Arbitrary-PHP-Projects))
 
 ## Some previews
 
@@ -95,15 +97,6 @@ In service definition files
 
 ## Roadmap
 
-* Support twig and dql in arbitrary php projects (it also means `older versions of symfony`)
-* Support dql query builder (and also refactoring to dql and from dql)
+* Finish support of twig and dql in arbitrary php projects
+* Add support of dql query builder (definition and completion of entity fields, refactoring to dql and from dql)
 * Make sure that language server is really reusable
-* Rewrite php parser (in typescript or rust) and use it as javascript/wasm module. External parser process annoys me.
-
-## Real State of the Project
-
-Many features are unfinished and inconsistent.
-
-Source code needs serious refactoring.
-
-Extension was properly tested only on one Symfony 4.2 project on my linux machine.
