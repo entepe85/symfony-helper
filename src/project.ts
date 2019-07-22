@@ -674,9 +674,9 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
     return result;
 }
 
-let targetEntityRegexp = /(@ORM\\(ManyToOne|ManyToMany|OneToOne|OneToMany)\s*\(.*targetEntity\s*=\s*["'])([\w\\]+)["']/;
+let targetEntityRegexp = /(@(ORM\\)?(ManyToOne|ManyToMany|OneToOne|OneToMany)\s*\(.*targetEntity\s*=\s*["'])([\w\\]+)["']/;
 
-let embedRegexp = /(@ORM\\Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/;
+let embedRegexp = /(@(ORM\\)?Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/;
 
 function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameResolverData): EntityData | null {
     if (classNode.attributes.comments === undefined) {
@@ -725,12 +725,12 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
         }
 
         let propComment = propCommentNode.text;
-        if (!(propComment.includes('@ORM\\Column')
-                || propComment.includes('@ORM\\ManyToOne')
-                || propComment.includes('@ORM\\ManyToMany')
-                || propComment.includes('@ORM\\OneToOne')
-                || propComment.includes('@ORM\\OneToMany')
-                || propComment.includes('@ORM\\Embedded')
+        if (!(propComment.includes('@ORM\\Column') || propComment.includes('@Column')
+                || propComment.includes('@ORM\\ManyToOne') || propComment.includes('@ManyToOne')
+                || propComment.includes('@ORM\\ManyToMany') || propComment.includes('@ManyToMany')
+                || propComment.includes('@ORM\\OneToOne') || propComment.includes('@OneToOne')
+                || propComment.includes('@ORM\\OneToMany') || propComment.includes('@OneToMany')
+                || propComment.includes('@ORM\\Embedded') || propComment.includes('@Embedded')
             )) {
             continue;
         }
@@ -741,15 +741,15 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
         do {
             let match;
 
-            match = propComment.match(/@ORM\\Column\s*\(.*type\s*=\s*["'](\w+)["']/);
+            match = propComment.match(/@(ORM\\)?Column\s*\(.*type\s*=\s*["'](\w+)["']/);
             if (match !== null) {
-                fieldType = match[1];
+                fieldType = match[2];
                 break;
             }
 
             match = propComment.match(targetEntityRegexp);
             if (match !== null) {
-                let name = match[3];
+                let name = match[4];
                 if (name.includes('\\')) {
                     if (name.startsWith('\\')) {
                         name = name.substr(1);
@@ -758,13 +758,13 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
                 } else {
                     fieldType = nikic.resolveName([name], nameResolverData);
                 }
-                joinType = match[2];
+                joinType = match[3];
                 break;
             }
 
             match = propComment.match(embedRegexp);
             if (match !== null) {
-                let name = match[2];
+                let name = match[3];
 
                 if (name.includes('\\')) {
                     if (name.startsWith('\\')) {
@@ -6265,7 +6265,7 @@ export class Project {
             return null;
         }
 
-        let name = match[3];
+        let name = match[4];
         let nameStartOffset = commentNode.filePos + match.index + match[1].length;
 
         if (!(nameStartOffset <= offset && offset <= nameStartOffset + name.length)) {
@@ -6394,12 +6394,12 @@ export class Project {
 
         let comment = commentNode.text;
 
-        let match = comment.match(/(@ORM\\Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/);
+        let match = comment.match(/(@(ORM\\)?Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/);
         if (match === null || match.index === undefined) {
             return null;
         }
 
-        let name = match[2];
+        let name = match[3];
         let nameStartOffset = commentNode.filePos + match.index + match[1].length;
 
         if (!(nameStartOffset <= offset && offset <= nameStartOffset + name.length)) {

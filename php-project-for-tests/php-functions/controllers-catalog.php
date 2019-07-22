@@ -1,7 +1,7 @@
 <?php
 function catalogIndex()
 {
-    $products = createQuery('SELECT p FROM Project\Entities\Product p')->getResult();
+    $products = createQuery('SELECT p FROM Project\Entities\Product p WHERE p.price > 0')->getResult();
 
     return render('catalog/index.twig', ['products' => $products]);
 }
