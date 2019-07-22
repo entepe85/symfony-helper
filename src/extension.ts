@@ -303,6 +303,7 @@ export function activate(context: ExtensionContext) {
 
             client.onRequest('getConfiguration', (uri) => {
                 let conf = workspace.getConfiguration('symfonyHelper', Uri.parse(uri));
+
                 return {
                     consoleHelper: {
                         type: conf.get('consoleHelper.type'),
@@ -310,6 +311,7 @@ export function activate(context: ExtensionContext) {
                         webPath: conf.get('consoleHelper.webPath'),
                     },
                     templatesFolder: conf.get('templatesFolder'),
+                    sourceFolders: conf.get('sourceFolders'),
                 };
             });
         })

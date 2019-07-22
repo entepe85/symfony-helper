@@ -85,8 +85,19 @@ connection.onInitialized(async () => {
     service.setSettingsResolver(async (uri: string) => {
         let result = await connection.sendRequest<SymfonyHelperSettings|null>('getConfiguration', uri);
 
+        let slashTrimmer = /^\/+|\/+$/g;
+
         if (result !== null) {
-            result.templatesFolder = result.templatesFolder.replace(/^\/+|\/+$/g, ''); // trimming '/'
+            result.templatesFolder = result.templatesFolder.replace(slashTrimmer, '');
+
+            let newSourceFolders = [];
+            for (let str of result.sourceFolders) {
+                newSourceFolders.push(str.replace(slashTrimmer, ''));
+            }
+            newSourceFolders = [... new Set(newSourceFolders)]; // remove duplicates
+            newSourceFolders.sort();
+
+            result.sourceFolders = newSourceFolders;
         }
 
         return result;

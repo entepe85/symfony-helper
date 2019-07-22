@@ -65,6 +65,15 @@
                     "description": "Relative path to folder with twig templates (used only in non-symfony projects, first and last '/' are trimmed)",
                     "scope": "resource"
                 },
+                "symfonyHelper.sourceFolders": {
+                    "type": "array",
+                    "default": ["src"],
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Relative paths to folders with php code and configuration files (used only in non-symfony projects, first and last '/' are trimmed)",
+                    "scope": "resource"
+                },
                 "symfonyHelper.phpParser.port": {
                     "type": "number",
                     "default": 7474,

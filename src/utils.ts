@@ -30,6 +30,7 @@ export interface SymfonyHelperSettings {
         webPath: string;
     };
     templatesFolder: string;
+    sourceFolders: string[];
 }
 
 // this is for 'npm run coverage'

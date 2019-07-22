@@ -6,16 +6,17 @@ describe('twig in any php project', function () {
     it('should support definition', async function () {
         let service = await getService();
 
-        let fixtures: { from: [number, number], to: [string, number, number] }[] = [
-            { from: [0, 12], to: ['/views/layout.twig', 0, 0] },
+        let fixtures: { from: [string, number, number], to: [string, number, number] }[] = [
+            { from: ['/views/catalog/index.twig', 0, 12], to: ['/views/layout.twig', 0, 0] },
+            { from: ['/views/index.twig', 7, 22], to: ['/php-classes/Twig/ExtensionA.php', 15, 48] },
         ];
 
         for (let i = 0; i < fixtures.length; i++) {
             let { from, to } = fixtures[i];
 
             let actual = await service.onDefinition({
-                textDocument: { uri: projectAnyPhpUri + '/views/catalog/index.twig' },
-                position: Position.create(from[0], from[1]),
+                textDocument: { uri: projectAnyPhpUri + from[0] },
+                position: Position.create(from[1], from[2]),
             });
 
             let expected: Definition  = {

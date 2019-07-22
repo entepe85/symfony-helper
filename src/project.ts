@@ -459,8 +459,6 @@ interface PhpClass {
     twigExtensionElements?: TwigExtensionCallable[];
     twigExtensionGlobals?: TwigExtensionGlobal[];
     bundle?: { name: string, folderUri: string };
-
-    // only for files from 'src/'
     parsedDqlQueries?: { literalOffset: number, tokens: DqlToken[] }[];
 
     /**
@@ -1142,6 +1140,7 @@ export class Project {
     private getSettings: () => Promise<SymfonyHelperSettings|null> = async () => null;
 
     public templatesFolderUri: string;
+    public sourceFolders: string[]; // Relative paths to folders with php and configuration. Elements must not start and end with '/'.
     private type: ProjectType = ProjectType.BASIC;
 
     constructor(name: string, folderUri: string, allDocuments: AllTextDocuments) {
@@ -1214,6 +1213,8 @@ export class Project {
         } else {
             this.templatesFolderUri = this.folderUri + '/templates';
         }
+
+        this.sourceFolders = ['src'];
     }
 
     private setRoute(name: string, routePath: string, controller: string): void {
@@ -1266,6 +1267,7 @@ export class Project {
             let settings = await this.getSettings();
             if (settings !== null) {
                 this.templatesFolderUri = this.folderUri + '/' + settings.templatesFolder;
+                this.sourceFolders = settings.sourceFolders;
             }
         }
 
@@ -1348,12 +1350,21 @@ export class Project {
             this.services = newServices;
         }
 
-        // parsing php-files in 'src/' and 'vendor/' (list of all classes, twig extensions, bundles)
+        let projectPhpFiles: string[];
+        {
+            let tmp: string[][] = [];
+            for (let folder of this.sourceFolders) {
+                tmp.push(await findFiles(folderFsPath + '/' + folder + '/**/*.php'));
+            }
+            projectPhpFiles = ([] as string[]).concat(...tmp);
+        }
+
+
+        // parsing php-files (list of all classes, twig extensions, bundles)
         {
             let vendorPhpFiles = await findFiles(folderFsPath + '/vendor/**/*.php');
-            let srcPhpFiles = await findFiles(folderFsPath + '/src/**/*.php');
 
-            let phpFiles = vendorPhpFiles.concat(srcPhpFiles);
+            let phpFiles = vendorPhpFiles.concat(projectPhpFiles);
 
             let newPhpClasses: { [fileUri: string]: PhpClass } = Object.create(null);
 
@@ -1383,9 +1394,7 @@ export class Project {
 
         // searching for template render calls (must be last because we use 'this.expressionType()')
         {
-            let srcFiles = await findFiles(folderFsPath + '/src/**/*.php');
-
-            for (let filePath of srcFiles) {
+            for (let filePath of projectPhpFiles) {
                 let fileUri = URI.file(filePath).toString();
                 if (this.phpClasses[fileUri] === undefined) {
                     continue;
@@ -1547,7 +1556,7 @@ export class Project {
             phpClass.bundle = { name: bundleName, folderUri };
         }
 
-        if (fileUri.startsWith(this.folderUri + '/src/')) {
+        if (this.isFromSourceFolders(fileUri)) {
             do {
                 let stmts = await nikic.parse(code);
                 if (stmts === null || stmts.length === 0) {
@@ -3547,9 +3556,9 @@ export class Project {
             return [];
         }
 
-        // complete autowiring typehints in src files
+        // complete autowiring typehints
         do {
-            if (!document.uri.startsWith(this.folderUri + '/src/')) {
+            if (!this.isFromSourceFolders(document.uri)) {
                 break;
             }
 
@@ -3727,7 +3736,7 @@ export class Project {
 
         // complete route in UrlGeneratorInterface#generate() and AbstractController#generateUrl()
         do {
-            if (!document.uri.startsWith(this.folderUri + '/src/')) {
+            if (!this.isFromSourceFolders(document.uri)) {
                 break;
             }
 
@@ -4932,7 +4941,7 @@ export class Project {
         });
 
         for (let fileUri in this.phpClasses) {
-            if (!fileUri.startsWith(this.folderUri + '/src/')) {
+            if (!this.isFromSourceFolders(fileUri)) {
                 continue;
             }
 
@@ -5008,7 +5017,7 @@ export class Project {
         });
 
         for (let fileUri in this.phpClasses) {
-            if (!fileUri.startsWith(this.folderUri + '/src/')) {
+            if (!this.isFromSourceFolders(fileUri)) {
                 continue;
             }
 
@@ -6094,7 +6103,7 @@ export class Project {
                 break;
             }
 
-            if (!document.uri.startsWith(this.folderUri + '/src/')) {
+            if (!this.isFromSourceFolders(document.uri)) {
                 break;
             }
 
@@ -6145,7 +6154,7 @@ export class Project {
     }
 
     private phpTestAutowiredArgment(document: TextDocument, code: string, stmts: nikic.Statement[], offset: number) {
-        if (!document.uri.startsWith(this.folderUri + '/src/')) {
+        if (!this.isFromSourceFolders(document.uri)) {
             return null;
         }
 
@@ -7222,8 +7231,8 @@ export class Project {
             return;
         }
 
-        // scanning php-files in 'src/'
-        if (documentUri.startsWith(this.folderUri + '/src/') && documentUri.endsWith('.php')) {
+        // scanning php-files
+        if (this.isFromSourceFolders(documentUri) && documentUri.endsWith('.php')) {
             if (action === 'deleted') {
                 delete this.phpClasses[documentUri];
             } else if (action === 'createdOrChanged') {
@@ -7840,5 +7849,14 @@ export class Project {
                 code.includes('extends AbstractController')
                 || code.includes('extends Controller')
             );
+    }
+
+    private isFromSourceFolders(fileUri: string): boolean {
+        for (let folder of this.sourceFolders) {
+            if (fileUri.startsWith(this.folderUri + '/' + folder + '/')) {
+                return true;
+            }
+        }
+        return false;
     }
 }

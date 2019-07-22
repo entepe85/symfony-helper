@@ -42,6 +42,7 @@ export async function getService(): Promise<Service> {
             let result: SymfonyHelperSettings;
 
             let templatesFolder = (uri === projectAnyPhpUri) ? 'views' : 'templates';
+            let sourceFolders = (uri === projectAnyPhpUri) ? ['php-classes', 'php-functions'] : [];
 
             if (process.env.COMMANDS_HELPER_TYPE === 'http') {
                 fs.copyFileSync(packagePath + '/php-bin/symfony-commands.php', packagePath + '/symfony-2.8-project/web/vscode-symfony-helper.php');
@@ -73,6 +74,7 @@ export async function getService(): Promise<Service> {
                 result = {
                     consoleHelper: consoleHelperSettings,
                     templatesFolder,
+                    sourceFolders,
                 }
             } else {
                 result = {
@@ -82,6 +84,7 @@ export async function getService(): Promise<Service> {
                         webPath: '',
                     },
                     templatesFolder,
+                    sourceFolders,
                 };
             }
 
