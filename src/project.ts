@@ -1163,12 +1163,30 @@ export class Project {
             try {
                 let composerJsonContent = fs.readFileSync(composerJsonPath, { encoding: 'utf8' });
                 let json = JSON.parse(composerJsonContent);
-                let versionPart = json.require['symfony/symfony'].substr(0, 2);
-                if (versionPart === '3.' || versionPart === '2.') {
-                    symfonyLayout = 'before-4';
+                let version = json.require['symfony/symfony'] as string;
+                let prefixVariants = ['2.', '^2.', '~2.', '3.', '^3.', '~3.'];
+                for (let v of prefixVariants) {
+                    if (version.startsWith(v)) {
+                        symfonyLayout = 'before-4';
+                        break;
+                    }
                 }
             } catch {}
         } while (false);
+
+        if (symfonyLayout !== undefined) {
+            this.type = ProjectType.SYMFONY;
+
+            if (symfonyLayout === 'before-4') {
+                this.templatesFolderUri = this.folderUri + '/app/Resources/views';
+            } else {
+                this.templatesFolderUri = this.folderUri + '/templates';
+            }
+        } else {
+            this.templatesFolderUri = this.folderUri + '/templates';
+        }
+
+        this.sourceFolders = ['src'];
 
         this.throttledScanRoutes = _.throttle(
             this.scanRoutes.bind(this),
@@ -1201,20 +1219,6 @@ export class Project {
                 leading: false,
             }
         );
-
-        if (symfonyLayout !== undefined) {
-            this.type = ProjectType.SYMFONY;
-
-            if (symfonyLayout === 'before-4') {
-                this.templatesFolderUri = this.folderUri + '/app/Resources/views';
-            } else {
-                this.templatesFolderUri = this.folderUri + '/templates';
-            }
-        } else {
-            this.templatesFolderUri = this.folderUri + '/templates';
-        }
-
-        this.sourceFolders = ['src'];
     }
 
     private setRoute(name: string, routePath: string, controller: string): void {
