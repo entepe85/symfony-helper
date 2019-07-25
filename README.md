@@ -1,6 +1,6 @@
 # Symfony Helper
 
-A VSCode extension for Twig and DQL in any PHP project. Special support of Symfony projects.
+A VSCode extension for Twig and DQL in any PHP project. Special support for Symfony projects.
 
 [![Linux Build Status](https://travis-ci.org/tmrdh/symfony-helper.svg?branch=master)](https://travis-ci.org/tmrdh/symfony-helper)
 [![Windows Build status](https://ci.appveyor.com/api/projects/status/06dgvoqb55ieb8p9?svg=true)](https://ci.appveyor.com/project/tmrdh/symfony-helper)
@@ -8,8 +8,8 @@ A VSCode extension for Twig and DQL in any PHP project. Special support of Symfo
 
 New in version 1.0.6
 
-* support of Symfony projects starting from version 2.8 of Symfony
-* basic support of arbitrary PHP projects (see [here](https://github.com/tmrdh/symfony-helper/wiki/Arbitrary-PHP-Projects))
+* support for Symfony projects starting from version 2.8 of Symfony
+* basic support for arbitrary PHP projects (see [here](https://github.com/tmrdh/symfony-helper/wiki/Arbitrary-PHP-Projects))
 
 ## Some previews
 
@@ -17,15 +17,18 @@ Search for references to entity field in dql and twig.
 
 ![references](assets/show-references.gif)
 
+<br>
 Completion in dql
 
 ![dql-completion](assets/show-dql-completion.gif)
 
-Completion of route in `href`.
+<br>
+Completion for route in `href`.
 
 ![route-completion](assets/show-route-completion.gif)
 
-Completion of autowired typehints (start typing with '.')
+<br>
+Completion for autowired typehints (start typing with '.')
 
 ![typehint-completion](assets/show-typehint-completion.gif)
 
@@ -36,17 +39,17 @@ Completion of autowired typehints (start typing with '.')
 
 ### Twig
 
-* Support of user-defined and vendor-defined functions, filters, tests and globals
-* Support of variables defined in `AbstractController#render()`, `{%set%}` and `twig.yaml`
-* Support of macros
-* Support of properties and methods of objects
-* Support of first argument of functions `path()`, `url()`, `constant()`
-* Support of template names in `extends` and `include` tags
-* Support of block names
+* Support for user-defined and vendor-defined functions, filters, tests and globals
+* Support for variables defined in `AbstractController#render()`, `{%set%}` and `twig.yaml`
+* Support for macros
+* Support for properties and methods of objects
+* Support for first argument of functions `path()`, `url()`, `constant()`
+* Support for template names in `extends` and `include` tags
+* Support for block names
 * Special completion of route name in `href`
-* Smarter snippets for tags
-    * only shown outside of `{%%}`, `{{}}` and `{##}`
-    * autoindent for `{%end*%}` and `{%else*%}` after completion
+* Snippets for tags
+    * They are active only outside of `{%%}`, `{{}}` and `{##}`
+    * `{%end*%}` and `{%else*%}` are autoindented after completion
 * Folding
 * `Extend Template` command<br>
   Position and layout of used blocks are stored in `.symfony-helper.json` file and can be configured by hand.
@@ -58,13 +61,13 @@ Completion of autowired typehints (start typing with '.')
 
 ### Doctrine and DQL
 
-* Support of entities and entity fields in dql string literals
+* Support for entities and entity fields in dql string literals
 * Definition and hover for `repositoryClass` and `targetEntity` in annotations of entity classes
 
 ### PHP
-* Completion of autowired typehints (start typing with '.' because I don't want intersection with php intellisense)
-* Support of first argument of methods `generateUrl()`, `render()`, `get()`, `getParameter()` of `AbstractController`
-* Support of first argument of `UrlGeneratorInterface#generate()`
+* Completion for autowired typehints (start typing with '.' because I don't want intersection with php intellisense)
+* Support for first argument of methods `generateUrl()`, `render()`, `get()`, `getParameter()` of `AbstractController`
+* Support for first argument of `UrlGeneratorInterface#generate()`
 
 
 ### YAML
@@ -97,6 +100,6 @@ In service definition files
 
 ## Roadmap
 
-* Finish support of twig and dql in arbitrary php projects
-* Add support of dql query builder (definition and completion of entity fields, refactoring to dql and from dql)
+* Finish support for twig and dql in arbitrary php projects
+* Add support for dql query builder (definition and completion for entity fields, refactoring to dql and from dql)
 * Make sure that language server is really reusable

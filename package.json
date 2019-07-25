@@ -1,7 +1,7 @@
 {
     "name": "symfony-helper",
     "displayName": "Symfony Helper",
-    "description": "Support of Twig and DQL in any PHP project. Special support of Symfony projects.",
+    "description": "Support for Twig and DQL in any PHP project. Special support for Symfony projects.",
     "publisher": "tmrdh",
     "author": {
         "name": "Timur Morduhai",
