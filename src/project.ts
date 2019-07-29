@@ -65,7 +65,8 @@ import {
     sqlSelectFields,
     packagePath,
     requestHttpCommandsHelper,
-    SymfonyHelperSettings
+    SymfonyHelperSettings,
+    ParsedDocBlock,
 } from './utils';
 
 import { tokenize as tokenizeDql, Token as DqlToken, TokenType as DqlTokenType } from './dql';
@@ -339,71 +340,6 @@ function methodParamsSymbolTable(method: nikic.Stmt_ClassMethod, nameResolverDat
     return symbols;
 }
 
-function twigCompletionsForClass(phpClass: PhpClass, morePhpClass: php.PhpClassMoreInfo, editRange: Range) {
-    let items: CompletionItem[] = [];
-
-    for (let property of morePhpClass.properties) {
-        if (property.isPublic) {
-            items.push({
-                label: property.name,
-                textEdit: {
-                    newText: property.name,
-                    range: editRange,
-                }
-            });
-        }
-    }
-
-    for (let method of morePhpClass.methods) {
-        if (method.isPublic) {
-            // hide methods 'set*()'
-            if (method.name.startsWith('set') && method.name.length > 3 && method.name[3].toUpperCase() === method.name[3]) {
-                continue;
-            }
-
-            if (method.name.startsWith('__')) {
-                continue;
-            }
-
-            let label: string;
-
-            if ((method.name.startsWith('get') || method.name.startsWith('has')) && method.name.length > 3) {
-                label = method.name.substr(3);
-                label = label[0].toLowerCase() + label.substr(1);
-            } else if (method.name.startsWith('is') && method.name.length > 2) {
-                label = method.name.substr(2);
-                label = label[0].toLowerCase() + label.substr(1);
-            } else {
-                label = method.name;
-            }
-
-            let item: CompletionItem = {
-                label,
-                textEdit: {
-                    newText: label,
-                    range: editRange,
-                },
-            };
-
-            // it's a hack. I should test method body for used fields.
-            if (phpClass.entity !== undefined) {
-                let field = phpClass.entity.fields.find(row => row.name === label);
-                if (field !== undefined) {
-                    item.detail = field.type;
-                    item.documentation = {
-                        kind: MarkupKind.Markdown,
-                        value: field.hoverMarkdown,
-                    };
-                }
-            }
-
-            items.push(item);
-        }
-    }
-
-    return items;
-}
-
 export function findTwigGlobalsInYaml(code: string)  {
     let node = yaml.safeLoad(code);
     if (node.kind !== yaml.Kind.MAP) {
@@ -520,6 +456,35 @@ function parsePhpDocBlockType(typeString: string, nameResolverData: nikic.NameRe
     return new php.AnyType();
 }
 
+function docBlockToShortHelp(parsedDocBlock: ParsedDocBlock): string | null {
+    let shortHelp: string | null = null;
+
+    if (parsedDocBlock.rawTags.length > 0) {
+        shortHelp = parsedDocBlock.rawTags.join('\n');
+    }
+    if (parsedDocBlock.summary !== undefined) {
+        if (shortHelp === null) {
+            shortHelp = parsedDocBlock.summary;
+        } else {
+            shortHelp = parsedDocBlock.summary + '\n\n' + shortHelp;
+        }
+    }
+
+    return shortHelp;
+}
+
+function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
+    if (node !== null) {
+        let parsedDocBlock = parsePhpDocBlock(node.text);
+        if (parsedDocBlock !== null) {
+            let shortHelp = docBlockToShortHelp(parsedDocBlock);
+            return shortHelp;
+        }
+    }
+
+    return null;
+}
+
 export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo | null> {
     let stmts = await nikic.parse(code);
 
@@ -539,14 +504,8 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
         return null;
     }
 
-    let classShortHelp: string | null = null;
     let classCommentNode = nikic.lastDocComment(classStmt.attributes.comments);
-    if (classCommentNode !== null) {
-        let parsedDocBlock = parsePhpDocBlock(classCommentNode.text);
-        if (parsedDocBlock !== null && parsedDocBlock.summary !== undefined) {
-            classShortHelp = parsedDocBlock.summary;
-        }
-    }
+    let classShortHelp = commentNodeToShortHelp(classCommentNode);
 
     let nameResolverData = nikic.findNameResolverData(stmts);
 
@@ -562,14 +521,8 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
         if (stmt.nodeType === 'Stmt_ClassConst') {
             let offset = stmt.attributes.startFilePos;
 
-            let constHelp = null;
             let constCommentNode = nikic.lastDocComment(stmt.attributes.comments);
-            if (constCommentNode !== null) {
-                let parsedDocBlock = parsePhpDocBlock(constCommentNode.text);
-                if (parsedDocBlock !== null && parsedDocBlock.summary !== undefined) {
-                    constHelp = parsedDocBlock.summary;
-                }
-            }
+            let constHelp = commentNodeToShortHelp(constCommentNode);
 
             for (let c of stmt.consts) {
                 let constData: php.PhpClassConstant = {
@@ -592,14 +545,8 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
         } else if (stmt.nodeType === 'Stmt_Property') {
             let offset = stmt.attributes.startFilePos;
 
-            let propHelp = null;
             let propCommentNode = nikic.lastDocComment(stmt.attributes.comments);
-            if (propCommentNode !== null) {
-                let parsedDocBlock = parsePhpDocBlock(propCommentNode.text);
-                if (parsedDocBlock !== null && parsedDocBlock.summary !== undefined) {
-                    propHelp = parsedDocBlock.summary;
-                }
-            }
+            let propHelp = commentNodeToShortHelp(propCommentNode);
 
             for (let prop of stmt.props) {
                 let propData: php.PhpClassProperty = {
@@ -637,14 +584,10 @@ export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo 
                 }
             }
 
-            let methodHelp = null;
             let methodCommentNode = nikic.lastDocComment(stmt.attributes.comments);
+            let methodHelp = commentNodeToShortHelp(methodCommentNode);
             if (methodCommentNode !== null) {
                 let parsedDocBlock = parsePhpDocBlock(methodCommentNode.text);
-
-                if (parsedDocBlock !== null && parsedDocBlock.summary !== undefined) {
-                    methodHelp = parsedDocBlock.summary;
-                }
 
                 if (parsedDocBlock !== null) {
                     let returnTag = parsedDocBlock.tags.filter(row => row.type === 'return')[0];
@@ -689,23 +632,8 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
     }
 
     let entityComment = entityCommentNode.text;
-
-    let entityHoverMarkdown = '';
-    {
-        let pieces: string[] = [];
-
-        let parsedDocBlock = parsePhpDocBlock(entityComment);
-        if (parsedDocBlock !== null && parsedDocBlock.summary !== undefined) {
-            pieces.push(parsedDocBlock.summary);
-        }
-
-        for (let line of entityComment.split('\n')) {
-            let index = line.indexOf('@ORM');
-            if (index !== -1) {
-                pieces.push(line.substr(index).trim());
-            }
-        }
-        entityHoverMarkdown = '```\n' + pieces.join('\n') + '\n```';
+    if (!(entityComment.includes('@ORM\\Entity') || entityComment.includes('@Entity') || entityComment.includes('@ORM\\Embeddable') || entityComment.includes('@Embeddable'))) {
+        return null;
     }
 
     let fields: EntityFieldData[] = [];
@@ -784,31 +712,11 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
             continue;
         }
 
-        let hoverMarkdown = '';
-        {
-            let pieces: string[] = [];
-
-            let parsedDocBlock = parsePhpDocBlock(propComment);
-            if (parsedDocBlock !== null && parsedDocBlock.summary !== undefined) {
-                pieces.push(parsedDocBlock.summary);
-            }
-
-            for (let line of propComment.split('\n')) {
-                let index = line.indexOf('@ORM');
-                if (index !== -1) {
-                    pieces.push(line.substr(index).trim());
-                }
-            }
-            hoverMarkdown = '```\n' + pieces.join('\n') + '\n```';
-        }
-
         let fieldData: EntityFieldData = {
             name: stmt.props[0].name.name,
             nameStartOffset: stmt.props[0].name.attributes.startFilePos,
             nameEndOffset: stmt.props[0].name.attributes.endFilePos + 1,
-            hoverMarkdown,
             offset: stmt.attributes.startFilePos,
-            comment: propComment,
             type: fieldType,
             isEmbedded,
         };
@@ -825,15 +733,20 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
     }
 
     let result = {
+        className: '', // TODO
+        offset: 0, // TODO
         fields,
-        hoverMarkdown: entityHoverMarkdown,
     };
 
     return result;
 }
 
+/**
+ * Common data for annotation-mapping and xml-mapping
+ */
 interface EntityData {
-    hoverMarkdown: string;
+    className: string;
+    offset: number; // 'natural' offset of entity definition
     fields: EntityFieldData[];
 }
 
@@ -842,12 +755,12 @@ interface EntityFieldData {
     offset: number; // start of private/public
     nameStartOffset: number;
     nameEndOffset: number;
-    comment: string;
-    hoverMarkdown: string;
     type: string;
-    joinType?: 'ManyToOne' | 'ManyToMany' | 'OneToOne' | 'OneToMany';
+    joinType?: EntityFieldJoinType;
     isEmbedded: boolean;
 }
+
+type EntityFieldJoinType = 'ManyToOne' | 'ManyToMany' | 'OneToOne' | 'OneToMany';
 
 function isLooksLikeDQL(str: string): boolean {
     let match = str.match(/^\s*(select|update|delete)\s+/i);
@@ -1088,6 +1001,102 @@ const enum ProjectType {
     SYMFONY,
 }
 
+interface XmlFile {
+    entity?: EntityData;
+}
+
+// TODO: use dom-api instead of sax-api?
+// TODO: properly handle xml namespaces?
+function parseXmlForEntityData(code: string): null | EntityData {
+    let indexA = code.indexOf('<doctrine-mapping');
+    let indexB = code.indexOf('<entity');
+
+    if (indexA < 0 || indexB < 0 || indexA > indexB) {
+        return null;
+    }
+
+    let parser = sax.parser(true, { position: true });
+
+    let base: undefined | { className: string, offset: number };
+
+    let fields: EntityFieldData[] = [];
+
+    parser.onopentag = (tag) => {
+        if (tag.name === 'entity') {
+            let tagStart = code.lastIndexOf('<entity', parser.position);
+            if (tagStart >= 0 && typeof tag.attributes.name === 'string') {
+                base = { className: tag.attributes.name, offset: tagStart };
+            }
+        } else if (tag.name === 'field' || tag.name === 'id') {
+            let tagStart = code.lastIndexOf('<' + tag.name, parser.position);
+            if (tagStart >= 0 && typeof tag.attributes.name === 'string' && typeof tag.attributes.type === 'string') {
+                // TODO: review remaining fields
+                fields.push({
+                    name: tag.attributes.name,
+                    type: tag.attributes.type,
+                    isEmbedded: false,
+                    offset: tagStart,
+                    nameStartOffset: tagStart + 1,
+                    nameEndOffset: tagStart + 2,
+                });
+            }
+        } else if (tag.name === 'many-to-one' || tag.name === 'many-to-many' || tag.name === 'one-to-one' || tag.name === 'one-to-many') {
+            let tagStart = code.lastIndexOf('<' + tag.name, parser.position);
+            if (tagStart >= 0 && typeof tag.attributes.field === 'string' && typeof tag.attributes['target-entity'] === 'string') {
+                let joinType: undefined | EntityFieldJoinType;
+                if (tag.name === 'many-to-one') {
+                    joinType = 'ManyToOne';
+                } else if (tag.name === 'many-to-many') {
+                    joinType = 'ManyToMany';
+                } else if (tag.name === 'one-to-many') {
+                    joinType = 'OneToMany';
+                } else if (tag.name === 'one-to-one') {
+                    joinType = 'OneToOne';
+                }
+
+                if (joinType === undefined) {
+                    return;
+                }
+
+                let type = tag.attributes['target-entity'] as string;
+                if (!type.includes('\\')) {
+                    if (base === undefined) {
+                        return;
+                    } else if (base.className.includes('\\')) {
+                        let lastSlashIndex = base.className.lastIndexOf('\\');
+                        if (lastSlashIndex >= 0) {
+                            type = base.className.substr(0, lastSlashIndex) + '\\' + type;
+                        }
+                    }
+                }
+
+                // TODO: review remaining fields
+                fields.push({
+                    name: tag.attributes.field,
+                    offset: tagStart,
+                    joinType,
+                    nameStartOffset: tagStart + 1,
+                    nameEndOffset: tagStart + 2,
+                    isEmbedded: false,
+                    type,
+                });
+            }
+        }
+    };
+
+    parser.write(code).close();
+
+    if (base !== undefined) {
+        return {
+            className: base.className,
+            offset: base.offset,
+            fields,
+        };
+    }
+
+    return null;
+}
+
 /**
  * Logic for individual symfony project.
  *
@@ -1101,6 +1110,9 @@ export class Project {
     private allDocuments: AllTextDocuments;
 
     private phpClasses: { [fileUri: string]: PhpClass } = Object.create(null);
+
+    // TODO: remove 'for in' iteration when searching for 'entity.className'
+    private xmlFiles: { [fileUri: string]: XmlFile } = Object.create(null);
 
     private services: { [id: string]: ServiceXmlDescription } = Object.create(null);
 
@@ -1354,6 +1366,36 @@ export class Project {
             this.services = newServices;
         }
 
+        let projectXmlFiles: string[];
+        {
+            let tmp: string[][] = [];
+
+            // symfony 4 projects
+            tmp.push(await findFiles(folderFsPath + '/config/**/*.xml'));
+
+            // projects before symfony 4
+            // 1. probably useless
+            // 2. I don't use whole '/app/' to skip '/app/cache/' from symfony 2
+            tmp.push(await findFiles(folderFsPath + '/app/config/**/*.xml'));
+            tmp.push(await findFiles(folderFsPath + '/app/Resourses/**/*.xml'));
+
+            for (let folder of this.sourceFolders) {
+                tmp.push(await findFiles(folderFsPath + '/' + folder + '/**/*.xml'));
+            }
+
+            projectXmlFiles = ([] as string[]).concat(...tmp);
+        }
+
+        for (let filePath of projectXmlFiles) {
+            let code = await readFile(filePath);
+
+            let entity = parseXmlForEntityData(code);
+            if (entity !== null) {
+                let fileUri = URI.file(filePath).toString();
+                this.xmlFiles[fileUri] = { entity };
+            }
+        }
+
         let projectPhpFiles: string[];
         {
             let tmp: string[][] = [];
@@ -1362,7 +1404,6 @@ export class Project {
             }
             projectPhpFiles = ([] as string[]).concat(...tmp);
         }
-
 
         // parsing php-files (list of all classes, twig extensions, bundles)
         {
@@ -3001,7 +3042,7 @@ export class Project {
                         break;
                     }
 
-                    return twigCompletionsForClass(phpClass, morePhpClass, editRange);
+                    return this.twigCompletionsForClass(phpClass, morePhpClass, editRange);
                 } else if (typeBeforeDot instanceof php.ArrayType) {
                     let knownValues = typeBeforeDot.getKnownValues();
 
@@ -3909,13 +3950,33 @@ export class Project {
             }
         }
 
-        if (phpClass === null || phpClass.entity === undefined) {
+        if (phpClass === null) {
+            return [];
+        }
+
+        let entityData: undefined | EntityData;
+
+        for (let fileUri in this.xmlFiles) {
+            let entity = this.xmlFiles[fileUri].entity;
+            if (entity !== undefined && entity.className === phpClass.fullClassName) {
+                entityData = entity;
+                break;
+            }
+        }
+
+        if (entityData === undefined) {
+            if (phpClass.entity !== undefined) {
+                entityData = phpClass.entity;
+            }
+        }
+
+        if (entityData === undefined) {
             return [];
         }
 
         let items: CompletionItem[] = [];
 
-        for (let field of phpClass.entity.fields) {
+        for (let field of entityData.fields) {
             let item: CompletionItem = {
                 label: field.name,
                 kind: CompletionItemKind.Property,
@@ -3929,10 +3990,13 @@ export class Project {
                 detail: field.type,
             };
 
-            item.documentation = {
-                kind: MarkupKind.Markdown,
-                value: field.hoverMarkdown,
-            };
+            let doc = await this.phpClassHoverMarkdown(phpClass.fullClassName, 'property', field.name);
+            if (doc !== null) {
+                item.documentation = {
+                    kind: MarkupKind.Markdown,
+                    value: doc,
+                };
+            }
 
             items.push(item);
         }
@@ -3947,6 +4011,13 @@ export class Project {
             let phpClass = this.phpClasses[fileUri];
             if (phpClass.entity !== undefined) {
                 result[phpClass.fullClassName] = phpClass.entity;
+            }
+        }
+
+        for (let fileUri in this.xmlFiles) {
+            let entity = this.xmlFiles[fileUri].entity;
+            if (entity !== undefined) {
+                result[entity.className] = entity;
             }
         }
 
@@ -4374,6 +4445,20 @@ export class Project {
         }
 
         if (result.type === 'entityClass') {
+            for (let fileUri in this.xmlFiles) {
+                let entity = this.xmlFiles[fileUri].entity;
+                if (entity !== undefined && entity.className === result.className) {
+                    let xmlDocument = await this.getDocument(fileUri);
+                    if (xmlDocument !== null) {
+                        let pos = xmlDocument.positionAt(entity.offset);
+                        return {
+                            uri: fileUri,
+                            range: Range.create(pos, pos),
+                        };
+                    }
+                }
+            }
+
             let phpClass = this.getPhpClass(result.className);
 
             if (phpClass !== null && phpClass.entity !== undefined) {
@@ -4393,6 +4478,20 @@ export class Project {
 
             if (result2 !== null) {
                 let { phpClass, phpClassField } = result2;
+
+                for (let fileUri in this.xmlFiles) {
+                    let entity = this.xmlFiles[fileUri].entity;
+                    if (entity !== undefined && entity.className === phpClass.fullClassName) {
+                        let xmlDocument = await this.getDocument(fileUri);
+                        if (xmlDocument !== null) {
+                            let pos = xmlDocument.positionAt(phpClassField.offset);
+                            return {
+                                uri: fileUri,
+                                range: Range.create(pos, pos),
+                            };
+                        }
+                    }
+                }
 
                 let classDocument = await this.getDocument(phpClass.fileUri);
 
@@ -5356,7 +5455,7 @@ export class Project {
         return null;
     }
 
-    private hoverDql(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Hover | null {
+    private async hoverDql(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<Hover | null> {
         let result = this.dqlTestPosition(scalarString, document, offset);
 
         if (result === null) {
@@ -5366,59 +5465,65 @@ export class Project {
         if (result.type === 'entityClass') {
             let phpClass = this.getPhpClass(result.className);
 
-            if (phpClass !== null && phpClass.entity !== undefined) {
-                return {
-                    contents: {
-                        value: phpClass.entity.hoverMarkdown,
-                        kind: MarkupKind.Markdown,
-                    },
-                    range: Range.create(
-                        document.positionAt(result.hoverLeftOffset),
-                        document.positionAt(result.hoverRightOffset)
-                    ),
-                };
+            if (phpClass !== null) {
+                let classHoverMarkdown = await this.phpClassHoverMarkdown(result.className);
+                if (classHoverMarkdown !== null) {
+                    return {
+                        contents: {
+                            value: classHoverMarkdown,
+                            kind: MarkupKind.Markdown,
+                        },
+                        range: Range.create(
+                            document.positionAt(result.hoverLeftOffset),
+                            document.positionAt(result.hoverRightOffset)
+                        ),
+                    };
+                }
             }
         } else if (result.type === 'entityField') {
             let result2 = this.accessEntityWithPath(result.className, result.accessPath);
 
             if (result2 !== null) {
-                let { phpClassField } = result2;
+                let { phpClass, phpClassField } = result2;
 
-                return {
-                    contents: {
-                        value: phpClassField.hoverMarkdown,
-                        kind: MarkupKind.Markdown,
-                    },
-                    range: Range.create(
-                        document.positionAt(result.hoverLeftOffset),
-                        document.positionAt(result.hoverRightOffset)
-                    ),
-                };
+                let fieldHoverMarkdown = await this.phpClassHoverMarkdown(phpClass.fullClassName, 'property', phpClassField.name);
+
+                if (fieldHoverMarkdown !== null) {
+                    return {
+                        contents: {
+                            value: fieldHoverMarkdown,
+                            kind: MarkupKind.Markdown,
+                        },
+                        range: Range.create(
+                            document.positionAt(result.hoverLeftOffset),
+                            document.positionAt(result.hoverRightOffset)
+                        ),
+                    };
+                }
             }
         }
 
         return null;
     }
 
+    // TODO: this is so wrong on so many levels. fix this shit.
     private accessEntityWithPath(className: string, accessPath: string[]) {
         let phpClass = this.getPhpClass(className);
+        let entities = this.getEntities();
 
         for (let i = 0; i < accessPath.length; i++) {
             let name = accessPath[i];
 
-            if (phpClass === null || phpClass.entity === undefined) {
+            if (phpClass === null) {
                 return null;
             }
 
-            let fieldForName: EntityFieldData | undefined;
-
-            for (let field of phpClass.entity.fields) {
-                if (field.name === name) {
-                    fieldForName = field;
-                    break;
-                }
+            let entity = entities[phpClass.fullClassName];
+            if (entity === undefined) {
+                return null;
             }
 
+            let fieldForName = entity.fields.find(row => row.name === name);
             if (fieldForName === undefined) {
                 return null;
             }
@@ -7142,10 +7247,6 @@ export class Project {
                 }
             }
         } else {
-            if (phpClass.entity !== undefined) {
-                return phpClass.entity.hoverMarkdown;
-            }
-
             if (morePhpClass.shortHelp === undefined) {
                 return null;
             }
@@ -7866,5 +7967,76 @@ export class Project {
 
     public isSymfony() {
         return this.type === ProjectType.SYMFONY;
+    }
+
+    private async twigCompletionsForClass(phpClass: PhpClass, morePhpClass: php.PhpClassMoreInfo, editRange: Range) {
+        let items: CompletionItem[] = [];
+
+        for (let property of morePhpClass.properties) {
+            if (property.isPublic) {
+                items.push({
+                    label: property.name,
+                    textEdit: {
+                        newText: property.name,
+                        range: editRange,
+                    }
+                });
+            }
+        }
+
+        for (let method of morePhpClass.methods) {
+            if (method.isPublic) {
+                // hide methods 'set*()'
+                if (method.name.startsWith('set') && method.name.length > 3 && method.name[3].toUpperCase() === method.name[3]) {
+                    continue;
+                }
+
+                if (method.name.startsWith('__')) {
+                    continue;
+                }
+
+                let label: string;
+
+                if ((method.name.startsWith('get') || method.name.startsWith('has')) && method.name.length > 3) {
+                    label = method.name.substr(3);
+                    label = label[0].toLowerCase() + label.substr(1);
+                } else if (method.name.startsWith('is') && method.name.length > 2) {
+                    label = method.name.substr(2);
+                    label = label[0].toLowerCase() + label.substr(1);
+                } else {
+                    label = method.name;
+                }
+
+                let item: CompletionItem = {
+                    label,
+                    textEdit: {
+                        newText: label,
+                        range: editRange,
+                    },
+                };
+
+                // TODO: test 'phpClass.entity !== undefined' everywhere
+
+                // it's a hack. I should test method body for used fields.
+                if (phpClass.entity !== undefined) {
+                    let field = phpClass.entity.fields.find(row => row.name === label);
+                    if (field !== undefined) {
+                        item.detail = field.type;
+
+                        let doc = await this.phpClassHoverMarkdown(phpClass.fullClassName, 'property', field.name);
+                        if (doc !== null) {
+                            item.documentation = {
+                                kind: MarkupKind.Markdown,
+                                value: doc,
+                            };
+                        }
+                    }
+                }
+
+                items.push(item);
+            }
+        }
+
+        return items;
     }
 }

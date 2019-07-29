@@ -172,13 +172,20 @@ function parsePhpDocBlockTag(line: string): PhpDocBlockTag | null {
     return null;
 }
 
+export interface ParsedDocBlock {
+    summary?: string;
+    description?: string;
+    tags: PhpDocBlockTag[];
+    rawTags: string[];
+}
+
 /**
  * Parse docblocks for php
  *
  * Summary can be multiline.
  * Summary, description and tags should be separated by at least one empty line.
  */
-export function parsePhpDocBlock(text: string): { summary?: string, description?: string, tags: PhpDocBlockTag[] } | null {
+export function parsePhpDocBlock(text: string): ParsedDocBlock | null {
     let processedText = text.trim();
     if (!(processedText.startsWith('/**') && processedText.endsWith('*/'))) {
         return null;
@@ -216,6 +223,7 @@ export function parsePhpDocBlock(text: string): { summary?: string, description?
     let summaryLines: string[] = [];
     let descriptionLines: string[] = [];
     let tags: PhpDocBlockTag[] = [];
+    let rawTags: string[] = [];
 
     for (let line of lines) {
         if (state === 'summary') {
@@ -229,6 +237,7 @@ export function parsePhpDocBlock(text: string): { summary?: string, description?
                 if (tag !== null) {
                     tags.push(tag);
                 }
+                rawTags.push(line);
             } else {
                 summaryLines.push(line);
             }
@@ -239,6 +248,7 @@ export function parsePhpDocBlock(text: string): { summary?: string, description?
                 if (tag !== null) {
                     tags.push(tag);
                 }
+                rawTags.push(line);
             } else {
                 descriptionLines.push(line);
             }
@@ -248,12 +258,14 @@ export function parsePhpDocBlock(text: string): { summary?: string, description?
                 if (tag !== null) {
                     tags.push(tag);
                 }
+                rawTags.push(line);
             }
         }
     }
 
-    let result: { summary?: string, description?: string, tags: any[] } = {
+    let result: { summary?: string, description?: string, tags: any[], rawTags: string[] } = {
         tags,
+        rawTags,
     };
 
     if (summaryLines.length > 0) {

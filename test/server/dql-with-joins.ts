@@ -71,7 +71,7 @@ describe('tests for dql with joins', function () {
             range: Range.create(13, 134, 13, 138),
             contents: {
                 kind: MarkupKind.Markdown,
-                value: ['```', 'City.', '@ORM\\ManyToOne(targetEntity="App\\Entity\\Joins\\City")', '```'].join('\n'),
+                value: ['```', 'City.\n', '@ORM\\ManyToOne(targetEntity="App\\Entity\\Joins\\City")', '```'].join('\n'),
             }
         };
 

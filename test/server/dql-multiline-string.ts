@@ -67,7 +67,7 @@ describe('dql tests for multiline strings', function () {
             range: Range.create(14, 25, 14, 30),
             contents: {
                 kind: MarkupKind.Markdown,
-                value: ['```', 'Normal price of product', '@ORM\\Column(type="integer")', '```'].join('\n'),
+                value: ['```', 'Normal price of product\n', '@ORM\\Column(type="integer")', '```'].join('\n'),
             }
         };
 

@@ -53,7 +53,7 @@ describe('basic tests for completion in dql', function () {
             detail: 'integer',
             documentation: {
                 kind: 'markdown',
-                value: ['```', 'Price of product.', '@ORM\\Column(type="integer")', '```'].join('\n')
+                value: ['```', 'Price of product.\n', '@ORM\\Column(type="integer")', '```'].join('\n')
             },
         };
 
