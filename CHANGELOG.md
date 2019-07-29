@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 1.0.7 (29 July 2019)
+
+* Basic support for entities defined in xml files (only in Symfony projects; only definition, hover and completion in DQL literals)
+
 ## Version 1.0.6 (22 July 2019)
 
 * Support for Symfony projects starting from version 2.8 of Symfony

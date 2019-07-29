@@ -6,6 +6,10 @@ A VSCode extension for Twig and DQL in any PHP project. Special support for Symf
 [![Windows Build status](https://ci.appveyor.com/api/projects/status/06dgvoqb55ieb8p9?svg=true)](https://ci.appveyor.com/project/tmrdh/symfony-helper)
 [![Coverage Status](https://coveralls.io/repos/github/tmrdh/symfony-helper/badge.svg?branch=master)](https://coveralls.io/github/tmrdh/symfony-helper?branch=master)
 
+New in version 1.0.7
+
+* basic support for entities defined in xml files (only in Symfony projects; only definition, hover and completion in DQL literals)
+
 New in version 1.0.6
 
 * support for Symfony projects starting from version 2.8 of Symfony
