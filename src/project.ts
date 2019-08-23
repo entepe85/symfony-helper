@@ -104,14 +104,11 @@ export interface TwigExtensionGlobal {
 
 /**
  * Searches for 'new TwigFunction()', 'new TwigTest()' and 'new TwigFilter()' calls everywhere and also for 'getGlobals()' call
+ *
+ * @param stmts         parsed 'code'
  */
-export async function findTwigExtensionElements(code: string) {
+export async function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
     let result: { elements: TwigExtensionCallable[], globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
-    let stmts = await nikic.parse(code);
-
-    if (stmts === null || stmts.length === 0) {
-        return result;
-    }
 
     let classStmts = nikic.findNodesOfType(stmts, 'Stmt_Class');
 
@@ -1138,7 +1135,6 @@ export class Project {
 
     // when changing, dont forget to check number of found classes
     private readonly CLASS_REGEXP = /^((\s*)((abstract|final)\s+)?(class|interface)\s+)(\w+)/m;
-    private readonly CLASS_CONST_REGEXP = /const\s/;
 
     private readonly TWIG_REGEXP = /TwigFunction|TwigFilter|TwigTest|Twig_Function|Twig_Filter|Twig_Test|getGlobals/;
 
@@ -1555,6 +1551,15 @@ export class Project {
             return null;
         }
 
+        let fileIsTwigExtension = code.match(this.TWIG_REGEXP) !== null;
+        let fileIsFromSourceFolders = this.isFromSourceFolders(fileUri)
+
+        let stmts: nikic.Statement[] | null = null;
+
+        if (fileIsTwigExtension || fileIsFromSourceFolders) {
+            stmts = await nikic.parse(code);
+        }
+
         let className = classMatch[6];
         let fullClassName;
         let namespaceMatch = code.match(this.NAMESPACE_REGEXP);
@@ -1563,10 +1568,9 @@ export class Project {
         } else {
             fullClassName = className;
         }
+
         let hasConstants = false;
-        if (!fileUri.startsWith(this.folderUri+'/vendor/') /* optimization because of slow php-parser */
-                && code.match(this.CLASS_CONST_REGEXP) !== null) {
-            let stmts = await nikic.parse(code);
+        if (fileIsFromSourceFolders && stmts !== null) {
             let constStmts = nikic.findNodesOfType(stmts, 'Stmt_ClassConst');
             if (constStmts.length > 0) {
                 hasConstants = true;
@@ -1583,8 +1587,8 @@ export class Project {
             type: (classMatch[5] === 'class') ? 'class' : 'interface',
         };
 
-        if (code.match(this.TWIG_REGEXP) !== null) {
-            let { elements, globals } = await findTwigExtensionElements(code);
+        if (fileIsTwigExtension && stmts !== null) {
+            let { elements, globals } = await findTwigExtensionElements(code, stmts);
             if (elements.length > 0) {
                 phpClass.twigExtensionElements = elements;
             }
@@ -1601,13 +1605,8 @@ export class Project {
             phpClass.bundle = { name: bundleName, folderUri };
         }
 
-        if (this.isFromSourceFolders(fileUri)) {
+        if (fileIsFromSourceFolders && stmts !== null) {
             do {
-                let stmts = await nikic.parse(code);
-                if (stmts === null || stmts.length === 0) {
-                    break;
-                }
-
                 let nameResolverData = nikic.findNameResolverData(stmts);
                 if (nameResolverData.namespace === null) {
                     continue;

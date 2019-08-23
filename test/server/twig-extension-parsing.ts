@@ -6,6 +6,7 @@ import * as php from '../../src/php';
 import { TextDocument, Position } from 'vscode-languageserver';
 import * as assert from 'assert';
 import URI from 'vscode-uri';
+import * as nikic from '../../src/nikic-php-parser';
 
 describe('search twig extension for new functions, filters and tests', function () {
     let projectFsPath = URI.parse(projectUri).fsPath;
@@ -16,7 +17,13 @@ describe('search twig extension for new functions, filters and tests', function 
         let code = await readFile(filePath);
         let document = TextDocument.create('temp://temp.php', 'php', 1, code);
 
-        let actual = (await findTwigExtensionElements(code)).elements;
+        let stmts = await nikic.parse(code);
+        if (stmts === null) {
+            assert.ok(false);
+            return;
+        }
+
+        let actual = (await findTwigExtensionElements(code, stmts)).elements;
 
         let expected: TwigExtensionCallable[] = [
             {
@@ -59,7 +66,13 @@ describe('search twig extension for new functions, filters and tests', function 
     it('should work for tests', async function () {
         let code = await readFile(projectFsPath + '/src/Twig/ExtensionB.php');
 
-        let actual = await findTwigExtensionElements(code);
+        let stmts = await nikic.parse(code);
+        if (stmts === null) {
+            assert.ok(false);
+            return;
+        }
+
+        let actual = await findTwigExtensionElements(code, stmts);
 
         let testA = actual.elements.find(row => row.type === 'test' && row.name === 'testA');
         assert.deepEqual(testA!.implementation!.params, []);
@@ -71,7 +84,13 @@ describe('search twig extension for new functions, filters and tests', function 
     it('should work for filters', async function () {
         let code = await readFile(projectFsPath + '/src/Twig/ExtensionC.php');
 
-        let actual = await findTwigExtensionElements(code);
+        let stmts = await nikic.parse(code);
+        if (stmts === null) {
+            assert.ok(false);
+            return;
+        }
+
+        let actual = await findTwigExtensionElements(code, stmts);
 
         let filterA = actual.elements.find(row => row.type === 'filter' && row.name === 'filterA');
         assert.deepEqual(filterA!.implementation!.params, []);
@@ -83,7 +102,13 @@ describe('search twig extension for new functions, filters and tests', function 
     it('should know about context-aware and environment-aware functions and filters', async function () {
         let code = await readFile(projectFsPath + '/src/Twig/Extension4.php');
 
-        let actual = await findTwigExtensionElements(code);
+        let stmts = await nikic.parse(code);
+        if (stmts === null) {
+            assert.ok(false);
+            return;
+        }
+
+        let actual = await findTwigExtensionElements(code, stmts);
 
         let flt = actual.elements.find(row => row.name === 'flt4');
         assert.deepEqual(flt!.implementation!.params, [{ name: 'param' }]);
@@ -98,7 +123,13 @@ describe('search twig extension for new functions, filters and tests', function 
         let code = await readFile(filePath);
         let document = TextDocument.create('temp://temp.php', 'php', 1, code);
 
-        let actual = (await findTwigExtensionElements(code)).elements.find(row => row.name === 'function2') as TwigExtensionCallable;
+        let stmts = await nikic.parse(code);
+        if (stmts === null) {
+            assert.ok(false);
+            return;
+        }
+
+        let actual = (await findTwigExtensionElements(code, stmts)).elements.find(row => row.name === 'function2') as TwigExtensionCallable;
 
         let expectedImplementation = {
             offset: document.offsetAt(Position.create(10, 53)),
