@@ -19,7 +19,7 @@ describe('search for template render calls', function () {
 
         let stmts = await nikic.parse(code) as nikic.Statement[];
         let project = service.findFileProject(documentUri);
-        let actual = project!.findTemplateRenderCalls(stmts, documentUri);
+        let actual = project!.findTemplateRenderCalls(stmts, documentUri, 'App\\Controller\\PController');
 
         // I don't want to test deleted things
         for (let call of actual) {
@@ -27,7 +27,8 @@ describe('search for template render calls', function () {
             delete call.className;
             delete call.methodName;
             for (let param of call.params) {
-                delete param.type;
+                delete param.valueNode;
+                delete param.methodNode;
             }
         }
 

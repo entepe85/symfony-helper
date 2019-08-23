@@ -78,7 +78,13 @@ export interface TemplateRenderCall {
     className: string;
     methodName: string;
     name: string; // name of template
-    params: { name: string, offset: number, type: php.Type }[];
+    params: {
+        name: string;
+        offset: number;
+        // TODO: remove 'valueNode' and 'methonNode' and find them in parse tree?
+        valueNode: nikic.Expression,
+        methodNode: nikic.Stmt_ClassMethod,
+    }[];
 }
 
 export interface TwigExtensionCallable {
@@ -386,6 +392,7 @@ interface PhpClass {
     nameEndOffset: number;
     type: 'class' | 'interface';
     hasConstants: boolean;
+    stmts?: nikic.Statement[],
     entity?: EntityData;
     entityRepository?: { entityFullClassName: string };
     templateRenderCalls?: TemplateRenderCall[];
@@ -1433,32 +1440,6 @@ export class Project {
             this.phpClasses = newPhpClasses;
         }
 
-        // searching for template render calls (must be last because we use 'this.expressionType()')
-        {
-            for (let filePath of projectPhpFiles) {
-                let fileUri = URI.file(filePath).toString();
-                if (this.phpClasses[fileUri] === undefined) {
-                    continue;
-                }
-
-                let code = await getCode(filePath);
-                if (code === null) {
-                    continue;
-                }
-
-                let stmts = await nikic.parse(code);
-
-                if (stmts === null || stmts.length === 0) {
-                    continue;
-                }
-
-                let renderCalls = this.findTemplateRenderCalls(stmts, fileUri);
-                if (renderCalls.length > 0) {
-                    this.phpClasses[fileUri].templateRenderCalls = renderCalls;
-                }
-            }
-        }
-
         // searching for templates
         {
             let templatesFolderPath = URI.parse(this.templatesFolderUri).fsPath;
@@ -1587,6 +1568,10 @@ export class Project {
             type: (classMatch[5] === 'class') ? 'class' : 'interface',
         };
 
+        if (stmts !== null) {
+            phpClass.stmts = stmts;
+        }
+
         if (fileIsTwigExtension && stmts !== null) {
             let { elements, globals } = await findTwigExtensionElements(code, stmts);
             if (elements.length > 0) {
@@ -1660,6 +1645,12 @@ export class Project {
                     if (parsedDqlQueries.length > 0) {
                         phpClass.parsedDqlQueries = parsedDqlQueries;
                     }
+                }
+
+                // searching for render calls
+                let renderCalls = this.findTemplateRenderCalls(stmts, fileUri, fullClassName);
+                if (renderCalls.length > 0) {
+                    phpClass.templateRenderCalls = renderCalls;
                 }
 
             } while (false);
@@ -1981,11 +1972,8 @@ export class Project {
     /**
      * Searches for '->render()' and '->renderView()' calls everywhere
      */
-    public findTemplateRenderCalls(stmts: nikic.Statement[], callerUri: string): TemplateRenderCall[] {
-        let callerClassName = this.phpClasses[callerUri].fullClassName;
-
-        let nameResolverData = nikic.findNameResolverData(stmts);
-
+    public findTemplateRenderCalls(stmts: nikic.Statement[], callerUri: string, callerClassName: string): TemplateRenderCall[] {
+        // TODO: get rid of weird parameters (callerUri, callerClassName) and clean TemplateRenderCall
         let classMethodNodes = nikic.findNodesOfType(stmts, 'Stmt_ClassMethod') as nikic.Stmt_ClassMethod[];
 
         let result: TemplateRenderCall[] = [];
@@ -1996,8 +1984,6 @@ export class Project {
             if (methodCallNodes.length === 0) {
                 continue;
             }
-
-            let methodSymbolTable = this.symbolTable(methodNode, nameResolverData);
 
             for (let node of methodCallNodes) {
                 if (node.name.nodeType !== 'Identifier') {
@@ -2045,12 +2031,11 @@ export class Project {
                         continue;
                     }
 
-                    let paramType = this.expressionType(c.value, methodSymbolTable, nameResolverData);
-
                     renderCall.params.push({
                         name: c.key.value,
                         offset: c.key.attributes.startFilePos,
-                        type: paramType,
+                        valueNode: c.value,
+                        methodNode,
                     });
                 }
             }
@@ -4780,10 +4765,16 @@ export class Project {
         let result0: { [name: string]: php.Type[] } = {};
 
         for (let fileUri in this.phpClasses) {
-            let renderCalls = this.phpClasses[fileUri].templateRenderCalls;
-            if (renderCalls === undefined) {
+            const phpClass = this.phpClasses[fileUri];
+
+            let stmts = phpClass.stmts;
+            let renderCalls = phpClass.templateRenderCalls;
+
+            if (renderCalls === undefined || stmts === undefined) {
                 continue;
             }
+
+            let nameResolverData = nikic.findNameResolverData(stmts);
 
             for (let renderCall of renderCalls) {
                 if (renderCall.name !== templateName) {
@@ -4794,7 +4785,12 @@ export class Project {
                     if (result0[param.name] === undefined) {
                         result0[param.name] = [];
                     }
-                    result0[param.name].push(param.type);
+
+                    let methodSymbolTable = this.symbolTable(param.methodNode, nameResolverData);
+
+                    let paramType = this.expressionType(param.valueNode, methodSymbolTable, nameResolverData);
+
+                    result0[param.name].push(paramType);
                 }
             }
         }
@@ -7354,17 +7350,6 @@ export class Project {
                     }
 
                     this.phpClasses[documentUri] = phpClass;
-
-                    let stmts = await nikic.parse(code);
-
-                    if (stmts === null || stmts.length === 0) {
-                        continue;
-                    }
-
-                    let renderCalls = this.findTemplateRenderCalls(stmts, documentUri);
-                    if (renderCalls.length > 0) {
-                        this.phpClasses[documentUri].templateRenderCalls = renderCalls;
-                    }
                 } while (false);
             }
         }
