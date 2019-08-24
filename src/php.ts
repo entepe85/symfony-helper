@@ -29,6 +29,7 @@ export interface PhpClassProperty {
     type: Type;
 }
 
+// TODO: rename (this name and 'project.PhpClass' look weird together)
 export interface PhpClassMoreInfo {
     shortHelp?: string;
     constants: PhpClassConstant[];

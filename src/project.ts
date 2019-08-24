@@ -124,7 +124,7 @@ export async function findTwigExtensionElements(code: string, stmts: nikic.State
 
     let classStmt = classStmts[0] as nikic.Stmt_Class;
 
-    let morePhpClass = await parsePhpClass(code);
+    let morePhpClass = await parsePhpClass(code, stmts);
     let classMethods = (morePhpClass === null) ? [] : morePhpClass.methods;
 
     let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
@@ -392,7 +392,7 @@ interface PhpClass {
     nameEndOffset: number;
     type: 'class' | 'interface';
     hasConstants: boolean;
-    stmts?: nikic.Statement[],
+    stmts: nikic.Statement[],
     entity?: EntityData;
     entityRepository?: { entityFullClassName: string };
     templateRenderCalls?: TemplateRenderCall[];
@@ -400,16 +400,10 @@ interface PhpClass {
     twigExtensionGlobals?: TwigExtensionGlobal[];
     bundle?: { name: string, folderUri: string };
     parsedDqlQueries?: { literalOffset: number, tokens: DqlToken[] }[];
-
-    /**
-     * This field created on demand, because parser is slow.
-     *
-     * Use only through 'this.getMorePhpClass()'
-     *
-     * 'undefined' means parser did not do anything yet
-     * 'error' means parser could not parse file or could not find class
-     */
-    _more?: 'error' | php.PhpClassMoreInfo;
+    shortHelp?: string;
+    constants: php.PhpClassConstant[];
+    properties: php.PhpClassProperty[];
+    methods: php.PhpClassMethod[];
 }
 
 interface PlainSymbolTable {
@@ -489,10 +483,8 @@ function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
     return null;
 }
 
-export async function parsePhpClass(code: string): Promise<php.PhpClassMoreInfo | null> {
-    let stmts = await nikic.parse(code);
-
-    if (stmts === null || stmts.length === 0) {
+export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Promise<php.PhpClassMoreInfo | null> {
+    if (stmts.length === 0) {
         return null;
     }
 
@@ -1113,6 +1105,7 @@ export class Project {
     private folderUri: string;
     private allDocuments: AllTextDocuments;
 
+    private phpClassNameToFileUri: { [className: string]: string } = Object.create(null);
     private phpClasses: { [fileUri: string]: PhpClass } = Object.create(null);
 
     // TODO: remove 'for in' iteration when searching for 'entity.className'
@@ -1415,6 +1408,7 @@ export class Project {
             let phpFiles = vendorPhpFiles.concat(projectPhpFiles);
 
             let newPhpClasses: { [fileUri: string]: PhpClass } = Object.create(null);
+            let newPhpClassNameToFileUri: { [fileUri: string]: string } = Object.create(null);
 
             for (let filePath of phpFiles) {
                 let relativePath = filePath.substr(folderFsPath.length);
@@ -1429,15 +1423,18 @@ export class Project {
                     continue;
                 }
 
-                let phpClass = await this.scanPhpFile(fileUri, code);
-                if (phpClass === null) {
-                    continue;
-                }
+                let res = await this.scanPhpFile(fileUri, code);
+                if (res !== null) {
+                    newPhpClassNameToFileUri[res.className] = fileUri;
 
-                newPhpClasses[fileUri] = phpClass;
+                    if (res.phpClass !== null) {
+                        newPhpClasses[fileUri] = res.phpClass;
+                    }
+                }
             }
 
             this.phpClasses = newPhpClasses;
+            this.phpClassNameToFileUri = newPhpClassNameToFileUri;
         }
 
         // searching for templates
@@ -1525,20 +1522,11 @@ export class Project {
         } while (false);
     }
 
-    private async scanPhpFile(fileUri: string, code: string) {
+    private async scanPhpFile(fileUri: string, code: string, forceFullParse: boolean = false) {
         let classMatch = code.match(this.CLASS_REGEXP);
 
         if (classMatch === null || classMatch.index === undefined) {
             return null;
-        }
-
-        let fileIsTwigExtension = code.match(this.TWIG_REGEXP) !== null;
-        let fileIsFromSourceFolders = this.isFromSourceFolders(fileUri)
-
-        let stmts: nikic.Statement[] | null = null;
-
-        if (fileIsTwigExtension || fileIsFromSourceFolders) {
-            stmts = await nikic.parse(code);
         }
 
         let className = classMatch[6];
@@ -1550,29 +1538,53 @@ export class Project {
             fullClassName = className;
         }
 
+        let result = {
+            className: fullClassName,
+            phpClass: null as PhpClass|null,
+        };
+
+        let fileIsTwigExtension = code.match(this.TWIG_REGEXP) !== null;
+        let fileIsFromSourceFolders = this.isFromSourceFolders(fileUri)
+        let fileIsBundleBase = fileUri.endsWith('Bundle.php') && !fileUri.endsWith('/Bundle.php');
+
+        let fullParse = fileIsTwigExtension || fileIsFromSourceFolders || fileIsBundleBase || forceFullParse;
+
+        if (!fullParse) {
+            return result;
+        }
+
+        let stmts = await nikic.parse(code);
+
+        if (stmts === null) {
+            return result;
+        }
+
         let hasConstants = false;
-        if (fileIsFromSourceFolders && stmts !== null) {
+        if (fileIsFromSourceFolders) {
             let constStmts = nikic.findNodesOfType(stmts, 'Stmt_ClassConst');
             if (constStmts.length > 0) {
                 hasConstants = true;
             }
         }
 
+        let more = await parsePhpClass(code, stmts);
+
         let phpClass: PhpClass = {
             fullClassName,
             fileUri,
             hasConstants,
+            stmts,
             offset: classMatch.index + classMatch[2].length,
             nameStartOffset: classMatch.index + classMatch[1].length,
             nameEndOffset: classMatch.index + classMatch[1].length + classMatch[6].length,
             type: (classMatch[5] === 'class') ? 'class' : 'interface',
+            shortHelp: (more === null) ? undefined : more.shortHelp,
+            constants: (more === null) ? [] : more.constants,
+            methods: (more === null) ? [] : more.methods,
+            properties: (more === null) ? [] : more.properties,
         };
 
-        if (stmts !== null) {
-            phpClass.stmts = stmts;
-        }
-
-        if (fileIsTwigExtension && stmts !== null) {
+        if (fileIsTwigExtension) {
             let { elements, globals } = await findTwigExtensionElements(code, stmts);
             if (elements.length > 0) {
                 phpClass.twigExtensionElements = elements;
@@ -1582,7 +1594,7 @@ export class Project {
             }
         }
 
-        if (fileUri.endsWith('Bundle.php') && !fileUri.endsWith('/Bundle.php')) {
+        if (fileIsBundleBase) {
             // it seems 'path.basename()' and 'path.dirname()' work on uris
             let bundleName = path.basename(fileUri, '.php');
             let folderUri = path.dirname(fileUri);
@@ -1590,7 +1602,7 @@ export class Project {
             phpClass.bundle = { name: bundleName, folderUri };
         }
 
-        if (fileIsFromSourceFolders && stmts !== null) {
+        if (fileIsFromSourceFolders) {
             do {
                 let nameResolverData = nikic.findNameResolverData(stmts);
                 if (nameResolverData.namespace === null) {
@@ -1656,7 +1668,9 @@ export class Project {
             } while (false);
         }
 
-        return phpClass;
+        result.phpClass = phpClass;
+
+        return result;
     }
 
     private scanTwigTemplate(fileUri: string, templateName: string, code: string) {
@@ -2047,7 +2061,7 @@ export class Project {
     /**
      * Finds primitive symbol table of method
      */
-    private symbolTable(methodNode: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData): PlainSymbolTable {
+    private async symbolTable(methodNode: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData): Promise<PlainSymbolTable> {
         let symbols: PlainSymbolTable = methodParamsSymbolTable(methodNode, nameResolverData);
 
         for (let stmt of methodNode.stmts) {
@@ -2080,7 +2094,7 @@ export class Project {
                 if (varTypeFromDocBlock !== undefined && !(varTypeFromDocBlock instanceof php.AnyType)) {
                     varType = varTypeFromDocBlock;
                 } else {
-                    varType = this.expressionType(assignExpr.expr, symbols, nameResolverData);
+                    varType = await this.expressionType(assignExpr.expr, symbols, nameResolverData);
                 }
 
                 symbols[varName] = varType;
@@ -2090,7 +2104,7 @@ export class Project {
         return symbols;
     }
 
-    private expressionType(expression: nikic.Expression, symbols: PlainSymbolTable, nameResolverData: nikic.NameResolverData): php.Type {
+    private async expressionType(expression: nikic.Expression, symbols: PlainSymbolTable, nameResolverData: nikic.NameResolverData): Promise<php.Type> {
         if (expression.nodeType === 'Expr_New') {
             if (expression.class.nodeType === 'Name') {
                 return new php.ObjectType(nikic.resolveName(expression.class.parts, nameResolverData));
@@ -2108,12 +2122,12 @@ export class Project {
             return new php.ArrayType(new php.AnyType());
         } else if (expression.nodeType === 'Expr_ArrayDimFetch') {
             let array = expression.var;
-            let expressionType = this.expressionType(array, symbols, nameResolverData);
+            let expressionType = await this.expressionType(array, symbols, nameResolverData);
             if (expressionType instanceof php.ArrayType) {
                 return expressionType.getValueType();
             }
         } else if (expression.nodeType === 'Expr_MethodCall') {
-            let varType = this.expressionType(expression.var, symbols, nameResolverData);
+            let varType = await this.expressionType(expression.var, symbols, nameResolverData);
 
             let entityRepositoryMethodDispatch = (methodName: string, entityClass: string): php.Type | undefined => {
                 if (methodName === 'find' || methodName === 'findOneBy') {
@@ -2128,7 +2142,7 @@ export class Project {
             if (varType instanceof php.ObjectType) {
                 let varClass = varType.getClassName();
 
-                let phpClass = this.getPhpClass(varClass);
+                let phpClass = await this.getPhpClass(varClass);
 
                 // methods on entity repository
                 if (phpClass !== null && phpClass.entityRepository !== undefined) {
@@ -2173,7 +2187,7 @@ export class Project {
                         break;
                     }
 
-                    let entityClass = this.getPhpClass(entityClassName);
+                    let entityClass = await this.getPhpClass(entityClassName);
 
                     if (entityClass === null || entityClass.entity === undefined) {
                         break;
@@ -2324,7 +2338,7 @@ export class Project {
                         }
 
                         let firstArg = expression.args[0];
-                        let firstArgType = this.expressionType(firstArg.value, symbols, nameResolverData);
+                        let firstArgType = await this.expressionType(firstArg.value, symbols, nameResolverData);
 
                         if (firstArgType instanceof php.ArrayType) {
                             return firstArgType;
@@ -2333,13 +2347,13 @@ export class Project {
                 } else if (funcName === 'array_chunk') {
                     if (expression.args.length > 0) {
                         let firstArg = expression.args[0];
-                        let firstArgType = this.expressionType(firstArg.value, symbols, nameResolverData);
+                        let firstArgType = await this.expressionType(firstArg.value, symbols, nameResolverData);
                         return new php.ArrayType(firstArgType);
                     }
                 } else if (funcName === 'array_pop' || funcName === 'array_shift') {
                     if (expression.args.length > 0) {
                         let firstArg = expression.args[0];
-                        let firstArgType = this.expressionType(firstArg.value, symbols, nameResolverData);
+                        let firstArgType = await this.expressionType(firstArg.value, symbols, nameResolverData);
                         if (firstArgType instanceof php.ArrayType) {
                             return firstArgType.getValueType();
                         }
@@ -2996,7 +3010,7 @@ export class Project {
 
                 // new method of completion after dot
                 let initialScope = new Scope();
-                let params = this.collectRenderCallsParams(currentTemplateName);
+                let params = await this.collectRenderCallsParams(currentTemplateName);
                 initialScope.setValue('app', new php.ObjectType('Symfony\\Bridge\\Twig\\AppVariable'));
                 for (let name in params) {
                     initialScope.setValue(name, params[name]);
@@ -3016,7 +3030,7 @@ export class Project {
                 if (typeBeforeDot instanceof php.ObjectType) {
                     let className = typeBeforeDot.getClassName();
 
-                    let phpClass = this.getPhpClass(className);
+                    let phpClass = await this.getPhpClass(className);
                     if (phpClass === null) {
                         break;
                     }
@@ -3769,7 +3783,7 @@ export class Project {
                 break;
             }
 
-            let isUrlGenerator = this.isCursorInsideUrlGenerator(offset, stmts);
+            let isUrlGenerator = await this.isCursorInsideUrlGenerator(offset, stmts);
 
             let codeToCursor = code.substr(0, offset);
 
@@ -3920,15 +3934,15 @@ export class Project {
         let phpClass: PhpClass | null;
 
         if (accessPath.length === 1) {
-            phpClass = this.getPhpClass(identifierToEntity[accessPath[0]]);
+            phpClass = await this.getPhpClass(identifierToEntity[accessPath[0]]);
         } else {
-            let result = this.accessEntityWithPath(identifierToEntity[accessPath[0]], accessPath.slice(1));
+            let result = await this.accessEntityWithPath(identifierToEntity[accessPath[0]], accessPath.slice(1));
             if (result === null) {
                 return [];
             }
 
             if (result.phpClassField.isEmbedded) {
-                phpClass = this.getPhpClass(result.phpClassField.type);
+                phpClass = await this.getPhpClass(result.phpClassField.type);
             } else {
                 phpClass = null;
             }
@@ -4092,7 +4106,7 @@ export class Project {
     /**
      * Tests if cursor inside of first parameter of UrlGeneratorInterface::generate() and that first parameter is string
      */
-    private isCursorInsideUrlGenerator(offset: number, fileStmts: nikic.Statement[]): false | nikic.Scalar_String {
+    private async isCursorInsideUrlGenerator(offset: number, fileStmts: nikic.Statement[]): Promise<false | nikic.Scalar_String> {
         let stmts = fileStmts;
 
         let nameResolverData = nikic.findNameResolverData(stmts);
@@ -4111,7 +4125,7 @@ export class Project {
             return false;
         }
 
-        let methodSymbols = this.symbolTable(methodNode, nameResolverData);
+        let methodSymbols = await this.symbolTable(methodNode, nameResolverData);
 
         let methodCall: nikic.Expr_MethodCall | undefined;
 
@@ -4326,7 +4340,7 @@ export class Project {
                 }
 
                 if (result !== null) {
-                    let phpClass = this.getPhpClass(result.fullClassName);
+                    let phpClass = await this.getPhpClass(result.fullClassName);
                     if (phpClass !== null) {
                         let phpClassDocument = await this.getDocument(phpClass.fileUri);
                         if (phpClassDocument !== null) {
@@ -4349,7 +4363,7 @@ export class Project {
 
         // test route name
         {
-            let result = this.phpTestRouteName(document, code, stmts, offset, scalarString);
+            let result = await this.phpTestRouteName(document, code, stmts, offset, scalarString);
 
             if (result !== null) {
                 let controllerLocation = await this.routeLocation(result.route);
@@ -4422,7 +4436,7 @@ export class Project {
     }
 
     private async definitionDql(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<Definition | null> {
-        let result = this.dqlTestPosition(scalarString, document, offset);
+        let result = await this.dqlTestPosition(scalarString, document, offset);
 
         if (result === null) {
             return null;
@@ -4443,7 +4457,7 @@ export class Project {
                 }
             }
 
-            let phpClass = this.getPhpClass(result.className);
+            let phpClass = await this.getPhpClass(result.className);
 
             if (phpClass !== null && phpClass.entity !== undefined) {
                 let classDocument = await this.getDocument(phpClass.fileUri);
@@ -4458,7 +4472,7 @@ export class Project {
                 }
             }
         } else if (result.type === 'entityField') {
-            let result2 = this.accessEntityWithPath(result.className, result.accessPath);
+            let result2 = await this.accessEntityWithPath(result.className, result.accessPath);
 
             if (result2 !== null) {
                 let { phpClass, phpClassField } = result2;
@@ -4718,7 +4732,7 @@ export class Project {
 
             let initialScope = new Scope();
 
-            let params = this.collectRenderCallsParams(template.name);
+            let params = await this.collectRenderCallsParams(template.name);
             for (let name in params) {
                 initialScope.setValue(name, params[name]);
             }
@@ -4761,7 +4775,7 @@ export class Project {
         return null;
     }
 
-    private collectRenderCallsParams(templateName: string) {
+    private async collectRenderCallsParams(templateName: string) {
         let result0: { [name: string]: php.Type[] } = {};
 
         for (let fileUri in this.phpClasses) {
@@ -4770,7 +4784,7 @@ export class Project {
             let stmts = phpClass.stmts;
             let renderCalls = phpClass.templateRenderCalls;
 
-            if (renderCalls === undefined || stmts === undefined) {
+            if (renderCalls === undefined) {
                 continue;
             }
 
@@ -4786,9 +4800,9 @@ export class Project {
                         result0[param.name] = [];
                     }
 
-                    let methodSymbolTable = this.symbolTable(param.methodNode, nameResolverData);
+                    let methodSymbolTable = await this.symbolTable(param.methodNode, nameResolverData);
 
-                    let paramType = this.expressionType(param.valueNode, methodSymbolTable, nameResolverData);
+                    let paramType = await this.expressionType(param.valueNode, methodSymbolTable, nameResolverData);
 
                     result0[param.name].push(paramType);
                 }
@@ -4851,7 +4865,7 @@ export class Project {
 
                 let initialScope = new Scope();
 
-                let callParams = this.collectRenderCallsParams(templateName);
+                let callParams = await this.collectRenderCallsParams(templateName);
                 for (let name in callParams) {
                     initialScope.setValue(name, callParams[name]);
                 }
@@ -4941,7 +4955,7 @@ export class Project {
                     break;
                 }
 
-                let dqlTestPosition = this.dqlTestPosition(scalarString, document, offset);
+                let dqlTestPosition = await this.dqlTestPosition(scalarString, document, offset);
                 if (dqlTestPosition === null) {
                     break;
                 }
@@ -4949,7 +4963,7 @@ export class Project {
                 if (dqlTestPosition.type === 'entityClass') {
                     return this.referencesEntity(dqlTestPosition.className);
                 } else if (dqlTestPosition.type === 'entityField') {
-                    let accessResult = this.accessEntityWithPath(dqlTestPosition.className, dqlTestPosition.accessPath);
+                    let accessResult = await this.accessEntityWithPath(dqlTestPosition.className, dqlTestPosition.accessPath);
                     if (accessResult !== null) {
                         return this.referencesEntityField(accessResult.phpClass.fullClassName, accessResult.phpClassField.name);
                     }
@@ -5020,7 +5034,7 @@ export class Project {
     private async referencesEntity(fullClassName: string) {
         let result: Location[] = [];
 
-        let entityClass = this.getPhpClass(fullClassName);
+        let entityClass = await this.getPhpClass(fullClassName);
         if (entityClass === null) {
             return result;
         }
@@ -5091,7 +5105,7 @@ export class Project {
     private async referencesEntityField(fullClassName: string, fieldName: string) {
         let result: Location[] = [];
 
-        let entityClass = this.getPhpClass(fullClassName);
+        let entityClass = await this.getPhpClass(fullClassName);
         if (entityClass === null || entityClass.entity === undefined) {
             return result;
         }
@@ -5159,7 +5173,7 @@ export class Project {
                         continue;
                     }
 
-                    let accessResult = this.accessEntityWithPath(entitiesAliases[accessPath[0]], accessPath.slice(1));
+                    let accessResult = await this.accessEntityWithPath(entitiesAliases[accessPath[0]], accessPath.slice(1));
                     if (accessResult === null) {
                         continue;
                     }
@@ -5198,7 +5212,7 @@ export class Project {
 
             let initialScope = new Scope();
 
-            let params = this.collectRenderCallsParams(template.name);
+            let params = await this.collectRenderCallsParams(template.name);
             for (let name in params) {
                 initialScope.setValue(name, params[name]);
             }
@@ -5371,7 +5385,7 @@ export class Project {
 
         // test route name
         {
-            let result = this.phpTestRouteName(document, code, stmts, offset, scalarString);
+            let result = await this.phpTestRouteName(document, code, stmts, offset, scalarString);
 
             if (result !== null) {
                 let hoverMarkdown = this.routeHoverMarkdown(result.route);
@@ -5451,14 +5465,14 @@ export class Project {
     }
 
     private async hoverDql(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<Hover | null> {
-        let result = this.dqlTestPosition(scalarString, document, offset);
+        let result = await this.dqlTestPosition(scalarString, document, offset);
 
         if (result === null) {
             return null;
         }
 
         if (result.type === 'entityClass') {
-            let phpClass = this.getPhpClass(result.className);
+            let phpClass = await this.getPhpClass(result.className);
 
             if (phpClass !== null) {
                 let classHoverMarkdown = await this.phpClassHoverMarkdown(result.className);
@@ -5476,7 +5490,7 @@ export class Project {
                 }
             }
         } else if (result.type === 'entityField') {
-            let result2 = this.accessEntityWithPath(result.className, result.accessPath);
+            let result2 = await this.accessEntityWithPath(result.className, result.accessPath);
 
             if (result2 !== null) {
                 let { phpClass, phpClassField } = result2;
@@ -5501,9 +5515,9 @@ export class Project {
         return null;
     }
 
-    // TODO: this is so wrong on so many levels. fix this shit.
-    private accessEntityWithPath(className: string, accessPath: string[]) {
-        let phpClass = this.getPhpClass(className);
+    // TODO: this is so wrong. fix it.
+    private async accessEntityWithPath(className: string, accessPath: string[]) {
+        let phpClass = await this.getPhpClass(className);
         let entities = this.getEntities();
 
         for (let i = 0; i < accessPath.length; i++) {
@@ -5525,7 +5539,7 @@ export class Project {
 
             if (i < accessPath.length - 1) {
                 if (fieldForName.isEmbedded) {
-                    phpClass = this.getPhpClass(fieldForName.type);
+                    phpClass = await this.getPhpClass(fieldForName.type);
                 } else {
                     return null;
                 }
@@ -5777,7 +5791,7 @@ export class Project {
 
             let initialScope = new Scope();
 
-            let params = this.collectRenderCallsParams(template.name);
+            let params = await this.collectRenderCallsParams(template.name);
             for (let name in params) {
                 initialScope.setValue(name, params[name]);
             }
@@ -6184,7 +6198,7 @@ export class Project {
     /**
      * Tests route name in '$this->generateUrl()' and 'UrlGeneratorInterface::generate()'
      */
-    private phpTestRouteName(document: TextDocument, code: string, stmts: nikic.Statement[], offset: number, scalarString: nikic.Scalar_String) {
+    private async phpTestRouteName(document: TextDocument, code: string, stmts: nikic.Statement[], offset: number, scalarString: nikic.Scalar_String) {
         let routeName: string | undefined;
 
         // test for '$this->generateUrl()'
@@ -6211,7 +6225,7 @@ export class Project {
                 break;
             }
 
-            let isCursorInsideUrlGenerator = this.isCursorInsideUrlGenerator(offset, stmts);
+            let isCursorInsideUrlGenerator = await this.isCursorInsideUrlGenerator(offset, stmts);
             if (isCursorInsideUrlGenerator === false) {
                 break;
             }
@@ -6998,7 +7012,7 @@ export class Project {
         return null;
     }
 
-    private dqlTestPosition(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): DqlTestPositionResult | null {
+    private async dqlTestPosition(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<DqlTestPositionResult | null> {
         // I need something like 'scalarString.valueOffset'
         let fullScalar = document.getText().substring(scalarString.attributes.startFilePos, scalarString.attributes.endFilePos + 1);
 
@@ -7052,7 +7066,8 @@ export class Project {
                 entityClass = this.doctrineEntityNamespaces[usedAlias] + '\\' + usedEntity;
             }
 
-            if (this.getPhpClass(entityClass) !== null) {
+            const phpClass = await this.getPhpClass(entityClass);
+            if (phpClass !== null) {
                 return {
                     type: 'entityClass',
                     className: entityClass,
@@ -7192,7 +7207,7 @@ export class Project {
     }
 
     private async phpClassHoverMarkdown(className: string, memberType?: 'method'|'constant'|'property', memberName?: string): Promise<string|null> {
-        let phpClass = this.getPhpClass(className);
+        let phpClass = await this.getPhpClass(className);
         if (phpClass === null) {
             return null;
         }
@@ -7253,7 +7268,7 @@ export class Project {
     }
 
     private async phpClassLocation(fullClassName: string, memberType?: 'method'|'constant'|'property', memberName?: string): Promise<Location|null> {
-        let phpClass = this.getPhpClass(fullClassName);
+        let phpClass = await this.getPhpClass(fullClassName);
         if (phpClass === null) {
             return null;
         }
@@ -7344,12 +7359,14 @@ export class Project {
 
                     let code = document.getText();
 
-                    let phpClass = await this.scanPhpFile(documentUri, code);
-                    if (phpClass === null) {
-                        break;
-                    }
+                    let res = await this.scanPhpFile(documentUri, code);
+                    if (res !== null) {
+                        this.phpClassNameToFileUri[res.className] = documentUri;
 
-                    this.phpClasses[documentUri] = phpClass;
+                        if (res.phpClass !== null) {
+                            this.phpClasses[documentUri] = res.phpClass;
+                        }
+                    }
                 } while (false);
             }
         }
@@ -7477,7 +7494,8 @@ export class Project {
         return entityFullClassName;
     }
 
-    private getPhpClass(fullClassName: string) {
+    // TODO: this is so wrong. fix it.
+    private async getPhpClass(fullClassName: string) {
         for (let fileUri in this.phpClasses) {
             let info = this.phpClasses[fileUri];
 
@@ -7486,33 +7504,37 @@ export class Project {
             }
         }
 
+        let fileUri = this.phpClassNameToFileUri[fullClassName];
+        if (fileUri !== undefined) {
+            let document = await this.getDocument(fileUri);
+            if (document === null) {
+                return null;
+            }
+
+            let code = document.getText();
+            let res = await this.scanPhpFile(fileUri, code, true);
+            if (res !== null && res.phpClass !== null) {
+                this.phpClasses[fileUri] = res.phpClass;
+                return res.phpClass;
+            }
+        }
+
         return null;
     }
 
     private async getMorePhpClass(fullClassName: string): Promise<php.PhpClassMoreInfo | null> {
-        let phpClass = this.getPhpClass(fullClassName);
+        let phpClass = await this.getPhpClass(fullClassName);
 
         if (phpClass === null) {
             return null;
         }
 
-        if (phpClass._more === undefined) {
-            let document = await this.getDocument(phpClass.fileUri);
-            if (document === null) {
-                return null;
-            }
-
-            let more = await parsePhpClass(document.getText());
-
-            this.phpClasses[phpClass.fileUri]._more = (more === null) ? 'error' : more;
-            return (more === null) ? null : more;
-
-        } else if (phpClass._more === 'error') {
-            return null;
-
-        } else {
-            return phpClass._more;
-        }
+        return {
+            shortHelp: phpClass.shortHelp,
+            constants: phpClass.constants,
+            properties: phpClass.properties,
+            methods: phpClass.methods,
+        };
     }
 
     private getBundles() {
@@ -7824,7 +7846,7 @@ export class Project {
         }
 
         let initialScope = new Scope();
-        let params = this.collectRenderCallsParams(currentTemplateName);
+        let params = await this.collectRenderCallsParams(currentTemplateName);
         initialScope.setValue('app', new php.ObjectType('Symfony\\Bridge\\Twig\\AppVariable'));
         for (let name in params) {
             initialScope.setValue(name, params[name]);
