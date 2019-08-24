@@ -3,41 +3,6 @@
  * Copyright (c) 2019 Timur Morduhai
  * Licensed under the GNU General Public License
  */
-export interface PhpClassConstant {
-    name: string;
-    offset: number;
-    shortHelp?: string; // first paragraph of doc-comment if found
-    valueText?: string; // literally copied symbols of value if it's not too long and has no '\n'
-    isPublic: boolean;
-}
-
-export interface PhpClassMethod {
-    name: string;
-    offset: number;
-    isPublic: boolean;
-    isStatic: boolean;
-    params: { name: string }[];
-    shortHelp?: string; // first paragraph of doc-comment if found
-    returnType: Type;
-}
-
-export interface PhpClassProperty {
-    name: string;
-    offset: number;
-    shortHelp?: string;  // first paragraph of doc-comment if found
-    isPublic: boolean;
-    type: Type;
-}
-
-// TODO: rename (this name and 'project.PhpClass' look weird together)
-export interface PhpClassMoreInfo {
-    shortHelp?: string;
-    constants: PhpClassConstant[];
-    properties: PhpClassProperty[];
-    methods: PhpClassMethod[];
-}
-
-export type PhpClassMoreInfoResolver = (className: string) => Promise<PhpClassMoreInfo|null>;
 
 /**
  * Hacky (and kinda wrong) union of types

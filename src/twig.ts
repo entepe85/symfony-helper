@@ -4,6 +4,7 @@
  * Licensed under the GNU General Public License
  */
 import * as php from './php';
+import * as project from './project'; // TODO: remove this dependency
 
 export const enum LexerState {
     DATA,
@@ -1281,10 +1282,10 @@ class TreeWalker {
     private code: string;
     private initialScope: Scope;
     private expressionData: ExpressionData = { names: {}, dots: {} };
-    private phpClassInfoResolver: php.PhpClassMoreInfoResolver;
+    private phpClassInfoResolver: project.PhpClassSomeInfoResolver;
     private functionTypeResolver: FunctionTypeResolver;
 
-    public constructor(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+    public constructor(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: project.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver) {
         this.stmts = parsed.stmts;
         this.pieces = parsed.pieces;
         this.tokens = parsed.tokens;
@@ -1567,13 +1568,13 @@ class TreeWalker {
     }
 }
 
-export async function findVariables(parsed: ParsedTwig, offset: number, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+export async function findVariables(parsed: ParsedTwig, offset: number, initialScope: Scope, phpClassInfoResolver: project.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver) {
     let treeWalker = new TreeWalker(parsed, initialScope, phpClassInfoResolver, functionTypeResolver);
     let result = await treeWalker.getValues(offset);
     return result;
 }
 
-export async function findExpressionData(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: php.PhpClassMoreInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+export async function findExpressionData(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: project.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver) {
     let treeWalker = new TreeWalker(parsed, initialScope, phpClassInfoResolver, functionTypeResolver);
     let result = await treeWalker.getExpressionData();
     return result;

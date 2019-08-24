@@ -124,8 +124,8 @@ export async function findTwigExtensionElements(code: string, stmts: nikic.State
 
     let classStmt = classStmts[0] as nikic.Stmt_Class;
 
-    let morePhpClass = await parsePhpClass(code, stmts);
-    let classMethods = (morePhpClass === null) ? [] : morePhpClass.methods;
+    let someInfo = await extractSomePhpClassInfo(code, stmts);
+    let classMethods = (someInfo === null) ? [] : someInfo.methods;
 
     let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
 
@@ -225,7 +225,7 @@ export async function findTwigExtensionElements(code: string, stmts: nikic.State
                     secondElementStringLiteral = arrayItems[1].value.value;
                 }
 
-                let foundMethod: php.PhpClassMethod | undefined;
+                let foundMethod: PhpClassMethod | undefined;
                 if (firstElementIsThis && secondElementStringLiteral !== undefined) {
                     foundMethod = classMethods.filter(row => row.name === secondElementStringLiteral)[0];
                 }
@@ -401,10 +401,45 @@ interface PhpClass {
     bundle?: { name: string, folderUri: string };
     parsedDqlQueries?: { literalOffset: number, tokens: DqlToken[] }[];
     shortHelp?: string;
-    constants: php.PhpClassConstant[];
-    properties: php.PhpClassProperty[];
-    methods: php.PhpClassMethod[];
+    constants: PhpClassConstant[];
+    properties: PhpClassProperty[];
+    methods: PhpClassMethod[];
 }
+
+export interface PhpClassConstant {
+    name: string;
+    offset: number;
+    shortHelp?: string; // first paragraph of doc-comment if found
+    valueText?: string; // literally copied symbols of value if it's not too long and has no '\n'
+    isPublic: boolean;
+}
+
+export interface PhpClassMethod {
+    name: string;
+    offset: number;
+    isPublic: boolean;
+    isStatic: boolean;
+    params: { name: string }[];
+    shortHelp?: string; // first paragraph of doc-comment if found
+    returnType: php.Type;
+}
+
+export interface PhpClassProperty {
+    name: string;
+    offset: number;
+    shortHelp?: string;  // first paragraph of doc-comment if found
+    isPublic: boolean;
+    type: php.Type;
+}
+
+export interface PhpClassSomeInfo {
+    shortHelp?: string;
+    constants: PhpClassConstant[];
+    properties: PhpClassProperty[];
+    methods: PhpClassMethod[];
+}
+
+export type PhpClassSomeInfoResolver = (className: string) => Promise<PhpClassSomeInfo|null>;
 
 interface PlainSymbolTable {
     [varName: string ]: php.Type;
@@ -483,7 +518,7 @@ function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
     return null;
 }
 
-export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Promise<php.PhpClassMoreInfo | null> {
+export async function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]): Promise<PhpClassSomeInfo | null> {
     if (stmts.length === 0) {
         return null;
     }
@@ -505,9 +540,9 @@ export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Pro
 
     let nameResolverData = nikic.findNameResolverData(stmts);
 
-    let constants: php.PhpClassConstant[] = [];
-    let methods: php.PhpClassMethod[] = [];
-    let properties: php.PhpClassProperty[] = [];
+    let constants: PhpClassConstant[] = [];
+    let methods: PhpClassMethod[] = [];
+    let properties: PhpClassProperty[] = [];
 
     for (let stmt of classStmt.stmts) {
         /* tslint:disable no-bitwise */
@@ -521,7 +556,7 @@ export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Pro
             let constHelp = commentNodeToShortHelp(constCommentNode);
 
             for (let c of stmt.consts) {
-                let constData: php.PhpClassConstant = {
+                let constData: PhpClassConstant = {
                     isPublic,
                     name: c.name.name,
                     offset: (stmt.consts.length === 1) ? offset : c.attributes.startFilePos,
@@ -545,7 +580,7 @@ export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Pro
             let propHelp = commentNodeToShortHelp(propCommentNode);
 
             for (let prop of stmt.props) {
-                let propData: php.PhpClassProperty = {
+                let propData: PhpClassProperty = {
                     isPublic,
                     name: prop.name.name,
                     offset: (stmt.props.length === 1) ? offset : prop.attributes.startFilePos,
@@ -562,7 +597,7 @@ export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Pro
         } else if (stmt.nodeType === 'Stmt_ClassMethod') {
 
             /* tslint:disable no-bitwise */
-            let methodData: php.PhpClassMethod = {
+            let methodData: PhpClassMethod = {
                 isPublic,
                 name: stmt.name.name,
                 offset: stmt.attributes.startFilePos,
@@ -601,7 +636,7 @@ export async function parsePhpClass(code: string, stmts: nikic.Statement[]): Pro
         }
     }
 
-    let result: php.PhpClassMoreInfo = {
+    let result: PhpClassSomeInfo = {
         constants,
         properties,
         methods,
@@ -1567,7 +1602,7 @@ export class Project {
             }
         }
 
-        let more = await parsePhpClass(code, stmts);
+        let someInfo = await extractSomePhpClassInfo(code, stmts);
 
         let phpClass: PhpClass = {
             fullClassName,
@@ -1578,10 +1613,10 @@ export class Project {
             nameStartOffset: classMatch.index + classMatch[1].length,
             nameEndOffset: classMatch.index + classMatch[1].length + classMatch[6].length,
             type: (classMatch[5] === 'class') ? 'class' : 'interface',
-            shortHelp: (more === null) ? undefined : more.shortHelp,
-            constants: (more === null) ? [] : more.constants,
-            methods: (more === null) ? [] : more.methods,
-            properties: (more === null) ? [] : more.properties,
+            shortHelp: (someInfo === null) ? undefined : someInfo.shortHelp,
+            constants: (someInfo === null) ? [] : someInfo.constants,
+            methods: (someInfo === null) ? [] : someInfo.methods,
+            properties: (someInfo === null) ? [] : someInfo.properties,
         };
 
         if (fileIsTwigExtension) {
@@ -2639,8 +2674,8 @@ export class Project {
                     className = className.substr(1);
                 }
 
-                let morePhpClass = await this.getMorePhpClass(className);
-                if (morePhpClass === null) {
+                let phpClass = await this.getPhpClass(className);
+                if (phpClass === null) {
                     break;
                 }
 
@@ -2648,7 +2683,7 @@ export class Project {
 
                 let items: CompletionItem[] = [];
 
-                for (let constant of morePhpClass.constants) {
+                for (let constant of phpClass.constants) {
                     if (!constant.isPublic) {
                         continue;
                     }
@@ -3019,7 +3054,7 @@ export class Project {
                 let { dots } = await findExpressionData(
                     parsed,
                     initialScope,
-                    (className: string) => this.getMorePhpClass(className),
+                    (className: string) => this.getPhpClass(className),
                     (name: string) => this.twigFunctionReturnType(name)
                 );
 
@@ -3035,12 +3070,7 @@ export class Project {
                         break;
                     }
 
-                    let morePhpClass = await this.getMorePhpClass(className);
-                    if (morePhpClass === null) {
-                        break;
-                    }
-
-                    return this.twigCompletionsForClass(phpClass, morePhpClass, editRange);
+                    return this.twigCompletionsForClass(phpClass, editRange);
                 } else if (typeBeforeDot instanceof php.ArrayType) {
                     let knownValues = typeBeforeDot.getKnownValues();
 
@@ -3282,7 +3312,7 @@ export class Project {
                 parsed,
                 offset,
                 initialScope,
-                (className: string) => this.getMorePhpClass(className),
+                (className: string) => this.getPhpClass(className),
                 (name: string) => this.twigFunctionReturnType(name)
             );
             if (variables !== undefined) {
@@ -4740,7 +4770,7 @@ export class Project {
             let expressionData = await findExpressionData(
                 parsed,
                 initialScope,
-                (className: string) => this.getMorePhpClass(className),
+                (className: string) => this.getPhpClass(className),
                 (name: string) => this.twigFunctionReturnType(name)
             );
 
@@ -4873,7 +4903,7 @@ export class Project {
                 let { names } = await findExpressionData(
                     parsed,
                     initialScope,
-                    (className: string) => this.getMorePhpClass(className),
+                    (className: string) => this.getPhpClass(className),
                     (name: string) => this.twigFunctionReturnType(name)
                 );
 
@@ -5220,7 +5250,7 @@ export class Project {
             let { names } = await findExpressionData(
                 parsed,
                 initialScope,
-                (className: string) => this.getMorePhpClass(className),
+                (className: string) => this.getPhpClass(className),
                 (name: string) => this.twigFunctionReturnType(name)
             );
 
@@ -5799,7 +5829,7 @@ export class Project {
             let expressionData = await findExpressionData(
                 parsed,
                 initialScope,
-                (className: string) => this.getMorePhpClass(className),
+                (className: string) => this.getPhpClass(className),
                 (name: string) => this.twigFunctionReturnType(name)
             );
 
@@ -7212,14 +7242,9 @@ export class Project {
             return null;
         }
 
-        let morePhpClass = await this.getMorePhpClass(className);
-        if (morePhpClass === null) {
-            return null;
-        }
-
         if (memberType !== undefined && memberName !== undefined) {
             if (memberType === 'method') {
-                let methodInfo = morePhpClass.methods.filter(row => row.name === memberName)[0];
+                let methodInfo = phpClass.methods.filter(row => row.name === memberName)[0];
 
                 if (methodInfo === undefined || methodInfo.shortHelp === undefined) {
                     return null;
@@ -7228,7 +7253,7 @@ export class Project {
                 return ['```', methodInfo.shortHelp, '```'].join('\n');
 
             } else if (memberType === 'constant') {
-                let constantInfo = morePhpClass.constants.filter(row => row.name === memberName)[0];
+                let constantInfo = phpClass.constants.filter(row => row.name === memberName)[0];
 
                 if (constantInfo === undefined || (constantInfo.shortHelp === undefined && constantInfo.valueText === undefined)) {
                     return null;
@@ -7248,7 +7273,7 @@ export class Project {
 
                 return pieces.join('\n');
             } else if (memberType === 'property') {
-                let prop = morePhpClass.properties.find(row => row.name === memberName);
+                let prop = phpClass.properties.find(row => row.name === memberName);
 
                 if (prop !== undefined) {
                     if (prop.shortHelp !== undefined) {
@@ -7257,11 +7282,11 @@ export class Project {
                 }
             }
         } else {
-            if (morePhpClass.shortHelp === undefined) {
+            if (phpClass.shortHelp === undefined) {
                 return null;
             }
 
-            return ['```', morePhpClass.shortHelp, '```'].join('\n');
+            return ['```', phpClass.shortHelp, '```'].join('\n');
         }
 
         return null;
@@ -7279,14 +7304,8 @@ export class Project {
         }
 
         if (memberType !== undefined && memberName !== undefined) {
-            let morePhpClass = await this.getMorePhpClass(fullClassName);
-
-            if (morePhpClass === null) {
-                return null;
-            }
-
             if (memberType === 'method') {
-                let method = morePhpClass.methods.filter(row => row.name === memberName)[0];
+                let method = phpClass.methods.filter(row => row.name === memberName)[0];
 
                 if (method !== undefined) {
                     let methodPosition = classDocument.positionAt(method.offset);
@@ -7298,7 +7317,7 @@ export class Project {
                 }
 
             } else if (memberType === 'constant') {
-                let constant = morePhpClass.constants.filter(row => row.name === memberName)[0];
+                let constant = phpClass.constants.filter(row => row.name === memberName)[0];
 
                 if (constant !== undefined) {
                     let constantPosition = classDocument.positionAt(constant.offset);
@@ -7309,7 +7328,7 @@ export class Project {
                     };
                 }
             } else if (memberType === 'property') {
-                let prop = morePhpClass.properties.find(row => row.name === memberName);
+                let prop = phpClass.properties.find(row => row.name === memberName);
 
                 if (prop !== undefined) {
                     let propPosition = classDocument.positionAt(prop.offset);
@@ -7520,21 +7539,6 @@ export class Project {
         }
 
         return null;
-    }
-
-    private async getMorePhpClass(fullClassName: string): Promise<php.PhpClassMoreInfo | null> {
-        let phpClass = await this.getPhpClass(fullClassName);
-
-        if (phpClass === null) {
-            return null;
-        }
-
-        return {
-            shortHelp: phpClass.shortHelp,
-            constants: phpClass.constants,
-            properties: phpClass.properties,
-            methods: phpClass.methods,
-        };
     }
 
     private getBundles() {
@@ -7855,7 +7859,7 @@ export class Project {
         let { names } = await findExpressionData(
             parsed,
             initialScope,
-            (className: string) => this.getMorePhpClass(className),
+            (className: string) => this.getPhpClass(className),
             (name: string) => this.twigFunctionReturnType(name)
         );
 
@@ -7865,9 +7869,9 @@ export class Project {
                 let signatureLabel = nameInfo.methodName + '(';
                 let methodName = nameInfo.methodName;
 
-                let morePhpClass = await this.getMorePhpClass(nameInfo.className);
-                if (morePhpClass !== null) {
-                    let method = morePhpClass.methods.find(row => (row.isPublic && row.name === methodName));
+                let phpClass = await this.getPhpClass(nameInfo.className);
+                if (phpClass !== null) {
+                    let method = phpClass.methods.find(row => (row.isPublic && row.name === methodName));
                     if (method !== undefined) {
                         let signatureParams: ParameterInformation[] = [];
 
@@ -7975,10 +7979,10 @@ export class Project {
         return this.type === ProjectType.SYMFONY;
     }
 
-    private async twigCompletionsForClass(phpClass: PhpClass, morePhpClass: php.PhpClassMoreInfo, editRange: Range) {
+    private async twigCompletionsForClass(phpClass: PhpClass, editRange: Range) {
         let items: CompletionItem[] = [];
 
-        for (let property of morePhpClass.properties) {
+        for (let property of phpClass.properties) {
             if (property.isPublic) {
                 items.push({
                     label: property.name,
@@ -7990,7 +7994,7 @@ export class Project {
             }
         }
 
-        for (let method of morePhpClass.methods) {
+        for (let method of phpClass.methods) {
             if (method.isPublic) {
                 // hide methods 'set*()'
                 if (method.name.startsWith('set') && method.name.length > 3 && method.name[3].toUpperCase() === method.name[3]) {
