@@ -16,5 +16,4 @@ install:
 
 after_script:
     - npm run coverage-lcov
-    - npm install --save-dev coveralls@3.0.4
     - coveralls < ./coverage/lcov.info
