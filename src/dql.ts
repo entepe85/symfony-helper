@@ -63,11 +63,11 @@ function getType(value: string): TokenType | null {
             return TokenType.FROM;
         }
 
-        if (value.indexOf(':') !== -1) {
+        if (value.includes(':')) {
             return TokenType.ALIASED_NAME;
         }
 
-        if (value.indexOf('\\') !== -1) {
+        if (value.includes('\\')) {
             return TokenType.FULLY_QUALIFIED_NAME;
         }
 

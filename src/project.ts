@@ -129,13 +129,17 @@ export async function findTwigExtensionElements(code: string, stmts: nikic.State
 
     let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
 
+    // TODO: fully resolve class names
+    let classNames = ['TwigFunction', 'Twig_Function', 'TwigTest', 'Twig_Test', 'TwigFilter', 'Twig_Filter'];
+
     for (let exprNew of exprNewNodes) {
         if (!(exprNew.class.nodeType === 'Name_FullyQualified' || exprNew.class.nodeType === 'Name')) {
             continue;
         }
         let classNameParts = exprNew.class.parts;
         let className = classNameParts[classNameParts.length - 1];
-        if (['TwigFunction', 'Twig_Function', 'TwigTest', 'Twig_Test', 'TwigFilter', 'Twig_Filter'].indexOf(className) < 0) {
+
+        if (!classNames.includes(className)) {
             continue;
         }
 
@@ -451,9 +455,12 @@ interface PlainSymbolTable {
  * Very unfinished. Uses only first real ClassName.
  */
 function parsePhpDocBlockType(typeString: string, nameResolverData: nikic.NameResolverData): php.Type {
+    // TODO: review
     let pieces = typeString.split('|');
 
     let regexp = /^([\w\\]+)((\[\])*)$/;
+
+    let ignoredTypes = ['boolean', 'bool', 'false', 'integer', 'int', 'float', 'double', 'string', 'null', 'callable', 'void', 'self', 'static', '$this', 'array'];
 
     for (let piece of pieces) {
         let match = piece.match(regexp);
@@ -470,8 +477,7 @@ function parsePhpDocBlockType(typeString: string, nameResolverData: nikic.NameRe
                 }
                 className = name;
             } else {
-                let ignoredTypes = ['boolean', 'bool', 'false', 'integer', 'int', 'float', 'double', 'string', 'null', 'callable', 'void', 'self', 'static', '$this', 'array'];
-                if (ignoredTypes.indexOf(name.toLowerCase()) < 0 && !name.toLowerCase().startsWith('array<')) {
+                if (!ignoredTypes.includes(name.toLowerCase()) && !name.toLowerCase().startsWith('array<')) {
                     className = nikic.resolveName([name], nameResolverData);
                 }
             }
@@ -3548,7 +3554,7 @@ export class Project {
 
                 startPieceIndex = deepestStmt.startPiece;
 
-            } else if (typesOfSimplestStatementWithStatements.indexOf(deepestStmt.type) >= 0) {
+            } else if (typesOfSimplestStatementWithStatements.includes(deepestStmt.type)) {
                 moreData.push({
                     label: 'end' + deepestStmt.type,
                     macro: '{% end' + deepestStmt.type + ' %}\n',
@@ -6658,7 +6664,7 @@ export class Project {
         }
 
         let prevPrevTokenvValue = twigTokenValue(code, tokens[i-2]);
-        if (['path', 'url'].indexOf(prevPrevTokenvValue) < 0) {
+        if (!['path', 'url'].includes(prevPrevTokenvValue)) {
             return null;
         }
 

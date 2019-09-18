@@ -300,7 +300,7 @@ export function sqlSelectFields(sql: string): string[] {
         }
     } while (match !== null);
 
-    if (tokens.length === 0 || tokens[0] !== 'select' || tokens.indexOf('from') < 0) {
+    if (tokens.length === 0 || tokens[0] !== 'select' || !tokens.includes('from')) {
         return [];
     }
 

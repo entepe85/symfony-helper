@@ -91,7 +91,7 @@ export class Service {
         let filteredFoldersUris = filteredFolders.map(row => row.uri);
         let deleteUris = [];
         for (let folderUri in this.projects) {
-            if (filteredFoldersUris.indexOf(folderUri) < 0) {
+            if (!filteredFoldersUris.includes(folderUri)) {
                 deleteUris.push(folderUri);
             }
         }
@@ -283,7 +283,7 @@ export class Service {
                         walker(stmt.elsePart.stmts, doc);
                     }
 
-                } else if (typesOfSimplestStatementWithStatements.indexOf(stmt.type) >= 0) {
+                } else if (typesOfSimplestStatementWithStatements.includes(stmt.type)) {
                     let stmt2 = stmt as SimplestStatementWithStatements;
 
                     if (stmt2.endPiece !== undefined) {

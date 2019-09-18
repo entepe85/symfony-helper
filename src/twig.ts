@@ -320,7 +320,7 @@ class Lexer {
         }
 
         // punctuation
-        if (PUNCTUATION.indexOf(this.code[this.cursor]) >= 0) {
+        if (PUNCTUATION.includes(this.code[this.cursor])) {
             this.pushToken(TokenType.PUNCTUATION, this.cursor, 1);
             this.cursor++;
             return;
@@ -732,7 +732,7 @@ class Parser {
                     stmt = this.parseIf();
                 } else if (pieceName === 'for') {
                     stmt = this.parseFor();
-                } else if (typesOfSimplestStatementWithStatements.indexOf(pieceName) >= 0) {
+                } else if (typesOfSimplestStatementWithStatements.includes(pieceName)) {
                     stmt = this.parseSimplestStatementWithStatements(pieceName as TypesOfSimplestStatementWithStatements);
                 } else {
                     this.nextPiece();
@@ -903,7 +903,7 @@ class Parser {
         for (let i = this.stack.length - 1; i >= 0; i--) {
             let parent = this.stack[i];
 
-            if (typesOfSimplestStatementWithStatements.indexOf(parent) >= 0) {
+            if (typesOfSimplestStatementWithStatements.includes(parent)) {
                 if (pieceName === 'end' + parent) {
                     return true;
                 }
@@ -1001,7 +1001,7 @@ export function deepestStatement(stmts: ReadonlyArray<Statement>, offset: number
         return null;
     }
 
-    if (typesOfSimplestStatementWithStatements.indexOf(candidate.type) >= 0) {
+    if (typesOfSimplestStatementWithStatements.includes(candidate.type)) {
         return deepestStatement(candidate.stmts, offset, pieces, true) || candidate;
     }
 
