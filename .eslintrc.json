@@ -1,0 +1,35 @@
+{
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "sourceType": "module",
+        "project": "./tsconfig.json"
+    },
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "extends": [
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking"
+    ],
+    // TODO: review all these rules
+    "rules": {
+        "prefer-const": "off",
+        "@typescript-eslint/camelcase": "off",
+        "@typescript-eslint/class-name-casing": "off",
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/member-delimiter-style": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-use-before-define": "off",
+
+        // rules from '@typescript-eslint/recommended-requiring-type-checking'
+        "@typescript-eslint/no-misused-promises": "off",
+        "@typescript-eslint/no-unnecessary-type-assertion": "off",
+        "@typescript-eslint/prefer-includes": "off",
+        "@typescript-eslint/prefer-regexp-exec": "off",
+        "@typescript-eslint/prefer-string-starts-ends-with": "off",
+        "@typescript-eslint/require-await": "off",
+        "@typescript-eslint/unbound-method": "off"
+    }
+}
