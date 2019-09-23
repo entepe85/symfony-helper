@@ -155,15 +155,16 @@
         "coverage-lcov": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=lcov mocha --require ts-node/register --require source-map-support/register ./test/server/*.ts"
     },
     "dependencies": {
+        "@mattacosta/php-parser": "^1.0.0-beta.6",
         "axios": "~0.18.0",
         "glob": "~7.1.0",
         "lodash": "~4.17.0",
         "mkdirp": "~0.5.0",
         "sax": "~1.2.0",
+        "vscode-languageclient": "~5.2.0",
         "vscode-languageserver": "~5.2.0",
         "vscode-uri": "~1.0.0",
-        "yaml-ast-parser": "0.0.43",
-        "vscode-languageclient": "~5.2.0"
+        "yaml-ast-parser": "0.0.43"
     },
     "devDependencies": {
         "@types/glob": "~7.1.0",
