@@ -63,9 +63,9 @@ if ($isCli) {
 // we have $type and $message now
 
 if (class_exists('App\Kernel')) {
-    $kernel = new App\Kernel('dev', true); // symfony  >=4.0
+    $kernel = new App\Kernel('dev', false); // symfony  >=4.0
 } else {
-    $kernel = new AppKernel('dev', true); // symfony <= 3.4
+    $kernel = new AppKernel('dev', false); // symfony <= 3.4
 }
 $kernel->boot();
 $container = $kernel->getContainer();
