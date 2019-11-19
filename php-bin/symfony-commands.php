@@ -67,9 +67,15 @@ if (class_exists('App\Kernel')) {
 } else {
     $kernel = new AppKernel('dev', false); // symfony <= 3.4
 }
-$kernel->boot();
-$container = $kernel->getContainer();
+try {
+    $kernel->boot();
+} catch (\Exception $e) {
+    // symfony 3.4 throws exception if cache is empty and database driver not found
+    // so try one more time now (when cache is generated)
+    $kernel->boot();
+}
 
+$container = $kernel->getContainer();
 if ($type === 'directCommand') {
     $application = new Application($kernel);
     $application->setAutoExit(false);
