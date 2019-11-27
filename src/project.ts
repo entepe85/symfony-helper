@@ -513,18 +513,6 @@ function docBlockToShortHelp(parsedDocBlock: ParsedDocBlock): string | null {
     return shortHelp;
 }
 
-function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
-    if (node !== null) {
-        let parsedDocBlock = parsePhpDocBlock(node.text);
-        if (parsedDocBlock !== null) {
-            let shortHelp = docBlockToShortHelp(parsedDocBlock);
-            return shortHelp;
-        }
-    }
-
-    return null;
-}
-
 export async function extractSomePhpClassInfo(code: string, phpSyntaxTree: phpParser.PhpSyntaxTree): Promise<PhpClassSomeInfo | null> {
     let classOrInterfaceNode = findPhpNode(phpSyntaxTree.root, (node: phpParser.ISyntaxNode) => {
         return node instanceof phpParser.ClassDeclarationSyntaxNode || node instanceof phpParser.InterfaceDeclarationSyntaxNode;
@@ -1156,33 +1144,6 @@ function findPhpNode(base: phpParser.ISyntaxNode, test: (node: phpParser.ISyntax
 
         for (let c of n.getChildNodes()) {
             walker(c);
-        }
-    };
-
-    walker(base);
-
-    return result;
-}
-
-function findPhpToken(base: phpParser.ISyntaxNode, test: (token: phpParser.ISyntaxToken) => boolean): phpParser.ISyntaxToken | null {
-    let result: phpParser.ISyntaxToken | null = null;
-
-    let walker = function (n: phpParser.ISyntaxNode) {
-        if (result !== null) {
-            return;
-        }
-
-        for (let c of n.getAllChildren()) {
-            if (c.isToken) {
-                let t = c as phpParser.ISyntaxToken;
-                if (test(t)) {
-                    result = t;
-                    return;
-                }
-            } else {
-                let subN = c as phpParser.ISyntaxNode;
-                walker(subN);
-            }
         }
     };
 
