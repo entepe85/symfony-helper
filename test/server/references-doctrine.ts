@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import * as _ from 'lodash';
+import * as util from 'util';
 import { projectUri, getService } from './_utils';
 import { Position, Range } from 'vscode-languageserver';
 
@@ -46,7 +46,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedE6Locations.length; i++) {
             let row = expectedE6Locations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -62,7 +62,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedE6Locations.length; i++) {
             let row = expectedE6Locations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -78,7 +78,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedE8Locations.length; i++) {
             let row = expectedE8Locations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -94,7 +94,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedE7Embed2Locations.length; i++) {
             let row = expectedE7Embed2Locations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -110,7 +110,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedEmbed2NumLocations.length; i++) {
             let row = expectedEmbed2NumLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -126,7 +126,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedE8NumLocations.length; i++) {
             let row = expectedE8NumLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -142,7 +142,7 @@ describe('references for doctrine', function () {
 
         for (let i = 0; i < expectedE8NumLocations.length; i++) {
             let row = expectedE8NumLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });

@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import * as _ from 'lodash';
+import * as util from 'util';
 import { projectUri, getService } from './_utils';
 import { Position, Location, Range } from 'vscode-languageserver';
 
@@ -29,7 +29,7 @@ describe('references for twig', function () {
 
         for (let i = 0; i < expectedFunctionLocations.length; i++) {
             let row = expectedFunctionLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
 
@@ -56,7 +56,7 @@ describe('references for twig', function () {
 
         for (let i = 0; i < expectedLocations.length; i++) {
             let row = expectedLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -73,7 +73,7 @@ describe('references for twig', function () {
 
         for (let i = 0; i < expectedTestLocations.length; i++) {
             let row = expectedTestLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -89,7 +89,7 @@ describe('references for twig', function () {
 
         for (let i = 0; i < expectedFunctionLocations.length; i++) {
             let row = expectedFunctionLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
@@ -105,7 +105,7 @@ describe('references for twig', function () {
 
         for (let i = 0; i < expectedTestLocations.length; i++) {
             let row = expectedTestLocations[i];
-            let isFound = actual.find(a => _.isEqual(a, row)) !== undefined;
+            let isFound = actual.find(a => util.isDeepStrictEqual(a, row)) !== undefined;
             assert.ok(isFound, `expected ${i} failed`);
         }
     });
