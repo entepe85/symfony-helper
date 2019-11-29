@@ -149,10 +149,11 @@
         "watch": "tsc -watch",
         "lint": "tslint --project tsconfig.json --format verbose --force 'src/**/*.ts'",
         "lint-more": "eslint --ext .ts src/",
-        "test": "npm run compile && mocha out/test/server",
-        "test-http-helper": "npm run compile && COMMANDS_HELPER_TYPE=http mocha out/test/server",
-        "coverage": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=html mocha --require ts-node/register --require source-map-support/register ./test/server/*.ts",
-        "coverage-lcov": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) nyc --reporter=lcov mocha --require ts-node/register --require source-map-support/register ./test/server/*.ts"
+        "test": "npm run compile && NODE_ENV=test mocha out/test/server",
+        "test-windows": "npm run compile && mocha out/test/server",
+        "test-http-helper": "npm run compile && NODE_ENV=test COMMANDS_HELPER_TYPE=http mocha out/test/server",
+        "coverage": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) NODE_ENV=test nyc --reporter=html mocha --require ts-node/register --require source-map-support/register ./test/server/*.ts",
+        "coverage-lcov": "FORCE_HELPER_DIRECTORY_PATH=$(pwd) NODE_ENV=test nyc --reporter=lcov mocha --require ts-node/register --require source-map-support/register ./test/server/*.ts"
     },
     "dependencies": {
         "@mattacosta/php-parser": "^1.0.0-beta.6",

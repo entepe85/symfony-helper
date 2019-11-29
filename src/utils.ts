@@ -39,6 +39,10 @@ if (forcedPackagePath !== undefined) {
     packagePath = forcedPackagePath;
 }
 
+// this is for travis ci
+// TODO why is 'exec' slow on travis machine?
+let execTimeout /* ms */ = (process.env.NODE_ENV === 'test') ? 10000 : 1500;
+
 export async function fileExists(filePath: string) {
     try {
         await util.promisify(fs.access)(filePath);
@@ -78,7 +82,7 @@ export async function findFiles(pattern: string) {
  * Executes something and returns its stdout
  */
 export async function exec(executable: string, args: string[]) {
-    return (await util.promisify(child_process.execFile)(executable, args, { timeout: 1500 /* ms */})).stdout;
+    return (await util.promisify(child_process.execFile)(executable, args, { timeout: execTimeout})).stdout;
 }
 
 export class AllTextDocuments {
