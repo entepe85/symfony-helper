@@ -3,10 +3,10 @@ dist: xenial
 language: node_js
 
 node_js:
-    - "8.9"
+    - "10.11"
 
 install:
-    - wget https://getcomposer.org/download/1.8.6/composer.phar
+    - wget https://getcomposer.org/download/1.9.1/composer.phar
     - php composer.phar install --working-dir php-bin
     - php composer.phar install --working-dir php-project-for-tests --no-interaction
     - php composer.phar install --working-dir symfony-2.8-project --no-interaction

@@ -1,18 +1,18 @@
 install:
     - ps: Set-Service wuauserv -StartupType "Automatic"; Start-Service wuauserv # weird magic for 'cinst php'
-    - cinst php --version 7.2.0 # could not install symfony 2.8 with php 7.3
+    - cinst php --version 7.2 # symfony 2.8 doesn't work with php 7.3
     - echo extension=C:\tools\php72\ext\php_openssl.dll >> C:\tools\php72\php.ini
     - echo extension=C:\tools\php72\ext\php_mbstring.dll >> C:\tools\php72\php.ini
     - echo extension=C:\tools\php72\ext\php_curl.dll >> C:\tools\php72\php.ini
     - echo zend_extension=C:\tools\php72\ext\php_opcache.dll >> C:\tools\php72\php.ini
     - set PATH=C:\tools\php72;%PATH%
-    - appveyor DownloadFile https://getcomposer.org/download/1.8.6/composer.phar
+    - appveyor DownloadFile https://getcomposer.org/download/1.9.1/composer.phar
     - php composer.phar i --working-dir=php-bin
     - php composer.phar i --working-dir=php-project-for-tests --no-interaction
     - php composer.phar i --working-dir=symfony-2.8-project --no-interaction
     - php composer.phar i --working-dir=symfony-3.4-project --no-interaction
     - php composer.phar i --working-dir=symfony-4.2-project --no-interaction
-    - ps: Install-Product node 8.9.0
+    - ps: Install-Product node 10.11
     - npm i
 
 build: off
