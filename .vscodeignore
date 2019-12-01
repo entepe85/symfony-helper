@@ -16,9 +16,6 @@ symfony-2.8-project
 symfony-3.4-project
 symfony-4.2-project
 megacorp-core-bundle
-node_modules/lodash/fp
-node_modules/lodash/*.js
-!node_modules/lodash/lodash.js
 php-bin/vendor/nikic/php-parser/test
 .appveyor.yml
 .mocharc.js

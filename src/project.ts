@@ -8,7 +8,6 @@ import * as fs from 'fs';
 import * as yaml from 'yaml-ast-parser';
 import URI from 'vscode-uri';
 import * as sax from 'sax';
-import * as _ from 'lodash';
 import * as phpParser from '@mattacosta/php-parser';
 
 import {
@@ -68,6 +67,7 @@ import {
     requestHttpCommandsHelper,
     SymfonyHelperSettings,
     ParsedDocBlock,
+    throttle
 } from './utils';
 
 import { tokenize as tokenizeDql, Token as DqlToken, TokenType as DqlTokenType } from './dql';
@@ -1285,10 +1285,10 @@ export class Project {
 
     private readonly TWIG_REGEXP = /TwigFunction|TwigFilter|TwigTest|Twig_Function|Twig_Filter|Twig_Test|getGlobals/;
 
-    private throttledScanRoutes: () => Promise<void>;
-    private throttledScanContainerParameters: () => Promise<void>;
-    private throttledScanAutowired: () => Promise<void>;
-    private throttledScanDoctrineEntityNamespaces: () => Promise<void>;
+    private throttledScanRoutes: () => void;
+    private throttledScanContainerParameters: () => void;
+    private throttledScanAutowired: () => void;
+    private throttledScanDoctrineEntityNamespaces: () => void;
 
     private isScanning: boolean = false;
 
@@ -1343,36 +1343,24 @@ export class Project {
 
         this.sourceFolders = ['src'];
 
-        this.throttledScanRoutes = _.throttle(
+        this.throttledScanRoutes = throttle(
             this.scanRoutes.bind(this),
             3000,
-            {
-                leading: false,
-            }
         );
 
-        this.throttledScanContainerParameters = _.throttle(
+        this.throttledScanContainerParameters = throttle(
             this.scanContainerParameters.bind(this),
             3000,
-            {
-                leading: false,
-            }
         );
 
-        this.throttledScanAutowired = _.throttle(
+        this.throttledScanAutowired = throttle(
             this.scanAutowired.bind(this),
             3000,
-            {
-                leading: false,
-            }
         );
 
-        this.throttledScanDoctrineEntityNamespaces = _.throttle(
+        this.throttledScanDoctrineEntityNamespaces = throttle(
             this.scanDoctrineEntityNamespaces.bind(this),
             1000,
-            {
-                leading: false,
-            }
         );
     }
 
@@ -7569,15 +7557,15 @@ export class Project {
         }
 
         if (documentUri === this.folderUri + '/config/services.yaml') {
-            await this.throttledScanContainerParameters();
+            this.throttledScanContainerParameters();
         }
 
         if (documentUri === this.folderUri + '/config/packages/doctrine.yaml') {
-            await this.throttledScanDoctrineEntityNamespaces();
+            this.throttledScanDoctrineEntityNamespaces();
         }
 
-        await this.throttledScanRoutes();
-        await this.throttledScanAutowired();
+        this.throttledScanRoutes();
+        this.throttledScanAutowired();
     }
 
     /**

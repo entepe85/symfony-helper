@@ -360,3 +360,21 @@ export async function requestHttpCommandsHelper(httpPath: string, type: 'directC
 
     return result.data;
 }
+
+/**
+ * Creates a throttled function that only invokes function 'func' at most once per every 'timeout' milliseconds.
+ *
+ * 'func' is invoked on the trailing edge of the 'timeout'
+ */
+export function throttle(func: () => void, timeout: number): () => void {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    return () => {
+        if (timeoutHandle === undefined) {
+            timeoutHandle = setTimeout(() => {
+                func();
+                timeoutHandle = undefined;
+            }, timeout);
+        }
+    };
+}
