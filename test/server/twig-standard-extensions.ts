@@ -9,10 +9,10 @@ describe('tests for standard twig extensions', function () {
         let service = await getService();
 
         let fixtures: { from: [number, number], to: [number, number, string] }[] = [
-            { from: [6, 22], to: [191, 12, '/vendor/twig/twig/lib/Twig/Extension/Core.php'] },
-            { from: [7, 11], to: [210, 12, '/vendor/twig/twig/lib/Twig/Extension/Core.php'] },
-            { from: [9, 6], to: [194, 12, '/vendor/twig/twig/lib/Twig/Extension/Core.php'] },
-            { from: [9, 27], to: [139, 12, '/vendor/twig/twig/lib/Twig/Extension/Core.php'] },
+            { from: [6, 22], to: [266, 12, '/vendor/twig/twig/src/Extension/CoreExtension.php'] },
+            { from: [7, 11], to: [285, 12, '/vendor/twig/twig/src/Extension/CoreExtension.php'] },
+            { from: [9, 6], to: [269, 12, '/vendor/twig/twig/src/Extension/CoreExtension.php'] },
+            { from: [9, 27], to: [213, 12, '/vendor/twig/twig/src/Extension/CoreExtension.php'] },
         ];
 
         for (let { from, to } of fixtures) {

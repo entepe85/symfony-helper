@@ -13,7 +13,7 @@ describe('references for twig', function () {
     ];
 
     let expectedTestLocations = [
-        { uri: projectUri + '/vendor/twig/twig/lib/Twig/Extension/Core.php', range: Range.create(210, 26, 210, 36) },
+        { uri: projectUri + '/vendor/twig/twig/src/Extension/CoreExtension.php', range: Range.create(285, 25, 285, 35) },
         { uri: documentUri, range: Range.create(6, 10, 6, 18) },
         { uri: documentUri, range: Range.create(7, 10, 7, 18) },
     ];
@@ -98,8 +98,8 @@ describe('references for twig', function () {
         let service = await getService();
 
         let actual = await service.onReferences({
-            textDocument: { uri: projectUri + '/vendor/twig/twig/lib/Twig/Extension/Core.php' },
-            position: Position.create(210, 27),
+            textDocument: { uri: projectUri + '/vendor/twig/twig/src/Extension/CoreExtension.php' },
+            position: Position.create(285, 26),
             context: { includeDeclaration: true },
         });
 

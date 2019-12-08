@@ -15,7 +15,7 @@ describe('complete autowiring typehint', function () {
             prefix + 'cache.app',
             prefix + 'FormFactoryInterface',
             prefix + 'form.factory',
-            prefix + 'Twig_Environment',
+            prefix + 'Environment',
             prefix + 'twig',
         ];
 
@@ -27,7 +27,7 @@ describe('complete autowiring typehint', function () {
         let actualLabels = actual.items.map(row => row.label);
 
         for (let label of expectedLabels) {
-            assert.ok(actualLabels.indexOf(label) >= 0);
+            assert.ok(actualLabels.indexOf(label) >= 0, `could not find label '${label}'`);
         }
     });
 
@@ -92,7 +92,7 @@ describe('complete autowiring typehint', function () {
         let expectedArgumentNames = [
             [prefix + 'FormFactoryInterface', 'formFactory'], // test for classname ending with 'Interface'
             [prefix + 'RequestContext', 'requestContext'], // test for classname not ending with 'Interface'
-            [prefix + 'twig', 'twigEnvironment'], // test for classname with '_'
+            // TODO: add test for classname with '_' (there was 'Twig_Environment' earlier)
         ];
 
         for (let [label, argumentName] of expectedArgumentNames) {
@@ -102,13 +102,15 @@ describe('complete autowiring typehint', function () {
         }
     });
 
-    it('should create \'use statements\' or use existing ones', async function () {
+    it(`should create 'use statements' or use existing ones`, async function () {
         let service = await getService();
 
         let documentUri = projectUri + '/src/Controller/BFakeController.php';
 
         {
+            // TODO: find class with '_'
             // ignore classes without '\'
+            /*
             let actual = await service.onCompletition({
                 textDocument: { uri: documentUri },
                 position: Position.create(12, 28),
@@ -117,6 +119,7 @@ describe('complete autowiring typehint', function () {
             let item = actual.items.filter(row => row.label === '.twig')[0];
             assert.ok(item.additionalTextEdits === undefined);
             assert.ok(item.textEdit!.newText.startsWith('\\Twig_Environment '));
+            */
         }
 
         {
