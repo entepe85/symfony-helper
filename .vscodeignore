@@ -16,6 +16,5 @@ symfony-2.8-project
 symfony-3.4-project
 symfony-4.2-project
 megacorp-core-bundle
-php-bin/vendor/nikic/php-parser/test
 .appveyor.yml
 .mocharc.js
