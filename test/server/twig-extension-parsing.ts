@@ -9,8 +9,6 @@ import URI from 'vscode-uri';
 import * as nikic from '../../src/nikic-php-parser';
 
 describe('search twig extension for new functions, filters and tests', function () {
-    // TODO: uncomment
-    /*
     let projectFsPath = URI.parse(projectUri).fsPath;
 
     it('should work for functions', async function () {
@@ -148,5 +146,4 @@ describe('search twig extension for new functions, filters and tests', function 
 
         assert.deepEqual(actual.implementation, expectedImplementation);
     });
-    */
 });

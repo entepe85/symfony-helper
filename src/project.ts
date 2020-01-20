@@ -8,7 +8,6 @@ import * as fs from 'fs';
 import * as yaml from 'yaml-ast-parser';
 import URI from 'vscode-uri';
 import * as sax from 'sax';
-import * as phpParser from '@mattacosta/php-parser';
 
 import {
     CompletionParams,
@@ -112,9 +111,9 @@ export interface TwigExtensionGlobal {
 /**
  * Searches for 'new TwigFunction()', 'new TwigTest()' and 'new TwigFilter()' calls everywhere and also for 'getGlobals()' call
  *
- * @param phpSyntaxTree         parsed 'code'
+ * @param stmts         parsed 'code'
  */
-export async function findTwigExtensionElements(code: string, stmts: nikic.Statement[], phpSyntaxTree: phpParser.PhpSyntaxTree) {
+export async function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
     let result: { elements: TwigExtensionCallable[], globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
 
     let classStmts = nikic.findNodesOfType(stmts, 'Stmt_Class');
@@ -125,7 +124,7 @@ export async function findTwigExtensionElements(code: string, stmts: nikic.State
 
     let classStmt = classStmts[0] as nikic.Stmt_Class;
 
-    let someInfo = await extractSomePhpClassInfo(code, phpSyntaxTree);
+    let someInfo = await extractSomePhpClassInfo(code, stmts);
     let classMethods = (someInfo === null) ? [] : someInfo.methods;
 
     let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
@@ -513,110 +512,120 @@ function docBlockToShortHelp(parsedDocBlock: ParsedDocBlock): string | null {
     return shortHelp;
 }
 
-export async function extractSomePhpClassInfo(code: string, phpSyntaxTree: phpParser.PhpSyntaxTree): Promise<PhpClassSomeInfo | null> {
-    let classOrInterfaceNode = findPhpNode(phpSyntaxTree.root, (node: phpParser.ISyntaxNode) => {
-        return node instanceof phpParser.ClassDeclarationSyntaxNode || node instanceof phpParser.InterfaceDeclarationSyntaxNode;
-    });
 
-    if (classOrInterfaceNode == null) {
+function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
+    if (node !== null) {
+        let parsedDocBlock = parsePhpDocBlock(node.text);
+        if (parsedDocBlock !== null) {
+            let shortHelp = docBlockToShortHelp(parsedDocBlock);
+            return shortHelp;
+        }
+    }
+
+    return null;
+}
+
+export async function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]): Promise<PhpClassSomeInfo | null> {
+    if (stmts.length === 0) {
         return null;
     }
 
-    let classCommentNode = findDocComment(classOrInterfaceNode);
-    let classShortHelp = commentNodeToShortHelp2(code, classCommentNode);
+    let namespaceStmt = stmts.filter(row => row.nodeType === 'Stmt_Namespace')[0] as nikic.Stmt_Namespace;
+    if (namespaceStmt === undefined) {
+        return null;
+    }
 
-    let nameResolverData = findNameResolverData(code, phpSyntaxTree);
+    let classStmt: nikic.Stmt_Class | nikic.Stmt_Interface;
+
+    classStmt = namespaceStmt.stmts.filter(row => row.nodeType === 'Stmt_Class' || row.nodeType === 'Stmt_Interface')[0] as (typeof classStmt);
+    if (classStmt === undefined) {
+        return null;
+    }
+
+    let classCommentNode = nikic.lastDocComment(classStmt.attributes.comments);
+    let classShortHelp = commentNodeToShortHelp(classCommentNode);
+
+    let nameResolverData = nikic.findNameResolverData(stmts);
 
     let constants: PhpClassConstant[] = [];
     let methods: PhpClassMethod[] = [];
     let properties: PhpClassProperty[] = [];
 
-    for (let node of classOrInterfaceNode.childNodes()) {
-        let isPublic = true;
-        for (let t of node.childTokens()) {
-            if (t.kind === phpParser.TokenKind.Private || t.kind === phpParser.TokenKind.Protected) {
-                isPublic = false;
-            }
-        }
+    for (let stmt of classStmt.stmts) {
+        /* tslint:disable no-bitwise */
+        let isPublic = (stmt.flags & (nikic.ClassModifier.MODIFIER_PROTECTED + nikic.ClassModifier.MODIFIER_PRIVATE)) === 0;
+        /* tslint:enable no-bitwise */
 
-        let commentNode = findDocComment(node);
-        let nodeHelp = commentNodeToShortHelp2(code, commentNode);
+        if (stmt.nodeType === 'Stmt_ClassConst') {
+            let offset = stmt.attributes.startFilePos;
 
-        if (node instanceof phpParser.ClassConstantDeclarationSyntaxNode) {
-            for (let subNode of node.childNodes()) {
-                if (subNode instanceof phpParser.ClassConstantElementSyntaxNode) {
-                    let name = code.substr(subNode.identifierOrKeyword.span.start, subNode.identifierOrKeyword.span.length);
+            let constCommentNode = nikic.lastDocComment(stmt.attributes.comments);
+            let constHelp = commentNodeToShortHelp(constCommentNode);
 
-                    let constData: PhpClassConstant = {
-                        isPublic,
-                        name,
-                        offset: (node.childNodes().length > 1) ? subNode.span.start : node.span.start,
-                    };
+            for (let c of stmt.consts) {
+                let constData: PhpClassConstant = {
+                    isPublic,
+                    name: c.name.name,
+                    offset: (stmt.consts.length === 1) ? offset : c.attributes.startFilePos,
+                };
 
-                    if (nodeHelp !== null) {
-                        constData.shortHelp = nodeHelp;
-                    }
-
-                    let rawConstValue = code.substr(subNode.expression.span.start, subNode.expression.span.length);
-                    if (rawConstValue.length < 15 && !rawConstValue.includes('\n')) {
-                        constData.valueText = rawConstValue;
-                    }
-
-                    constants.push(constData);
+                if (constHelp !== null) {
+                    constData.shortHelp = constHelp;
                 }
-            }
 
-        } else if (node instanceof phpParser.PropertyDeclarationSyntaxNode) {
-            for (let subNode of node.childNodes()) {
-                if (subNode instanceof phpParser.PropertyElementSyntaxNode) {
-                    let name = code.substr(subNode.variable.span.start + 1, subNode.variable.span.length - 1);
-
-                    let propData: PhpClassProperty = {
-                        isPublic,
-                        name,
-                        offset: (node.childNodes().length > 1) ? subNode.span.start : node.span.start,
-                        type: new php.AnyType(),
-                    };
-
-                    if (nodeHelp !== null) {
-                        propData.shortHelp = nodeHelp;
-                    }
-
-                    properties.push(propData);
+                let rawConstValue = nikic.nodeText(c.value, code);
+                if (rawConstValue.length < 15 && !rawConstValue.includes('\n')) {
+                    constData.valueText = rawConstValue;
                 }
+
+                constants.push(constData);
             }
+        } else if (stmt.nodeType === 'Stmt_Property') {
+            let offset = stmt.attributes.startFilePos;
 
-        } else if (node instanceof phpParser.MethodDeclarationSyntaxNode) {
-            let name = code.substr(node.identifierOrKeyword.span.start, node.identifierOrKeyword.span.length);
+            let propCommentNode = nikic.lastDocComment(stmt.attributes.comments);
+            let propHelp = commentNodeToShortHelp(propCommentNode);
 
-            let isStatic = false;
-            for (let t of node.childTokens()) {
-                if (t.kind === phpParser.TokenKind.Static) {
-                    isStatic = true;
+            for (let prop of stmt.props) {
+                let propData: PhpClassProperty = {
+                    isPublic,
+                    name: prop.name.name,
+                    offset: (stmt.props.length === 1) ? offset : prop.attributes.startFilePos,
+                    type: new php.AnyType(),
+                };
+
+                if (propHelp !== null) {
+                    propData.shortHelp = propHelp;
                 }
+
+                properties.push(propData);
             }
 
+        } else if (stmt.nodeType === 'Stmt_ClassMethod') {
+
+            /* tslint:disable no-bitwise */
             let methodData: PhpClassMethod = {
                 isPublic,
-                name,
-                isStatic,
-                offset: node.span.start,
+                name: stmt.name.name,
+                offset: stmt.attributes.startFilePos,
+                isStatic: (stmt.flags & nikic.ClassModifier.MODIFIER_STATIC) > 0,
                 params: [],
                 returnType: new php.AnyType(),
             };
+            /* tslint:enable no-bitwise */
 
-            if (node.parameters !== null) {
-                for (let p of node.parameters.getChildNodes()) {
-                    if (p instanceof phpParser.ParameterSyntaxNode) {
-                        let name = code.substr(p.variable.span.start + 1, p.variable.span.length - 1);
-
-                        methodData.params.push({ name });
-                    }
+            for (let p of stmt.params) {
+                if (typeof p.var.name === 'string') {
+                    methodData.params.push({
+                        name: p.var.name,
+                    });
                 }
             }
 
-            if (commentNode !== null) {
-                let parsedDocBlock = parsePhpDocBlock(code.substr(commentNode.span.start, commentNode.span.length));
+            let methodCommentNode = nikic.lastDocComment(stmt.attributes.comments);
+            let methodHelp = commentNodeToShortHelp(methodCommentNode);
+            if (methodCommentNode !== null) {
+                let parsedDocBlock = parsePhpDocBlock(methodCommentNode.text);
 
                 if (parsedDocBlock !== null) {
                     let returnTag = parsedDocBlock.tags.filter(row => row.type === 'return')[0];
@@ -626,8 +635,8 @@ export async function extractSomePhpClassInfo(code: string, phpSyntaxTree: phpPa
                 }
             }
 
-            if (nodeHelp !== null) {
-                methodData.shortHelp = nodeHelp;
+            if (methodHelp !== null) {
+                methodData.shortHelp = methodHelp;
             }
 
             methods.push(methodData);
@@ -1127,120 +1136,6 @@ function parseXmlForEntityData(code: string): null | EntityData {
 }
 
 /**
- * Depth-first preordering node search
- */
-function findPhpNode(base: phpParser.ISyntaxNode, test: (node: phpParser.ISyntaxNode) => boolean): phpParser.ISyntaxNode | null {
-    let result: phpParser.ISyntaxNode | null = null;
-
-    let walker = function (n: phpParser.ISyntaxNode) {
-        if (result !== null) {
-            return;
-        }
-
-        if (test(n)) {
-            result = n;
-            return;
-        }
-
-        for (let c of n.getChildNodes()) {
-            walker(c);
-        }
-    };
-
-    walker(base);
-
-    return result;
-}
-
-function findDocComment(node: phpParser.ISyntaxNode): phpParser.ISyntaxTrivia | null {
-    let result: phpParser.ISyntaxTrivia | null = null;
-
-    let token = node.firstToken();
-
-    if (token !== null && token.leadingTrivia !== null) {
-        for (let t of token.leadingTrivia) {
-            if (t.kind == phpParser.TokenKind.DocumentationComment) {
-                result = t;
-                // don't use 'break'. we search for last comment.
-            }
-        }
-    }
-
-    return result;
-}
-
-function commentNodeToShortHelp2(code: string, node: phpParser.ISyntaxTrivia | null): string | null {
-    if (node !== null) {
-        let text = code.substr(node.fullSpan.start, node.fullSpan.length);
-        let parsedDocBlock = parsePhpDocBlock(text);
-        if (parsedDocBlock !== null) {
-            let shortHelp = docBlockToShortHelp(parsedDocBlock);
-            return shortHelp;
-        }
-    }
-
-    return null;
-}
-
-// TODO: support group use
-export function findUseStatements(code: string, phpSyntaxTree: phpParser.PhpSyntaxTree) {
-    let result: { offset: number, fullName: string, alias: string }[] = [];
-
-    for (let node of phpSyntaxTree.root.childNodes()) {
-        if (node instanceof phpParser.UseDeclarationSyntaxNode) {
-            for (let subNode of node.childNodes()) {
-                if (subNode instanceof phpParser.UseElementSyntaxNode) {
-                    let fullName = code.substr(subNode.target.span.start, subNode.target.span.length);
-
-                    let offset = (node.childNodes().length > 1) ? subNode.span.start : node.span.start;
-
-                    let alias: string;
-
-                    if (subNode.alias !== null) {
-                        alias = code.substr(subNode.alias.span.start, subNode.alias.span.length);
-                    } else if (fullName.includes('\\')) {
-                        let pieces = fullName.split('\\');
-                        alias = pieces[pieces.length - 1];
-                    } else {
-                        alias = fullName;
-                    }
-
-                    result.push({ offset, fullName, alias });
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-export interface NameResolverData2 {
-    namespace: null | string;
-    aliases: { [alias: string]: string };
-}
-
-export function findNameResolverData(code: string, phpSyntaxTree: phpParser.PhpSyntaxTree): NameResolverData2 {
-    let namespaceNode: phpParser.NamespaceDeclarationSyntaxNode | undefined;
-
-    for (let node of phpSyntaxTree.root.childNodes()) {
-        if (node instanceof phpParser.NamespaceDeclarationSyntaxNode) {
-            namespaceNode = node;
-        }
-    }
-
-    let namespace = (namespaceNode === undefined) ? null : code.substr(namespaceNode.name.span.start, namespaceNode.name.span.length)
-
-    let uses = findUseStatements(code, phpSyntaxTree);
-
-    let aliases: { [alias: string]: string } = {};
-    for (let use of uses) {
-        aliases[use.alias] = use.fullName;
-    }
-
-    return { namespace, aliases };
-}
-
-/**
  * Logic for individual symfony project.
  *
  * Methods 'hover*()' and 'definition*()' should have similar structure.
@@ -1694,11 +1589,15 @@ export class Project {
             return result;
         }
 
-        let phpSyntaxTree = phpParser.PhpSyntaxTree.fromText(code);
+        let hasConstants = false;
+        if (fileIsFromSourceFolders) {
+            let constStmts = nikic.findNodesOfType(stmts, 'Stmt_ClassConst');
+            if (constStmts.length > 0) {
+                hasConstants = true;
+            }
+        }
 
-        let someInfo = await extractSomePhpClassInfo(code, phpSyntaxTree);
-
-        let hasConstants = someInfo !== null && someInfo.constants.length > 0; // TODO: count only public constants?
+        let someInfo = await extractSomePhpClassInfo(code, stmts);
 
         let phpClass: PhpClass = {
             fullClassName,
@@ -1716,7 +1615,7 @@ export class Project {
         };
 
         if (fileIsTwigExtension) {
-            let { elements, globals } = await findTwigExtensionElements(code, stmts, phpSyntaxTree);
+            let { elements, globals } = await findTwigExtensionElements(code, stmts);
             if (elements.length > 0) {
                 phpClass.twigExtensionElements = elements;
             }
