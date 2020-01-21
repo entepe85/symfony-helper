@@ -3,7 +3,7 @@ dist: xenial
 language: node_js
 
 node_js:
-    - "10.11"
+    - "12.4"
 
 install:
     - wget https://getcomposer.org/download/1.9.1/composer.phar

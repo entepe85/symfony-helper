@@ -12,7 +12,7 @@ install:
     - php composer.phar i --working-dir=symfony-2.8-project --no-interaction
     - php composer.phar i --working-dir=symfony-3.4-project --no-interaction
     - php composer.phar i --working-dir=symfony-4.2-project --no-interaction
-    - ps: Install-Product node 10.11
+    - ps: Install-Product node 12.4
     - npm i
 
 build: off
