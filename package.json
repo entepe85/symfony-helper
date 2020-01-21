@@ -158,16 +158,14 @@
     "dependencies": {
         "axios": "~0.18.0",
         "glob": "~7.1.0",
-        "mkdirp": "~0.5.0",
         "sax": "~1.2.0",
+        "vscode-languageclient": "~5.2.0",
         "vscode-languageserver": "~5.2.0",
         "vscode-uri": "~1.0.0",
-        "yaml-ast-parser": "0.0.43",
-        "vscode-languageclient": "~5.2.0"
+        "yaml-ast-parser": "0.0.43"
     },
     "devDependencies": {
         "@types/glob": "~7.1.0",
-        "@types/mkdirp": "~0.5.0",
         "@types/mocha": "~5.2.0",
         "@types/node": "^12.6.9",
         "@types/sax": "~1.2.0",

@@ -9,7 +9,6 @@ import * as path from 'path';
 import * as child_process from 'child_process';
 
 import * as glob from 'glob';
-import * as mkdirp from 'mkdirp';
 
 import axios from 'axios';
 import * as querystring from 'querystring';
@@ -64,7 +63,7 @@ export async function writeFile(filePath: string, text: string) {
  * Creates directory (recursively if needed)
  */
 export async function createDirectory(dirPath: string) {
-    return util.promisify(mkdirp)(dirPath);
+    return util.promisify(fs.mkdir)(dirPath, { recursive: true });
 }
 
 /**
