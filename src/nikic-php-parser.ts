@@ -10,8 +10,6 @@ import * as querystring from 'querystring';
 import { packagePath } from './utils';
 import axios from 'axios';
 
-/* tslint:disable class-name */
-
 const PARSER_REQUEST_TIMEOUT = 300 /* ms */;
 
 // 'localhost' does not work

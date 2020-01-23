@@ -147,8 +147,7 @@
         "compile": "tsc",
         "compile-hard": "tsc -p tsconfig-hard.json",
         "watch": "tsc -watch",
-        "lint": "tslint --project tsconfig.json --format verbose --force 'src/**/*.ts'",
-        "lint-more": "eslint --ext .ts src/",
+        "lint": "eslint --ext .ts src/",
         "test": "npm run compile && NODE_ENV=test mocha out/test/server",
         "test-windows": "npm run compile && mocha out/test/server",
         "test-http-helper": "npm run compile && NODE_ENV=test COMMANDS_HELPER_TYPE=http mocha out/test/server",
@@ -178,7 +177,6 @@
         "nyc": "~14.1.0",
         "source-map-support": "~0.5.0",
         "ts-node": "~8.4.0",
-        "tslint": "~5.20.0",
         "typescript": "^3.7.2"
     },
     "nyc": {

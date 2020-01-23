@@ -5,7 +5,6 @@ assets/*.gif
 .gitignore
 tsconfig.json
 tsconfig-hard.json
-tslint.json
 **/tsbuildinfo
 **/*.map
 **/*.ts

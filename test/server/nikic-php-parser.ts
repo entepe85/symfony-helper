@@ -2,8 +2,6 @@ import { parse } from '../../src/nikic-php-parser';
 
 import * as assert from 'assert';
 
-/* tslint:disable object-literal-key-quotes quotemark */
-
 describe('nikic php parser', function () {
     it('should work', async function () {
         let code = '<?php 42;';

@@ -30,7 +30,6 @@ export const enum TokenType {
 }
 
 export function typeToString(type: TokenType): string {
-    /* tslint:disable curly */
     if (type === TokenType.EOF) return 'EOF';
     if (type === TokenType.TEXT) return 'TEXT';
     if (type === TokenType.BLOCK_START) return 'BLOCK_START';
@@ -45,7 +44,7 @@ export function typeToString(type: TokenType): string {
     if (type === TokenType.COMMENT_START) return 'COMMENT_START';
     if (type === TokenType.COMMENT_BODY) return 'COMMENT_BODY';
     if (type === TokenType.COMMENT_END) return 'COMMENT_END';
-    /* tslint:enable curly */
+
     return '';
 }
 
@@ -948,7 +947,6 @@ export function parse(code: string, tokens: Token[], pieces: TwigPiece[]) {
     return parser.parse();
 }
 
-/* tslint:disable strict-boolean-expressions */
 /**
  * Returns deepest statement containing offset with restriction that offset not in any piece
  */
@@ -1044,7 +1042,6 @@ export function deepestStatement(stmts: ReadonlyArray<Statement>, offset: number
 
     return null;
 }
-/* tslint:enable strict-boolean-expressions */
 
 export interface ScopeValues {
     [name: string]: php.Type;

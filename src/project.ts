@@ -552,9 +552,7 @@ export async function extractSomePhpClassInfo(code: string, stmts: nikic.Stateme
     let properties: PhpClassProperty[] = [];
 
     for (let stmt of classStmt.stmts) {
-        /* tslint:disable no-bitwise */
         let isPublic = (stmt.flags & (nikic.ClassModifier.MODIFIER_PROTECTED + nikic.ClassModifier.MODIFIER_PRIVATE)) === 0;
-        /* tslint:enable no-bitwise */
 
         if (stmt.nodeType === 'Stmt_ClassConst') {
             let offset = stmt.attributes.startFilePos;
@@ -602,8 +600,6 @@ export async function extractSomePhpClassInfo(code: string, stmts: nikic.Stateme
             }
 
         } else if (stmt.nodeType === 'Stmt_ClassMethod') {
-
-            /* tslint:disable no-bitwise */
             let methodData: PhpClassMethod = {
                 isPublic,
                 name: stmt.name.name,
@@ -612,7 +608,6 @@ export async function extractSomePhpClassInfo(code: string, stmts: nikic.Stateme
                 params: [],
                 returnType: new php.AnyType(),
             };
-            /* tslint:enable no-bitwise */
 
             for (let p of stmt.params) {
                 if (typeof p.var.name === 'string') {
