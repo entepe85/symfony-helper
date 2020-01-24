@@ -145,7 +145,7 @@ function parsePhpDocBlockTag(line: string): PhpDocBlockTag | null {
     let varMatch = line.match(/^@var\s+(\S+)/);
     if (varMatch !== null) {
         let typeString = varMatch[1];
-        if (typeString[0] === '$') {
+        if (typeString.startsWith('$')) {
             return null;
         }
 

@@ -2560,15 +2560,15 @@ export class Project {
                     }
 
                     // fast hack. should be improved and tested.
-                    if (data.prefix[0] === '@') {
-                        if (templateName[0] !== '@') {
+                    if (data.prefix.startsWith('@')) {
+                        if (!templateName.startsWith('@')) {
                             continue;
                         }
                         if (!templateName.toLowerCase().includes(data.prefix.substr(1).toLowerCase())) {
                             continue;
                         }
                     } else {
-                        if (templateName[0] === '@') {
+                        if (templateName.startsWith('@')) {
                             continue;
                         }
                     }
@@ -2660,7 +2660,7 @@ export class Project {
 
                 let rawClassName = match[1];
                 let className = rawClassName.replace(/\\\\/g, '\\');
-                if (className[0] === '\\') {
+                if (className.startsWith('\\')) {
                     className = className.substr(1);
                 }
 
@@ -4052,7 +4052,7 @@ export class Project {
         let existingPrefix = '';
         if (match !== null) {
             if (match[2] !== undefined) {
-                if (match[2][0] === '"' || match[2][0] === '\'') {
+                if (match[2].startsWith('"') || match[2].startsWith('\'')) {
                     existingPrefix = match[2].substr(1);
                     isQuotePlaced = true;
                 } else {
@@ -4070,7 +4070,7 @@ export class Project {
                 }
 
                 if (lineMatch[1] !== undefined) {
-                    if (lineMatch[1][0] === '"' || lineMatch[1][0] === '\'') {
+                    if (lineMatch[1].startsWith('"') || lineMatch[1].startsWith('\'')) {
                         existingPrefix = lineMatch[1].substr(1);
                         isQuotePlaced = true;
                     } else {
@@ -4092,15 +4092,15 @@ export class Project {
             }
 
             // fast hack. should be improved and tested.
-            if (existingPrefix[0] === '@') {
-                if (name[0] !== '@') {
+            if (existingPrefix.startsWith('@')) {
+                if (!name.startsWith('@')) {
                     continue;
                 }
                 if (!name.toLowerCase().includes(existingPrefix.substr(1).toLowerCase())) {
                     continue;
                 }
             } else {
-                if (name[0] === '@') {
+                if (name.startsWith('@')) {
                     continue;
                 }
             }
@@ -4617,7 +4617,7 @@ export class Project {
             let result = this.twigTestTemplateName(code, tokens, offset);
 
             if (result !== null) {
-                if (result[0] === '@') {
+                if (result.startsWith('@')) {
                     let match = result.match(/^@!?(\w+)\//);
                     if (match !== null) {
                         let bundleName = match[1];
@@ -5022,7 +5022,7 @@ export class Project {
             let descr = this.templates[fileUri];
 
             // speed optimization
-            if (descr.name[0] === '@') {
+            if (descr.name.startsWith('@')) {
                 continue;
             }
 
@@ -5218,7 +5218,7 @@ export class Project {
             let template = this.templates[fileUri];
 
             // speed optimization
-            if (template.name[0] === '@') {
+            if (template.name.startsWith('@')) {
                 continue;
             }
 
@@ -6694,7 +6694,7 @@ export class Project {
         let rawClassNameRightOffset = rawClassNameLeftOffset + rawClassName.length;
 
         let className = rawClassName.replace(/\\\\/g, '\\');
-        if (className[0] === '\\') {
+        if (className.startsWith('\\')) {
             className = className.substr(1);
         }
 
@@ -7144,8 +7144,8 @@ export class Project {
 
         let rawValue = code.substring(controllerScalar.startPosition, controllerScalar.endPosition);
 
-        let isQuotes = rawValue[0] === "'" || rawValue[0] === '"';
-        let isDoubleQuotes = rawValue[0] === '"';
+        let isQuotes = rawValue.startsWith("'") || rawValue.startsWith('"');
+        let isDoubleQuotes = rawValue.startsWith('"');
 
         if (isQuotes) {
             if (offset === controllerScalar.startPosition || offset === controllerScalar.endPosition) {
@@ -7589,7 +7589,7 @@ export class Project {
      * @param name      For templates from bundles, can start both from '@' and '@!'
      */
     private getTemplate(name: string) {
-        if (name[0] === '@' && name[1] !== '!') {
+        if (name.startsWith('@') && name[1] !== '!') {
             let match = name.match(/^@(\w+)\//);
             if (match !== null) {
                 let bundleName = match[1];

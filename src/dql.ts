@@ -34,12 +34,12 @@ export interface Token {
 
 function getType(value: string): TokenType | null {
     // strings
-    if (value[0] === '\'') {
+    if (value.startsWith('\'')) {
         return TokenType.STRING;
     }
 
     // input parameters
-    if (value[0] === '?' || value[0] === ':') {
+    if (value.startsWith('?') || value.startsWith(':')) {
         return TokenType.INPUT_PARAMETER;
     }
 
@@ -54,7 +54,7 @@ function getType(value: string): TokenType | null {
     }
 
     // identifiers, aliased names, qualified names, keywords
-    if (value[0].match(/[a-zA-Z]/) !== null || value[0] === '_' || value[0] === '\\') {
+    if (value[0].match(/[a-zA-Z]/) !== null || value.startsWith('_') || value.startsWith('\\')) {
         if (value.toLowerCase() === 'join') {
             return TokenType.JOIN;
         }
