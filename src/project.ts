@@ -3106,19 +3106,8 @@ export class Project {
 
                 let items: CompletionItem[] = [];
                 for (let row of routes) {
-                    let item: CompletionItem = {
-                        label: row.name,
-                        kind: CompletionItemKind.Method,
-                        textEdit: {
-                            newText: `{{ path('${row.name}') }}`,
-                            range: Range.create(
-                                document.positionAt(offset - prefix.length),
-                                position
-                            ),
-                        },
-                        detail: row.path,
-                        documentation: row.controller,
-                    };
+                    let insertTextFormat: InsertTextFormat;
+                    let newText: string;
 
                     if (row.pathParams.length > 0) {
                         let params = row.pathParams;
@@ -3128,9 +3117,27 @@ export class Project {
                             paramsPieces.push(`'${params[i]}': $${i+1}`);
                         }
 
-                        item.insertTextFormat = InsertTextFormat.Snippet;
-                        item.textEdit!.newText = `{{ path('${row.name}', { ${paramsPieces.join(', ')} }) }}`;
+                        insertTextFormat = InsertTextFormat.Snippet;
+                        newText = `{{ path('${row.name}', { ${paramsPieces.join(', ')} }) }}`;
+                    } else {
+                        insertTextFormat = InsertTextFormat.PlainText;
+                        newText = `{{ path('${row.name}') }}`;
                     }
+
+                    let item: CompletionItem = {
+                        label: row.name,
+                        kind: CompletionItemKind.Method,
+                        textEdit: {
+                            newText: newText,
+                            range: Range.create(
+                                document.positionAt(offset - prefix.length),
+                                position
+                            ),
+                        },
+                        detail: row.path,
+                        documentation: row.controller,
+                        insertTextFormat: insertTextFormat,
+                    };
 
                     items.push(item);
                 }
