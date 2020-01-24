@@ -113,7 +113,7 @@ export interface TwigExtensionGlobal {
  *
  * @param stmts         parsed 'code'
  */
-export async function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
+export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
     let result: { elements: TwigExtensionCallable[], globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
 
     let classStmts = nikic.findNodesOfType(stmts, 'Stmt_Class');
@@ -124,7 +124,7 @@ export async function findTwigExtensionElements(code: string, stmts: nikic.State
 
     let classStmt = classStmts[0] as nikic.Stmt_Class;
 
-    let someInfo = await extractSomePhpClassInfo(code, stmts);
+    let someInfo = extractSomePhpClassInfo(code, stmts);
     let classMethods = (someInfo === null) ? [] : someInfo.methods;
 
     let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
@@ -525,7 +525,7 @@ function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
     return null;
 }
 
-export async function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]): Promise<PhpClassSomeInfo | null> {
+export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]): PhpClassSomeInfo | null {
     if (stmts.length === 0) {
         return null;
     }
@@ -1182,7 +1182,7 @@ export class Project {
 
     private isScanning: boolean = false;
 
-    private getSettings: () => Promise<SymfonyHelperSettings|null> = async () => null;
+    private getSettings: () => Promise<SymfonyHelperSettings|null> = () => Promise.resolve(null);
 
     public templatesFolderUri: string;
     public sourceFolders: string[]; // Relative paths to folders with php and configuration. Elements must not start and end with '/'.
@@ -1592,7 +1592,7 @@ export class Project {
             }
         }
 
-        let someInfo = await extractSomePhpClassInfo(code, stmts);
+        let someInfo = extractSomePhpClassInfo(code, stmts);
 
         let phpClass: PhpClass = {
             fullClassName,
@@ -1610,7 +1610,7 @@ export class Project {
         };
 
         if (fileIsTwigExtension) {
-            let { elements, globals } = await findTwigExtensionElements(code, stmts);
+            let { elements, globals } = findTwigExtensionElements(code, stmts);
             if (elements.length > 0) {
                 phpClass.twigExtensionElements = elements;
             }
@@ -3872,7 +3872,7 @@ export class Project {
         }
 
         {
-            let items = await this.completeTemplateNameInPhp(document, position);
+            let items = this.completeTemplateNameInPhp(document, position);
             if (items.length > 0) {
                 return items;
             }
@@ -4049,7 +4049,7 @@ export class Project {
         return result;
     }
 
-    private async completeTemplateNameInPhp(document: TextDocument, position: Position): Promise<CompletionItem[]> {
+    private completeTemplateNameInPhp(document: TextDocument, position: Position): CompletionItem[] {
         let offset = document.offsetAt(position);
         let lines = document.getText().split('\n');
         let line = lines[position.line].substring(0, position.character);
@@ -4560,7 +4560,7 @@ export class Project {
 
         // test name of {% block %}
         {
-            let result = await this.twigTestBlockName(code, tokens, template, offset);
+            let result = this.twigTestBlockName(code, tokens, template, offset);
 
             if (result !== null) {
                 let locations: Location[] = [];
@@ -4608,7 +4608,7 @@ export class Project {
 
         // test argument of 'constant()'
         {
-            let result = await this.twigTestConstantFunction(code, tokens, offset);
+            let result = this.twigTestConstantFunction(code, tokens, offset);
 
             if (result !== null) {
                 if (result.constantName === undefined) {
@@ -5605,7 +5605,7 @@ export class Project {
 
         // test name of {% block %}
         {
-            let result = await this.twigTestBlockName(code, tokens, template, offset);
+            let result = this.twigTestBlockName(code, tokens, template, offset);
 
             if (result !== null) {
                 let blockDefinitions = result.definitions;
@@ -5659,7 +5659,7 @@ export class Project {
 
         // test argument of 'constant()'
         {
-            let result = await this.twigTestConstantFunction(code, tokens, offset);
+            let result = this.twigTestConstantFunction(code, tokens, offset);
 
             if (result !== null) {
                 let hoverMarkdown: string | null = null;
@@ -6570,7 +6570,7 @@ export class Project {
     /**
      * Search for name of '{% block %}'
      */
-    private async twigTestBlockName(code: string, tokens: ReadonlyArray<TwigToken>, template: TemplateDescription, offset: number) {
+    private twigTestBlockName(code: string, tokens: ReadonlyArray<TwigToken>, template: TemplateDescription, offset: number) {
         let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
         let i = tokenIndex;
 
@@ -6668,7 +6668,7 @@ export class Project {
         };
     }
 
-    private async twigTestConstantFunction(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
+    private twigTestConstantFunction(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
         let tokenIndex = twigStringTokenContainingCursor(tokens, offset);
         let i = tokenIndex;
 

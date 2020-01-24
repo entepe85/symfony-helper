@@ -23,7 +23,7 @@ describe('search twig extension for new functions, filters and tests', function 
             return;
         }
 
-        let actual = (await findTwigExtensionElements(code, stmts)).elements;
+        let actual = findTwigExtensionElements(code, stmts).elements;
 
         let expected: TwigExtensionCallable[] = [
             {
@@ -72,7 +72,7 @@ describe('search twig extension for new functions, filters and tests', function 
             return;
         }
 
-        let actual = await findTwigExtensionElements(code, stmts);
+        let actual = findTwigExtensionElements(code, stmts);
 
         let testA = actual.elements.find(row => row.type === 'test' && row.name === 'testA');
         assert.deepEqual(testA!.implementation!.params, []);
@@ -90,7 +90,7 @@ describe('search twig extension for new functions, filters and tests', function 
             return;
         }
 
-        let actual = await findTwigExtensionElements(code, stmts);
+        let actual = findTwigExtensionElements(code, stmts);
 
         let filterA = actual.elements.find(row => row.type === 'filter' && row.name === 'filterA');
         assert.deepEqual(filterA!.implementation!.params, []);
@@ -108,7 +108,7 @@ describe('search twig extension for new functions, filters and tests', function 
             return;
         }
 
-        let actual = await findTwigExtensionElements(code, stmts);
+        let actual = findTwigExtensionElements(code, stmts);
 
         let flt = actual.elements.find(row => row.name === 'flt4');
         assert.deepEqual(flt!.implementation!.params, [{ name: 'param' }]);
@@ -129,7 +129,7 @@ describe('search twig extension for new functions, filters and tests', function 
             return;
         }
 
-        let actual = (await findTwigExtensionElements(code, stmts)).elements.find(row => row.name === 'function2') as TwigExtensionCallable;
+        let actual = findTwigExtensionElements(code, stmts).elements.find(row => row.name === 'function2') as TwigExtensionCallable;
 
         let expectedImplementation = {
             offset: document.offsetAt(Position.create(10, 53)),

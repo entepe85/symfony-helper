@@ -27,7 +27,6 @@
         "@typescript-eslint/no-misused-promises": "off",
         "@typescript-eslint/no-unnecessary-type-assertion": "off",
         "@typescript-eslint/prefer-regexp-exec": "off",
-        "@typescript-eslint/require-await": "off",
         "@typescript-eslint/unbound-method": "off"
     }
 }

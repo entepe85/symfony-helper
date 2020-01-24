@@ -91,7 +91,7 @@ export function activate(context: ExtensionContext) {
     }));
 
     context.subscriptions.push(commands.registerCommand('symfonyHelper.restartPhpParser', async () => {
-        client.sendRequest('restartPhpParser');
+        await client.sendRequest('restartPhpParser');
     }));
 
     context.subscriptions.push(commands.registerCommand('symfonyHelper.extendTemplate', async (resource) => {
