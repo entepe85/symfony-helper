@@ -112,7 +112,7 @@ const OP_REGEXES: { [name: string]: RegExp } = {};
 for (let op of OPERATORS) {
     let regexPart = '(' + escapeRegex(op) + ')';
     // an operator that ends with a character must be followed by a whitespace or a parenthesis
-    if (op[op.length - 1].match(/[a-zA-Z]/) !== null) {
+    if (/[a-zA-Z]/.test(op[op.length - 1])) {
         regexPart += '[\\s()]';
     }
     // an operator with a space can be any amount of whitespaces
@@ -220,7 +220,7 @@ class Lexer {
 
         let match;
 
-        match = this.code.substr(this.cursor).match(/^(\s*)(-?%})/);
+        match = /^(\s*)(-?%})/.exec(this.code.substr(this.cursor));
         if (match !== null) {
             this.pushToken(TokenType.BLOCK_END, this.cursor + match[1].length, match[2].length);
             this.cursor += match[0].length;
@@ -228,7 +228,7 @@ class Lexer {
             return;
         }
 
-        match = remainingCode.match(/^\s*$/);
+        match = /^\s*$/.exec(remainingCode);
         if (match !== null) {
             this.cursor += match[0].length;
             this.state = LexerState.DATA;
@@ -250,7 +250,7 @@ class Lexer {
 
         let match;
 
-        match = remainingCode.match(/^(\s*)(-?}})/);
+        match = /^(\s*)(-?}})/.exec(remainingCode);
         if (match !== null) {
             this.pushToken(TokenType.VAR_END, this.cursor + match[1].length, match[2].length);
             this.cursor += match[0].length;
@@ -258,7 +258,7 @@ class Lexer {
             return;
         }
 
-        match = remainingCode.match(/^\s*$/);
+        match = /^\s*$/.exec(remainingCode);
         if (match !== null) {
             this.cursor += match[0].length;
             this.state = LexerState.DATA;
@@ -283,7 +283,7 @@ class Lexer {
         let match;
 
         // whitespace
-        match = remainingCode.match(/^\s+/);
+        match = /^\s+/.exec(remainingCode);
         if (match !== null) {
             this.cursor += match[0].length;
             if (this.cursor >= this.end) {
@@ -294,7 +294,7 @@ class Lexer {
 
         // operators
         for (let op of OPERATORS) {
-            match = remainingCode.match(OP_REGEXES[op]);
+            match = OP_REGEXES[op].exec(remainingCode);
             if (match !== null) {
                 this.pushToken(TokenType.OPERATOR, this.cursor, match[1].length);
                 this.cursor += match[0].length;
@@ -303,7 +303,7 @@ class Lexer {
         }
 
         // names
-        match = remainingCode.match(/^[a-zA-Z_][a-zA-Z0-9_]*/);
+        match = /^[a-zA-Z_][a-zA-Z0-9_]*/.exec(remainingCode);
         if (match !== null) {
             this.pushToken(TokenType.NAME, this.cursor, match[0].length);
             this.cursor += match[0].length;
@@ -311,7 +311,7 @@ class Lexer {
         }
 
         // numbers
-        match = remainingCode.match(/^[0-9]+(\.[0-9]+)?/);
+        match = /^[0-9]+(\.[0-9]+)?/.exec(remainingCode);
         if (match !== null) {
             this.pushToken(TokenType.NUMBER, this.cursor, match[0].length);
             this.cursor += match[0].length;
@@ -326,7 +326,7 @@ class Lexer {
         }
 
         // strings
-        match = remainingCode.match(/^("[^"\\]*(\\.[^"\\]*)*("|$)|'[^'\\]*(\\.[^'\\]*)*('|$))/);
+        match = /^("[^"\\]*(\\.[^"\\]*)*("|$)|'[^'\\]*(\\.[^'\\]*)*('|$))/.exec(remainingCode);
         if (match !== null) {
             this.pushToken(TokenType.STRING, this.cursor, match[0].length);
             this.cursor += match[0].length;

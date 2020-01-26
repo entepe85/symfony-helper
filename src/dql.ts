@@ -49,12 +49,12 @@ function getType(value: string): TokenType | null {
     }
 
     // numbers
-    if (value.match(tokenRegexps[2]) !== null) {
+    if (tokenRegexps[2].test(value)) {
         return TokenType.NUMBER;
     }
 
     // identifiers, aliased names, qualified names, keywords
-    if (value[0].match(/[a-zA-Z]/) !== null || value.startsWith('_') || value.startsWith('\\')) {
+    if (/[a-zA-Z]/.test(value[0]) || value.startsWith('_') || value.startsWith('\\')) {
         if (value.toLowerCase() === 'join') {
             return TokenType.JOIN;
         }

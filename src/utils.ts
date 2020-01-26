@@ -142,7 +142,7 @@ export interface PhpDocBlockTag {
 }
 
 function parsePhpDocBlockTag(line: string): PhpDocBlockTag | null {
-    let varMatch = line.match(/^@var\s+(\S+)/);
+    let varMatch = /^@var\s+(\S+)/.exec(line);
     if (varMatch !== null) {
         let typeString = varMatch[1];
         if (typeString.startsWith('$')) {
@@ -155,7 +155,7 @@ function parsePhpDocBlockTag(line: string): PhpDocBlockTag | null {
         };
     }
 
-    let returnMatch = line.match(/^@return\s+(\S+)/);
+    let returnMatch = /^@return\s+(\S+)/.exec(line);
     if (returnMatch !== null) {
         return {
             type: 'return',
@@ -163,7 +163,7 @@ function parsePhpDocBlockTag(line: string): PhpDocBlockTag | null {
         };
     }
 
-    let paramMatch = line.match(/^@param\s+(\S+)\s+\$(\S+)/);
+    let paramMatch = /^@param\s+(\S+)\s+\$(\S+)/.exec(line);
     if (paramMatch !== null) {
         return {
             type: 'param',
@@ -212,7 +212,7 @@ export function parsePhpDocBlock(text: string): ParsedDocBlock | null {
             line = line.substring(0, line.length - '*/'.length);
         }
         if (i > 0) {
-            let starMatch = line.match(/^\s*\*\s*/);
+            let starMatch = /^\s*\*\s*/.exec(line);
             if (starMatch !== null) {
                 line = line.substr(starMatch[0].length);
             }
@@ -234,7 +234,7 @@ export function parsePhpDocBlock(text: string): ParsedDocBlock | null {
                 if (summaryLines.length > 0) {
                     state = 'description';
                 }
-            } else if (line.match(/^@[a-zA-Z]/) !== null) {
+            } else if (/^@[a-zA-Z]/.test(line)) {
                 state = 'tags';
                 let tag = parsePhpDocBlockTag(line);
                 if (tag !== null) {
@@ -245,7 +245,7 @@ export function parsePhpDocBlock(text: string): ParsedDocBlock | null {
                 summaryLines.push(line);
             }
         } else if (state === 'description') {
-            if (line.match(/^@[a-zA-Z]/) !== null) {
+            if (/^@[a-zA-Z]/.test(line)) {
                 state = 'tags';
                 let tag = parsePhpDocBlockTag(line);
                 if (tag !== null) {
@@ -256,7 +256,7 @@ export function parsePhpDocBlock(text: string): ParsedDocBlock | null {
                 descriptionLines.push(line);
             }
         } else if (state === 'tags') {
-            if (line.match(/^@[a-zA-Z]/) !== null) {
+            if (/^@[a-zA-Z]/.test(line)) {
                 let tag = parsePhpDocBlockTag(line);
                 if (tag !== null) {
                     tags.push(tag);
@@ -296,12 +296,9 @@ export function sqlSelectFields(sql: string): string[] {
     let tokens: string[] = [];
 
     let match;
-    do {
-        match = regexp.exec(sqlLowerCase);
-        if (match !== null) {
-            tokens.push(match[0]);
-        }
-    } while (match !== null);
+    while (match = regexp.exec(sqlLowerCase)) {
+        tokens.push(match[0]);
+    }
 
     if (tokens.length === 0 || tokens[0] !== 'select' || !tokens.includes('from')) {
         return [];
@@ -333,7 +330,7 @@ export function sqlSelectFields(sql: string): string[] {
             break;
         }
 
-        if (token.match(/^\w+$/) !== null) {
+        if (/^\w+$/.test(token)) {
             if (i + 1 < tokens.length) {
                 if (tokens[i+1] === ',' || tokens[i+1] === 'from') {
                     result.push(token);

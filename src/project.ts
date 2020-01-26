@@ -463,7 +463,7 @@ function parsePhpDocBlockType(typeString: string, nameResolverData: nikic.NameRe
     let ignoredTypes = ['boolean', 'bool', 'false', 'integer', 'int', 'float', 'double', 'string', 'null', 'callable', 'void', 'self', 'static', '$this', 'array'];
 
     for (let piece of pieces) {
-        let match = piece.match(regexp);
+        let match = regexp.exec(piece);
         if (match !== null) {
             let name = match[1];
             let brackets = match[2];
@@ -702,13 +702,13 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
         do {
             let match;
 
-            match = propComment.match(/@(ORM\\)?Column\s*\(.*type\s*=\s*["'](\w+)["']/);
+            match = /@(ORM\\)?Column\s*\(.*type\s*=\s*["'](\w+)["']/.exec(propComment);
             if (match !== null) {
                 fieldType = match[2];
                 break;
             }
 
-            match = propComment.match(targetEntityRegexp);
+            match = targetEntityRegexp.exec(propComment);
             if (match !== null) {
                 let name = match[4];
                 if (name.includes('\\')) {
@@ -723,7 +723,7 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
                 break;
             }
 
-            match = propComment.match(embedRegexp);
+            match = embedRegexp.exec(propComment);
             if (match !== null) {
                 let name = match[3];
 
@@ -796,8 +796,9 @@ interface EntityFieldData {
 type EntityFieldJoinType = 'ManyToOne' | 'ManyToMany' | 'OneToOne' | 'OneToMany';
 
 function isLooksLikeDQL(str: string): boolean {
-    let match = str.match(/^\s*(select|update|delete)\s+/i);
-    return match !== null;
+    let regexp = /^\s*(select|update|delete)\s+/i;
+
+    return regexp.test(str);
 }
 
 /**
@@ -1548,7 +1549,7 @@ export class Project {
     }
 
     private async scanPhpFile(fileUri: string, code: string, forceFullParse: boolean = false) {
-        let classMatch = code.match(this.CLASS_REGEXP);
+        let classMatch = this.CLASS_REGEXP.exec(code);
 
         if (classMatch === null || classMatch.index === undefined) {
             return null;
@@ -1556,7 +1557,7 @@ export class Project {
 
         let className = classMatch[6];
         let fullClassName;
-        let namespaceMatch = code.match(this.NAMESPACE_REGEXP);
+        let namespaceMatch = this.NAMESPACE_REGEXP.exec(code);
         if (namespaceMatch !== null) {
             fullClassName = namespaceMatch[1] + '\\' + className;
         } else {
@@ -1568,7 +1569,7 @@ export class Project {
             phpClass: null as PhpClass|null,
         };
 
-        let fileIsTwigExtension = code.match(this.TWIG_REGEXP) !== null;
+        let fileIsTwigExtension = this.TWIG_REGEXP.test(code);
         let fileIsFromSourceFolders = this.isFromSourceFolders(fileUri)
         let fileIsBundleBase = fileUri.endsWith('Bundle.php') && !fileUri.endsWith('/Bundle.php');
 
@@ -1710,7 +1711,7 @@ export class Project {
             macros: [],
         };
 
-        let extendsMatch = code.match(/{%\s*extends\s+['"]([\w!@\./\-]+)['"]/);
+        let extendsMatch = /{%\s*extends\s+['"]([\w!@\./\-]+)['"]/.exec(code);
         if (extendsMatch !== null) {
             descr.extends = extendsMatch[1];
         }
@@ -1720,16 +1721,16 @@ export class Project {
 
             if (piece.type === 'block') {
                 let str = code.substring(piece.start, piece.end);
-                let blockMatch = str.match(/^{%\s*block\s+(\w+)/);
+                let blockMatch = /^{%\s*block\s+(\w+)/.exec(str);
                 if (blockMatch !== null) {
                     let blockLayout: 'short'|'one-line'|'lines' = 'short';
 
-                    if (str.match(/^{%\s*block\s+(\w+)\s*%}/) !== null) {
+                    if (/^{%\s*block\s+(\w+)\s*%}/.test(str)) {
                         let nextNewlineIndex = code.indexOf('\n', piece.end);
 
                         if (nextNewlineIndex > 0) {
                             let lineSuffix = code.substring(piece.end, nextNewlineIndex);
-                            if (lineSuffix.match(/{%\s*endblock\s*%}/) !== null) {
+                            if (/{%\s*endblock\s*%}/.test(lineSuffix)) {
                                 blockLayout = 'one-line';
                             } else {
                                 blockLayout = 'lines';
@@ -1945,14 +1946,14 @@ export class Project {
         let lines = responseRaw.split('\n');
 
         for (let line of lines) {
-            let match2 = line.match(regexp2);
+            let match2 = regexp2.exec(line);
             if (match2 !== null) {
                 let fullClassName = match2[1];
                 if (fullClassName.includes('\\')) {
                     autowiredServices.push({ fullClassName });
                 }
             } else {
-                let match = line.match(regexp);
+                let match = regexp.exec(line);
                 if (match !== null) {
                     let fullClassName = match[1];
                     let serviceId = match[2];
@@ -2436,7 +2437,7 @@ export class Project {
         if (currentPiece !== null) {
             let currentPieceToCursor = text.substring(currentPiece.start, offset);
 
-            if (currentPieceToCursor.match(/^{%\s*end\w*\s+$/) !== null) {
+            if (/^{%\s*end\w*\s+$/.test(currentPieceToCursor)) {
                 return [];
             }
 
@@ -2477,7 +2478,7 @@ export class Project {
 
                 let codeAfterCursor = text.substr(offset);
 
-                let postfixMatch = codeAfterCursor.match(/^([\.\w-]*)['"]\s*\)/);
+                let postfixMatch = /^([\.\w-]*)['"]\s*\)/.exec(codeAfterCursor);
 
                 let items: CompletionItem[] = [];
 
@@ -2521,7 +2522,7 @@ export class Project {
 
                     let match;
 
-                    match = textToCursor.match(/{%\s*(include|extends|embed|use)\s+(['"])([@!\w\./\-]*)$/);
+                    match = /{%\s*(include|extends|embed|use)\s+(['"])([@!\w\./\-]*)$/.exec(textToCursor);
                     if (match !== null) {
                         data = {
                             prefix: match[3],
@@ -2530,7 +2531,7 @@ export class Project {
                         break;
                     }
 
-                    match = textToCursor.match(/{%\s*(import|from)\s+(['"])([@!\w\./\-]*)$/);
+                    match = /{%\s*(import|from)\s+(['"])([@!\w\./\-]*)$/.exec(textToCursor);
                     if (match !== null) {
                         data = {
                             prefix: match[3],
@@ -2614,7 +2615,7 @@ export class Project {
 
                 let codeToCursor = text.substr(0, offset);
 
-                if (codeToCursor.match(/(import\s+|,\s*)\w*$/) === null) {
+                if (!/(import\s+|,\s*)\w*$/.test(codeToCursor)) {
                     return [];
                 }
 
@@ -2653,7 +2654,7 @@ export class Project {
             do {
                 let textToCursor = text.substr(0, offset);
 
-                let match = textToCursor.match(/[^\w]constant\s*\(\s*['"]([\w\\]+)::([\w]*)$/);
+                let match = /[^\w]constant\s*\(\s*['"]([\w\\]+)::([\w]*)$/.exec(textToCursor);
                 if (match === null) {
                     break;
                 }
@@ -2703,7 +2704,7 @@ export class Project {
             do {
                 let textToCursor = text.substr(0, offset);
 
-                let match = textToCursor.match(/[^\w]constant\s*\(\s*['"]([\w\\]*)$/);
+                let match = /[^\w]constant\s*\(\s*['"]([\w\\]*)$/.exec(textToCursor);
                 if (match === null) {
                     break;
                 }
@@ -2820,8 +2821,8 @@ export class Project {
 
             // show only tests after 'is' and 'is not'
             {
-                let match = currentPieceToCursor.match(/is\s+not\s+(\w*)$/);
-                let match2 = currentPieceToCursor.match(/is\s+(\w*)$/);
+                let match = /is\s+not\s+(\w*)$/.exec(currentPieceToCursor);
+                let match2 = /is\s+(\w*)$/.exec(currentPieceToCursor);
                 if (match !== null || match2 !== null) {
                     let prefix = '';
                     if (match !== null) {
@@ -2865,7 +2866,7 @@ export class Project {
 
             // complete only block names in {% block %}
             do {
-                let match = currentPieceToCursor.match(/^{%\s*block\s+(\w*)$/);
+                let match = /^{%\s*block\s+(\w*)$/.exec(currentPieceToCursor);
                 if (match === null) {
                     break;
                 }
@@ -2900,7 +2901,7 @@ export class Project {
 
             // complete in {% autoescape %}
             do {
-                let match = currentPieceToCursor.match(/^{%\s*autoescape\s+(('|")?\w*)$/);
+                let match = /^{%\s*autoescape\s+(('|")?\w*)$/.exec(currentPieceToCursor);
                 if (match === null) {
                     break;
                 }
@@ -2958,7 +2959,7 @@ export class Project {
 
             // complete macro call after alias of imported file
             do {
-                let match = currentPieceToCursor.match(/((\w+)\.)(\w*)$/);
+                let match = /((\w+)\.)(\w*)$/.exec(currentPieceToCursor);
                 if (match === null) {
                     break;
                 }
@@ -3007,7 +3008,7 @@ export class Project {
                 }
 
                 let textToCursor = text.substr(0, offset);
-                let prefixMatch = textToCursor.match(/\.([\w]*)$/);
+                let prefixMatch = /\.([\w]*)$/.exec(textToCursor);
                 if (prefixMatch === null) {
                     break;
                 }
@@ -3096,7 +3097,7 @@ export class Project {
             // complete route name in <a href="">
             do {
                 let textToCursor = text.substring(0, offset);
-                let match = textToCursor.match(/[^\w]href="([\w-]*)$/);
+                let match = /[^\w]href="([\w-]*)$/.exec(textToCursor);
                 if (match === null) {
                     break;
                 }
@@ -3198,7 +3199,7 @@ export class Project {
 
         let identifierLeft = '';
         let twigPieceLeft = code.substring(activeTwigPiece.start, offset);
-        let leftMatch = twigPieceLeft.match(/(\w+)$/);
+        let leftMatch = /(\w+)$/.exec(twigPieceLeft);
         if (leftMatch !== null) {
             identifierLeft = leftMatch[1];
         }
@@ -3408,7 +3409,7 @@ export class Project {
         }
 
         let codeToCursor = code.substr(0, offset);
-        let match = codeToCursor.match(/(\w+)$/);
+        let match = /(\w+)$/.exec(codeToCursor);
         let prefix = (match !== null) ? match[1] : '';
         let range = Range.create(
             document.positionAt(offset - prefix.length),
@@ -3567,7 +3568,7 @@ export class Project {
 
                     let prefixBeforePrefix = code.substring(lastNewLineBeforeCursor + 1, offset - prefix.length);
 
-                    if (prefixBeforePrefix.match(/^\s*$/) !== null) {
+                    if (/^\s*$/.test(prefixBeforePrefix)) {
                         for (let row of moreData) {
                             row.additionalTextEdit = {
                                 newText: startPiecePrefix,
@@ -3641,7 +3642,7 @@ export class Project {
 
             let textToCursor = code.substring(methodTest.leftBracketIndex, offset);
 
-            let match = textToCursor.match(/(,|\(|\s)\s*(\.[\w\.]*)$/);
+            let match = /(,|\(|\s)\s*(\.[\w\.]*)$/.exec(textToCursor);
             if (match === null) {
                 break;
             }
@@ -3750,7 +3751,7 @@ export class Project {
 
             {
                 // completion of parameters
-                let match = codeToCursor.match(/\$this\s*->\s*getParameter\s*\(\s*['"]([\w\.]*)$/);
+                let match = /\$this\s*->\s*getParameter\s*\(\s*['"]([\w\.]*)$/.exec(codeToCursor);
                 if (match !== null) {
                     let prefix = match[1];
 
@@ -3770,7 +3771,7 @@ export class Project {
 
             {
                 // completion of services
-                let match = codeToCursor.match(/\$this\s*->\s*get\s*\(\s*['"]([\w\.]*)$/);
+                let match = /\$this\s*->\s*get\s*\(\s*['"]([\w\.]*)$/.exec(codeToCursor);
                 if (match !== null) {
                     let prefix = match[1];
 
@@ -3814,14 +3815,13 @@ export class Project {
 
             let codeToCursor = code.substr(0, offset);
 
-            let isControllerGenerator = this.isController(document)
-                && codeToCursor.match(/\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/) !== null;
+            let isControllerGenerator = this.isController(document) && /\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/.test(codeToCursor);
 
             if (!isUrlGenerator && !isControllerGenerator) {
                 break;
             }
 
-            let match = codeToCursor.match(/['"]([\.\w-]*)$/);
+            let match = /['"]([\.\w-]*)$/.exec(codeToCursor);
             if (match === null) {
                 break;
             }
@@ -3832,7 +3832,7 @@ export class Project {
 
             let codeAfterCursor = code.substr(offset);
 
-            let postfixMatch = codeAfterCursor.match(/^([\.\w-]*)['"]\s*\)/);
+            let postfixMatch = /^([\.\w-]*)['"]\s*\)/.exec(codeAfterCursor);
 
             let items: CompletionItem[] = [];
 
@@ -3927,7 +3927,7 @@ export class Project {
         }
 
         let textBetweenDotAndCursor = scalarString.value.substring(tokens[dotBeforeCursorIndex].position + 1, cursorOffsetInString);
-        if (textBetweenDotAndCursor.match(/^\w*$/) === null) {
+        if (!/^\w*$/.test(textBetweenDotAndCursor)) {
             return [];
         }
 
@@ -4054,7 +4054,7 @@ export class Project {
         let lines = document.getText().split('\n');
         let line = lines[position.line].substring(0, position.character);
 
-        let match = line.match(/[^\w](render|renderView)\s*\(\s*(['"]?[@!\w\./\-]*)?$/);
+        let match = /[^\w](render|renderView)\s*\(\s*(['"]?[@!\w\./\-]*)?$/.exec(line);
         let isQuotePlaced = false;
         let existingPrefix = '';
         if (match !== null) {
@@ -4070,8 +4070,8 @@ export class Project {
             // try previous line
             if (position.line > 1) {
                 let prevLine = lines[position.line - 1];
-                let prevLineMatch = prevLine.match(/[^\w](render|renderView)\s*\(\s*$/);
-                let lineMatch = line.match(/\s*(['"]?[@!\w\./\-]*)?$/);
+                let prevLineMatch = /[^\w](render|renderView)\s*\(\s*$/.exec(prevLine);
+                let lineMatch = /\s*(['"]?[@!\w\./\-]*)?$/.exec(line);
                 if (prevLineMatch === null || lineMatch === null) {
                     return [];
                 }
@@ -4625,7 +4625,7 @@ export class Project {
 
             if (result !== null) {
                 if (result.startsWith('@')) {
-                    let match = result.match(/^@!?(\w+)\//);
+                    let match = /^@!?(\w+)\//.exec(result);
                     if (match !== null) {
                         let bundleName = match[1];
                         let bundleInfo = this.getBundleInfo(bundleName + 'Bundle');
@@ -6051,7 +6051,7 @@ export class Project {
 
         let tagString = document.getText().substring(description.tagStartOffset, description.tagEndOffset);
 
-        let aliasMatch = tagString.match(aliasRegexp);
+        let aliasMatch = aliasRegexp.exec(tagString);
         if (aliasMatch === null || aliasMatch.index === undefined) {
             return null;
         }
@@ -6093,13 +6093,13 @@ export class Project {
         let prefixLength;
 
         // first test 'class', then 'id'
-        let classMatch = tagString.match(classRegexp);
+        let classMatch = classRegexp.exec(tagString);
         if (classMatch !== null && classMatch.index !== undefined) {
             className = classMatch[1];
             matchIndex = classMatch.index;
             prefixLength = 'class="'.length;
         } else {
-            let idMatch = tagString.match(classlikeIdRegexp);
+            let idMatch = classlikeIdRegexp.exec(tagString);
             if (idMatch !== null && idMatch.index !== undefined) {
                 className = idMatch[1];
                 matchIndex = idMatch.index;
@@ -6160,7 +6160,7 @@ export class Project {
 
             let tagText = code.substring(tagStart, tagEnd);
 
-            let idMatch = tagText.match(idRegexp);
+            let idMatch = idRegexp.exec(tagText);
             if (idMatch === null || idMatch.index === undefined) {
                 return;
             }
@@ -6205,7 +6205,7 @@ export class Project {
 
             let codeToScalarString = code.substr(0, scalarString.attributes.startFilePos);
 
-            let match = codeToScalarString.match(/\$this\s*->\s*getParameter\s*\(\s*$/);
+            let match = /\$this\s*->\s*getParameter\s*\(\s*$/.exec(codeToScalarString);
             if (match !== null) {
                 parameterName = scalarString.value;
             }
@@ -6236,7 +6236,7 @@ export class Project {
 
             let codeToCursor = code.substr(0, offset);
 
-            let match = codeToCursor.match(/\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/);
+            let match = /\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/.exec(codeToCursor);
             if (match !== null) {
                 routeName = scalarString.value;
             }
@@ -6278,8 +6278,7 @@ export class Project {
 
         let codeToCursor = code.substr(0, offset);
 
-        let match = codeToCursor.match(/\$this\s*->\s*get\s*\(\s*['"]([\w\.\\]*)$/);
-        if (match === null) {
+        if (!/\$this\s*->\s*get\s*\(\s*['"]([\w\.\\]*)$/.test(codeToCursor)) {
             return null;
         }
 
@@ -6401,7 +6400,7 @@ export class Project {
 
         let comment = commentNode.text;
 
-        let match = comment.match(targetEntityRegexp);
+        let match = targetEntityRegexp.exec(comment);
         if (match === null || match.index === undefined) {
             return null;
         }
@@ -6460,7 +6459,7 @@ export class Project {
 
         let comment = commentNode.text;
 
-        let match = comment.match(/(\WrepositoryClass\s*=\s*["'])([\w\\]+)["']/);
+        let match = /(\WrepositoryClass\s*=\s*["'])([\w\\]+)["']/.exec(comment);
         if (match === null || match.index === undefined) {
             return null;
         }
@@ -6535,7 +6534,7 @@ export class Project {
 
         let comment = commentNode.text;
 
-        let match = comment.match(/(@(ORM\\)?Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/);
+        let match = /(@(ORM\\)?Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/.exec(comment);
         if (match === null || match.index === undefined) {
             return null;
         }
@@ -6689,7 +6688,7 @@ export class Project {
         let rawValue = code.substr(token.offset + 1, token.length - 2);
 
         let regexp = /^([\w\\]+)(:|::(\w+)?)?$/;
-        let match = rawValue.match(regexp);
+        let match = regexp.exec(rawValue);
         if (match === null) {
             return null;
         }
@@ -6915,13 +6914,13 @@ export class Project {
 
         let codeToCursor = code.substr(0, offset);
 
-        let isTestPlace = codeToCursor.match(/[^\w]is\s+(not\s+)?(\w*)$/) !== null;
+        let isTestPlace = /[^\w]is\s+(not\s+)?(\w*)$/.test(codeToCursor);
 
         let isFilterPlace = false;
         {
-            if (codeToCursor.match(/\|\s*(\w*)$/) !== null) {
+            if (/\|\s*(\w*)$/.test(codeToCursor)) {
                 isFilterPlace = true;
-            } else if (codeToCursor.match(/^{%\s*filter\s+(\w*)$/) !== null) {
+            } else if (/^{%\s*filter\s+(\w*)$/.test(codeToCursor)) {
                 isFilterPlace = true;
             }
         }
@@ -7162,7 +7161,7 @@ export class Project {
 
         let rawValueWithoutQuotes = isQuotes ? rawValue.substr(1, rawValue.length - 2) : rawValue;
 
-        let match = rawValueWithoutQuotes.match(/^([\w\\]+)(:|::(\w+)?)?$/);
+        let match = /^([\w\\]+)(:|::(\w+)?)?$/.exec(rawValueWithoutQuotes);
         if (match === null) {
             return null;
         }
@@ -7215,7 +7214,7 @@ export class Project {
 
         let value = resourceScalar.value;
 
-        let match = value.match(/^@(\w*)(\/[\w/\.]*)$/);
+        let match = /^@(\w*)(\/[\w/\.]*)$/.exec(value);
         if (match === null) {
             return null;
         }
@@ -7597,7 +7596,7 @@ export class Project {
      */
     private getTemplate(name: string) {
         if (name.startsWith('@') && name[1] !== '!') {
-            let match = name.match(/^@(\w+)\//);
+            let match = /^@(\w+)\//.exec(name);
             if (match !== null) {
                 let bundleName = match[1];
                 let pathPart = name.substr(match[0].length);
@@ -7635,7 +7634,7 @@ export class Project {
                     if (i > 0) {
                         let prevTokenValue = twigTokenValue(code, tokens[i-1]);
 
-                        if (prevTokenValue === '|' || prevTokenValue === 'is' || prevTokenValue.match(/^is\s+not$/) !== null) {
+                        if (prevTokenValue === '|' || prevTokenValue === 'is' || /^is\s+not$/.test(prevTokenValue)) {
                             continue;
                         }
                     }
@@ -7657,7 +7656,7 @@ export class Project {
                     if (i > 0) {
                         let prevTokenValue = twigTokenValue(code, tokens[i-1]);
 
-                        if (prevTokenValue === 'is' || prevTokenValue.match(/^is\s+not$/) !== null) {
+                        if (prevTokenValue === 'is' || /^is\s+not$/.test(prevTokenValue)) {
                             result.push(i);
                         }
                     }
