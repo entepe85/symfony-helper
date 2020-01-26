@@ -82,8 +82,8 @@ export interface TemplateRenderCall {
         name: string;
         offset: number;
         // TODO: remove 'valueNode' and 'methonNode' and find them in parse tree?
-        valueNode: nikic.Expression,
-        methodNode: nikic.Stmt_ClassMethod,
+        valueNode: nikic.Expression;
+        methodNode: nikic.Stmt_ClassMethod;
     }[];
 }
 
@@ -94,10 +94,10 @@ export interface TwigExtensionCallable {
     nameEndOffset: number;
     constructorOffset: number;
     implementation?: {
-        offset: number, // offset in file
-        params: { name: string }[], // params with removed first param for filters and tests
-        help?: string,
-        returnType: php.Type,
+        offset: number; // offset in file
+        params: { name: string }[]; // params with removed first param for filters and tests
+        help?: string;
+        returnType: php.Type;
     };
 }
 
@@ -114,7 +114,7 @@ export interface TwigExtensionGlobal {
  * @param stmts         parsed 'code'
  */
 export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
-    let result: { elements: TwigExtensionCallable[], globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
+    let result: { elements: TwigExtensionCallable[]; globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
 
     let classStmts = nikic.findNodesOfType(stmts, 'Stmt_Class');
 
@@ -208,7 +208,7 @@ export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]
 
         let secondArgValue = args[1].value;
 
-        let implData: { params: { name: string }[], offset: number, help?: string, returnType: php.Type } | undefined;
+        let implData: { params: { name: string }[]; offset: number; help?: string; returnType: php.Type } | undefined;
 
         if (secondArgValue.nodeType === 'Expr_Array') {
             do {
@@ -373,7 +373,7 @@ export function findTwigGlobalsInYaml(code: string)  {
         return [];
     }
 
-    let result: { name: string, offset: number, value: string }[] = [];
+    let result: { name: string; offset: number; value: string }[] = [];
 
     for (let c of globalsNode.mappings) {
         if (c.key && c.key.kind === yaml.Kind.SCALAR) {
@@ -396,14 +396,14 @@ interface PhpClass {
     nameEndOffset: number;
     type: 'class' | 'interface';
     hasConstants: boolean;
-    stmts: nikic.Statement[],
+    stmts: nikic.Statement[];
     entity?: EntityData;
     entityRepository?: { entityFullClassName: string };
     templateRenderCalls?: TemplateRenderCall[];
     twigExtensionElements?: TwigExtensionCallable[];
     twigExtensionGlobals?: TwigExtensionGlobal[];
-    bundle?: { name: string, folderUri: string };
-    parsedDqlQueries?: { literalOffset: number, tokens: DqlToken[] }[];
+    bundle?: { name: string; folderUri: string };
+    parsedDqlQueries?: { literalOffset: number; tokens: DqlToken[] }[];
     shortHelp?: string;
     constants: PhpClassConstant[];
     properties: PhpClassProperty[];
@@ -959,29 +959,29 @@ interface TemplateDescription {
 }
 
 type TwigTestObjectResult = {
-    type: 'function', // it is also 'test' and 'filter'
-    fileUri: string,
-    element: TwigExtensionCallable,
-    hoverLeftOffset: number,
-    hoverRightOffset: number,
+    type: 'function'; // it is also 'test' and 'filter'
+    fileUri: string;
+    element: TwigExtensionCallable;
+    hoverLeftOffset: number;
+    hoverRightOffset: number;
 } | {
-    type: 'renderParams',
-    params: { callerFileUri: string, paramOffset: number, className: string, methodName: string }[],
-    hoverLeftOffset: number,
-    hoverRightOffset: number,
+    type: 'renderParams';
+    params: { callerFileUri: string; paramOffset: number; className: string; methodName: string }[];
+    hoverLeftOffset: number;
+    hoverRightOffset: number;
 } | {
-    type: 'global',
-    fileUri: string,
-    offset: number,
-    name: string,
-    value?: string,
-    hoverLeftOffset: number,
-    hoverRightOffset: number,
+    type: 'global';
+    fileUri: string;
+    offset: number;
+    name: string;
+    value?: string;
+    hoverLeftOffset: number;
+    hoverRightOffset: number;
 } | {
-    type: 'macroFileImport',
-    templateName: string,
-    hoverLeftOffset: number,
-    hoverRightOffset: number,
+    type: 'macroFileImport';
+    templateName: string;
+    hoverLeftOffset: number;
+    hoverRightOffset: number;
 };
 
 function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string) {
@@ -1018,16 +1018,16 @@ function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string)
 }
 
 type DqlTestPositionResult = {
-    type: 'entityClass',
-    className: string,
-    hoverLeftOffset: number,
-    hoverRightOffset: number,
+    type: 'entityClass';
+    className: string;
+    hoverLeftOffset: number;
+    hoverRightOffset: number;
 } | {
-    type: 'entityField',
-    className: string,
-    accessPath: string[],
-    hoverLeftOffset: number,
-    hoverRightOffset: number,
+    type: 'entityField';
+    className: string;
+    accessPath: string[];
+    hoverLeftOffset: number;
+    hoverRightOffset: number;
 };
 
 const enum ProjectType {
@@ -1051,7 +1051,7 @@ function parseXmlForEntityData(code: string): null | EntityData {
 
     let parser = sax.parser(true, { position: true });
 
-    let base: undefined | { className: string, offset: number };
+    let base: undefined | { className: string; offset: number };
 
     let fields: EntityFieldData[] = [];
 
@@ -1155,17 +1155,17 @@ export class Project {
     private templates: { [fileUri: string]: TemplateDescription} = Object.create(null);
 
     private twigYaml?: {
-        uri: string,
-        globals: { name: string, offset: number, value: string }[],
+        uri: string;
+        globals: { name: string; offset: number; value: string }[];
     };
-    private routes: Map< /* name */ string, { path: string, pathParams: string[], controller: string }> = new Map();
+    private routes: Map< /* name */ string, { path: string; pathParams: string[]; controller: string }> = new Map();
     private containerParametersPositions: { [fileUri: string]: { [name: string]: { offset: number } } } = Object.create(null);
     private containerParameters: { [name: string]: any } = Object.create(null);
 
     /**
      * Use 'this.getAutowiredServices()' for full list.
      */
-    private autowiredServices: { fullClassName: string,  serviceId?: string }[] = [];
+    private autowiredServices: { fullClassName: string; serviceId?: string }[] = [];
 
     private doctrineEntityNamespaces: { [alias: string]: string } = Object.create(null);
 
@@ -1260,7 +1260,7 @@ export class Project {
         this.routes.set(name, { path: routePath, controller, pathParams: params });
     }
 
-    private getRoute(name: string): { path: string, controller: string } | undefined {
+    private getRoute(name: string): { path: string; controller: string } | undefined {
         return this.routes.get(name);
     }
 
@@ -2515,7 +2515,7 @@ export class Project {
                     break;
                 }
 
-                let data: { prefix: string, onlyWithMacros: boolean } | undefined;
+                let data: { prefix: string; onlyWithMacros: boolean } | undefined;
 
                 do {
                     let textToCursor = text.substr(0, offset);
@@ -3416,7 +3416,7 @@ export class Project {
             position
         );
 
-        let data: { label: string, macro: string, filterText?: string, additionalTextEdit?: TextEdit }[] = [
+        let data: { label: string; macro: string; filterText?: string; additionalTextEdit?: TextEdit }[] = [
             {
                 label: 'autoescape',
                 macro: '{% autoescape $1 %}\n\t$0\n{% endautoescape %}'
@@ -3517,7 +3517,7 @@ export class Project {
 
         let deepestStmt = deepestStatement(stmts, offset, pieces, false);
         if (deepestStmt !== null) {
-            let moreData: { label: string, macro: string, additionalTextEdit?: TextEdit }[] = [];
+            let moreData: { label: string; macro: string; additionalTextEdit?: TextEdit }[] = [];
 
             let startPieceIndex: number | undefined;
 
@@ -5994,7 +5994,7 @@ export class Project {
      * Finds definitions of block for given template
      */
     private findBlockDefinitions(templateName: string, blockName: string) {
-        let result: { templateName: string, offset: number }[] = [];
+        let result: { templateName: string; offset: number }[] = [];
 
         let currentTemplateName: string | undefined = templateName;
 
@@ -6128,7 +6128,7 @@ export class Project {
 
         let parser = sax.parser(true, { position: true });
 
-        let data: { serviceId: string, leftOffset: number, rightOffset: number } | undefined;
+        let data: { serviceId: string; leftOffset: number; rightOffset: number } | undefined;
 
         parser.onopentag = (tag) => {
             // answer is found already
@@ -6778,7 +6778,7 @@ export class Project {
             return null;
         }
 
-        let nameTokenUnderCursor: { token: TwigToken, index: number } | undefined;
+        let nameTokenUnderCursor: { token: TwigToken; index: number } | undefined;
         for (let i = ti + 4; i <= piece.endToken; i++)  {
             let t = tokens[i];
             if (t.type === TwigTokenType.NAME && t.offset <= offset && offset <= t.offset + t.length) {
@@ -6942,7 +6942,7 @@ export class Project {
         {
             let renderCalls = this.findRenderCallsForTemplate(documentUri);
 
-            let calls: { callerFileUri: string, paramOffset: number, className: string, methodName: string }[] = [];
+            let calls: { callerFileUri: string; paramOffset: number; className: string; methodName: string }[] = [];
 
             for (let call of renderCalls) {
                 for (let param of call.params) {
@@ -7717,7 +7717,7 @@ export class Project {
         }
 
         // stack of real calls (with 'nameIndex') and parenthesis of arithmetic expressions
-        let stack: { nameTokenIndex?: number, argPosition: number }[] = [];
+        let stack: { nameTokenIndex?: number; argPosition: number }[] = [];
 
         for (let i = cursorPiece.startToken; i <= cursorPiece.endToken; i++) {
             if (tokens[i].offset >= offset) {
@@ -7746,7 +7746,7 @@ export class Project {
             }
         }
 
-        let lastCall: { nameTokenIndex: number, argPosition: number } | undefined;
+        let lastCall: { nameTokenIndex: number; argPosition: number } | undefined;
         for (let i = stack.length - 1; i >= 0; i--) {
             let t = stack[i];
             if (t.nameTokenIndex !== undefined) {

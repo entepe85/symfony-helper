@@ -437,7 +437,7 @@ export function findStringContainingOffset(root: any, offset: number): Scalar_St
 
 // support 'Stmt_GroupUse'?
 export function findUseStatements(stmts: Statement[]) {
-    let result: { offset: number, fullName: string, alias: string }[] = [];
+    let result: { offset: number; fullName: string; alias: string }[] = [];
 
     let useStmts = findNodesOfType(stmts, 'Stmt_Use') as Stmt_Use[];
     for (let useStmt of useStmts) {

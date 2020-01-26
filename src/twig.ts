@@ -135,7 +135,7 @@ class Lexer {
     private end = 0;
     private state: LexerState = LexerState.DATA; // review places where this member set to LexerState.DATA
     private position = 0;
-    private positions: { offset: number, text: string }[] = []; // 'text' is '{{', '{%', '{#' with optional appended '-'
+    private positions: { offset: number; text: string }[] = []; // 'text' is '{{', '{%', '{#' with optional appended '-'
 
     public tokenize(code: string): Token[] {
         this.code = code;
@@ -481,7 +481,7 @@ export function twigFileMacroImports(parsed: ParsedTwig) {
 export function twigMacroImports(parsed: ParsedTwig) {
     let { code, tokens, pieces } = parsed;
 
-    let result: { [alias: string]: { templateName: string, macroName: string }} = Object.create(null);
+    let result: { [alias: string]: { templateName: string; macroName: string }} = Object.create(null);
 
     for (let piece of pieces) {
         let st = piece.startToken;
@@ -582,8 +582,8 @@ interface StatementFor {
     startPiece: number;
     stmts: Statement[];
     elsePart?: {
-        pieceIndex: number,
-        stmts: Statement[],
+        pieceIndex: number;
+        stmts: Statement[];
     };
     endPiece?: number;
 }
@@ -592,10 +592,10 @@ interface StatementIf {
     type: 'if';
     startPiece: number;
     stmts: Statement[];
-    elseIfParts?: { pieceIndex: number, stmts: Statement[] }[];
+    elseIfParts?: { pieceIndex: number; stmts: Statement[] }[];
     elsePart?: {
-        pieceIndex: number,
-        stmts: Statement[],
+        pieceIndex: number;
+        stmts: Statement[];
     };
     endPiece?: number;
 }
@@ -1090,10 +1090,10 @@ export class Scope {
 type TreeWalkerCallback = (scope: Scope, pieceIndex: number) => void;
 
 export type AccessPathElement =
-    | { type: 'name', tokenIndex: number}
-    | { type: '.', tokenIndex: number }
-    | { type: '(', startTokenIndex: number, endTokenIndex?: number, commaTokenIndexes: number[] }
-    | { type: '[', startTokenIndex: number, endTokenIndex?: number }
+    | { type: 'name'; tokenIndex: number}
+    | { type: '.'; tokenIndex: number }
+    | { type: '('; startTokenIndex: number; endTokenIndex?: number; commaTokenIndexes: number[] }
+    | { type: '['; startTokenIndex: number; endTokenIndex?: number }
 ;
 
 // represents variable, function call or access to variable or result of function call
@@ -1105,7 +1105,7 @@ type ExpressionAccessPath = AccessPathElement[];
  */
 export function parseExpression(code: string, tokens: ReadonlyArray<Token>, firstToken: number, lastToken: number) {
     let accessPaths: ExpressionAccessPath[] = [];
-    let subExpressions: { firstToken: number, lastToken: number }[] = [];
+    let subExpressions: { firstToken: number; lastToken: number }[] = [];
 
     let currentTokenIndex = firstToken;
 
@@ -1263,9 +1263,9 @@ interface ExpressionData {
 }
 
 type ExpressionNameInfo =
-    | { type: 'variable', phpType: php.Type }
-    | { type: 'classMethod', className: string, methodName: string }
-    | { type: 'classProperty', className: string, propertyName: string }
+    | { type: 'variable'; phpType: php.Type }
+    | { type: 'classMethod'; className: string; methodName: string }
+    | { type: 'classProperty'; className: string; propertyName: string }
 ;
 
 // result 'null' means function not found

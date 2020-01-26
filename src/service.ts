@@ -338,7 +338,7 @@ export class Service {
         return this.allDocuments.get(uri);
     }
 
-    public commandRebuildIndexes(): { success: true } | { success: false, message: string } {
+    public commandRebuildIndexes(): { success: true } | { success: false; message: string } {
         if (this.isScanning) {
             return { success: false, message: 'Indexing already running' };
         }
@@ -357,7 +357,7 @@ export class Service {
         return { success: true };
     }
 
-    public async commandExtendTemplate(params: any): Promise<{ success: boolean, message: string, blocks?: { name: string, detail: string }[] }> {
+    public async commandExtendTemplate(params: any): Promise<{ success: boolean; message: string; blocks?: { name: string; detail: string }[] }> {
         let baseTemplateUri: string = params.baseTemplateUri;
         let newTemplateRelativePath: string = params.newTemplateRelativePath;
 
@@ -450,7 +450,7 @@ export class Service {
 
         // 'name' is block name
         // 'parent' is using parent()
-        let fileLayout: { name: string, layout: 'short'|'one-line'|'lines', parent: boolean }[] | undefined;
+        let fileLayout: { name: string; layout: 'short'|'one-line'|'lines'; parent: boolean }[] | undefined;
 
         if (await fileExists(configFilePath)) {
             let configText: string | undefined;
@@ -480,7 +480,7 @@ export class Service {
             } else {
                 let data = project.collectAllTemplateBlocks(baseTemplateName);
 
-                let blocks: { name: string, detail: string }[] = [];
+                let blocks: { name: string; detail: string }[] = [];
                 for (let blockName in data) {
                     let blockParentsData = data[blockName];
 
@@ -536,7 +536,7 @@ export class Service {
         return { success: true, message: newTemplateUri };
     }
 
-    public getNewTemplateFolder(params: any): { success: boolean, message: string } {
+    public getNewTemplateFolder(params: any): { success: boolean; message: string } {
         let baseTemplateUri: string = params.baseTemplateUri;
 
         let project = this.findFileProject(baseTemplateUri);
@@ -558,7 +558,7 @@ export class Service {
         return { success: true, message: prefix };
     }
 
-    public async commandOpenCompiledTemplate(params: any): Promise<{ success: boolean, message: string }> {
+    public async commandOpenCompiledTemplate(params: any): Promise<{ success: boolean; message: string }> {
         let templateUri: string = params.uri;
 
         let project = this.findFileProject(templateUri);
@@ -622,7 +622,7 @@ export class Service {
         return { success: true, message: path.join(projectFsPath, response.message) };
     }
 
-    public async commandToggleTwigComment(params: any): Promise<{ success: boolean, message: string }> {
+    public async commandToggleTwigComment(params: any): Promise<{ success: boolean; message: string }> {
         let templateUri: string = params.uri;
         let start = params.start as Position;
         let end = params.end as Position;
@@ -681,7 +681,7 @@ export class Service {
 
             edits.deletions = deletions;
         } else {
-            let insertions: { position: Position, value: string }[] = [];
+            let insertions: { position: Position; value: string }[] = [];
 
             insertions.push({
                 position: start,

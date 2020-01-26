@@ -83,7 +83,7 @@ export function activate(context: ExtensionContext) {
     }));
 
     context.subscriptions.push(commands.registerCommand('symfonyHelper.rebuildIndexes', async () => {
-        let response = await client.sendRequest<{success: true} | { success: false, message: string }>('rebuildIndexes');
+        let response = await client.sendRequest<{success: true} | { success: false; message: string }>('rebuildIndexes');
 
         if (!response.success) {
             await window.showErrorMessage(response.message);
@@ -112,7 +112,7 @@ export function activate(context: ExtensionContext) {
 
         let suffix = baseTemplateUri.endsWith('.html.twig') ? '.html.twig' : '.twig';
 
-        let newTemplateFolderResponse = await client.sendRequest<{ success: boolean, message: string }>('getNewTemplateFolder', { baseTemplateUri });
+        let newTemplateFolderResponse = await client.sendRequest<{ success: boolean; message: string }>('getNewTemplateFolder', { baseTemplateUri });
         if (!newTemplateFolderResponse.success) {
             await window.showErrorMessage(newTemplateFolderResponse.message);
             return;
@@ -137,7 +137,7 @@ export function activate(context: ExtensionContext) {
             return;
         }
 
-        let response = await client.sendRequest<{ success: boolean, message: string, blocks?: { name: string, detail: string }[] }>('extendTemplate', {
+        let response = await client.sendRequest<{ success: boolean; message: string; blocks?: { name: string; detail: string }[] }>('extendTemplate', {
             baseTemplateUri,
             newTemplateRelativePath: input,
         });
@@ -167,7 +167,7 @@ export function activate(context: ExtensionContext) {
                     return;
                 }
 
-                let response2 = await client.sendRequest<{ success: boolean, message: string, blocks?: { name: string, detail: string }[] }>('extendTemplate', {
+                let response2 = await client.sendRequest<{ success: boolean; message: string; blocks?: { name: string; detail: string }[] }>('extendTemplate', {
                     baseTemplateUri,
                     newTemplateRelativePath: input,
                     selectedBlocks: selected.map(row => row.label),
@@ -196,7 +196,7 @@ export function activate(context: ExtensionContext) {
 
         let uri = editor.document.uri.toString();
 
-        let response = await client.sendRequest<{ success: boolean, message: string }>('openCompiledTemplate', { uri });
+        let response = await client.sendRequest<{ success: boolean; message: string }>('openCompiledTemplate', { uri });
 
         if (response.success) {
             try {
@@ -222,7 +222,7 @@ export function activate(context: ExtensionContext) {
             return;
         }
 
-        let response = await client.sendRequest<{ success: boolean, message: string }>('toggleTwigComment', {
+        let response = await client.sendRequest<{ success: boolean; message: string }>('toggleTwigComment', {
             uri,
             start: editor.selection.start,
             end: editor.selection.end,
@@ -265,7 +265,7 @@ export function activate(context: ExtensionContext) {
     context.subscriptions.push(workspace.onDidChangeWorkspaceFolders(() => {
         complexFileWatcher.setFolders(workspace.workspaceFolders);
 
-        let folders: { uri: string, name: string }[] = [];
+        let folders: { uri: string; name: string }[] = [];
         if (workspace.workspaceFolders !== undefined) {
             folders = workspace.workspaceFolders.map(row => ({ uri: row.uri.toString(), name: row.name }));
         }

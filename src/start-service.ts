@@ -46,7 +46,7 @@ connection.onInitialize(() => {
     };
 });
 
-async function tryRestartPhpParserProcess(params?: { port: number, phpPath: string }) {
+async function tryRestartPhpParserProcess(params?: { port: number; phpPath: string }) {
     let port: number;
     let phpPath: string;
 

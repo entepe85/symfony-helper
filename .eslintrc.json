@@ -17,7 +17,6 @@
         "@typescript-eslint/camelcase": "off",
         "@typescript-eslint/class-name-casing": "off",
         "@typescript-eslint/explicit-function-return-type": "off",
-        "@typescript-eslint/member-delimiter-style": "off",
         "@typescript-eslint/no-empty-function": "off",
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-use-before-define": "off",

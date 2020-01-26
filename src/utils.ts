@@ -266,7 +266,7 @@ export function parsePhpDocBlock(text: string): ParsedDocBlock | null {
         }
     }
 
-    let result: { summary?: string, description?: string, tags: any[], rawTags: string[] } = {
+    let result: { summary?: string; description?: string; tags: any[]; rawTags: string[] } = {
         tags,
         rawTags,
     };
