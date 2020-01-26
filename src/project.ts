@@ -1181,7 +1181,7 @@ export class Project {
     private throttledScanAutowired: () => void;
     private throttledScanDoctrineEntityNamespaces: () => void;
 
-    private isScanning: boolean = false;
+    private isScanning = false;
 
     private getSettings: () => Promise<SymfonyHelperSettings|null> = () => Promise.resolve(null);
 
@@ -1548,7 +1548,7 @@ export class Project {
         } while (false);
     }
 
-    private async scanPhpFile(fileUri: string, code: string, forceFullParse: boolean = false) {
+    private async scanPhpFile(fileUri: string, code: string, forceFullParse = false) {
         let classMatch = this.CLASS_REGEXP.exec(code);
 
         if (classMatch === null || classMatch.index === undefined) {

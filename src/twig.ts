@@ -130,11 +130,11 @@ for (let op of OPERATORS) {
 // * doesn't support multiline strings, {{}}, and {%%}
 class Lexer {
     private tokens: Token[] = [];
-    private code: string = '';
-    private cursor: number = 0;
-    private end: number = 0;
+    private code = '';
+    private cursor = 0;
+    private end = 0;
     private state: LexerState = LexerState.DATA; // review places where this member set to LexerState.DATA
-    private position: number = 0;
+    private position = 0;
     private positions: { offset: number, text: string }[] = []; // 'text' is '{{', '{%', '{#' with optional appended '-'
 
     public tokenize(code: string): Token[] {
@@ -950,7 +950,7 @@ export function parse(code: string, tokens: Token[], pieces: TwigPiece[]) {
 /**
  * Returns deepest statement containing offset with restriction that offset not in any piece
  */
-export function deepestStatement(stmts: ReadonlyArray<Statement>, offset: number, pieces: ReadonlyArray<TwigPiece>, piecesTested: boolean = false): Statement | null {
+export function deepestStatement(stmts: ReadonlyArray<Statement>, offset: number, pieces: ReadonlyArray<TwigPiece>, piecesTested = false): Statement | null {
     // not all 'pieces' are in 'stmts'
     if (!piecesTested) {
         for (let p of pieces) {
