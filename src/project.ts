@@ -1091,7 +1091,7 @@ function parseXmlForEntityData(code: string): null | EntityData {
                     return;
                 }
 
-                let type = tag.attributes['target-entity'] as string;
+                let type = tag.attributes['target-entity'];
                 if (!type.includes('\\')) {
                     if (base === undefined) {
                         return;
