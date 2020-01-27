@@ -22,7 +22,6 @@
         "@typescript-eslint/no-use-before-define": "off",
 
         // rules from '@typescript-eslint/recommended-requiring-type-checking'
-        "@typescript-eslint/no-misused-promises": "off",
         "@typescript-eslint/unbound-method": "off"
     }
 }

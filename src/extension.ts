@@ -188,73 +188,79 @@ export function activate(context: ExtensionContext) {
         }
     }));
 
-    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.openCompiledTemplate', async (editor: TextEditor) => {
-        if (editor.document.uri.scheme !== 'file') {
-            await window.showErrorMessage('This command is only for real files');
-            return;
-        }
-
-        let uri = editor.document.uri.toString();
-
-        let response = await client.sendRequest<{ success: boolean; message: string }>('openCompiledTemplate', { uri });
-
-        if (response.success) {
-            try {
-                await window.showTextDocument(Uri.file(response.message));
-            } catch (e) {
-                await window.showErrorMessage('Could not open file');
+    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.openCompiledTemplate', (editor: TextEditor) => {
+        (async () => {
+            if (editor.document.uri.scheme !== 'file') {
+                await window.showErrorMessage('This command is only for real files');
+                return;
             }
-        } else {
-            await window.showErrorMessage(response.message);
-        }
+
+            let uri = editor.document.uri.toString();
+
+            let response = await client.sendRequest<{ success: boolean; message: string }>('openCompiledTemplate', { uri });
+
+            if (response.success) {
+                try {
+                    await window.showTextDocument(Uri.file(response.message));
+                } catch (e) {
+                    await window.showErrorMessage('Could not open file');
+                }
+            } else {
+                await window.showErrorMessage(response.message);
+            }
+        })()
+            .catch(() => {});
     }));
 
-    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.toggleTwigComment', async (editor: TextEditor) => {
-        if (editor.document.uri.scheme !== 'file') {
-            await window.showErrorMessage('This command is only for real files');
-            return;
-        }
-
-        let uri = editor.document.uri.toString();
-
-        if (!uri.endsWith('.twig')) {
-            await window.showErrorMessage('This command is only for twig templates');
-            return;
-        }
-
-        let response = await client.sendRequest<{ success: boolean; message: string }>('toggleTwigComment', {
-            uri,
-            start: editor.selection.start,
-            end: editor.selection.end,
-        });
-
-        if (!response.success) {
-            await window.showErrorMessage(response.message);
-            return;
-        }
-
-        let message: any;
-
-        try {
-            message = JSON.parse(response.message);
-        } catch (e) {
-            await window.showErrorMessage('Unexpected error');
-            return;
-        }
-
-        await editor.edit((edit) => {
-            if (message.deletions) {
-                for (let row of message.deletions) {
-                    edit.delete(new Range(row.start.line, row.start.character, row.end.line, row.end.character));
-                }
+    context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.toggleTwigComment', (editor: TextEditor) => {
+        (async () => {
+            if (editor.document.uri.scheme !== 'file') {
+                await window.showErrorMessage('This command is only for real files');
+                return;
             }
 
-            if (message.insertions) {
-                for (let { position, value } of message.insertions) {
-                    edit.insert(new Position(position.line, position.character), value);
-                }
+            let uri = editor.document.uri.toString();
+
+            if (!uri.endsWith('.twig')) {
+                await window.showErrorMessage('This command is only for twig templates');
+                return;
             }
-        });
+
+            let response = await client.sendRequest<{ success: boolean; message: string }>('toggleTwigComment', {
+                uri,
+                start: editor.selection.start,
+                end: editor.selection.end,
+            });
+
+            if (!response.success) {
+                await window.showErrorMessage(response.message);
+                return;
+            }
+
+            let message: any;
+
+            try {
+                message = JSON.parse(response.message);
+            } catch (e) {
+                await window.showErrorMessage('Unexpected error');
+                return;
+            }
+
+            await editor.edit((edit) => {
+                if (message.deletions) {
+                    for (let row of message.deletions) {
+                        edit.delete(new Range(row.start.line, row.start.character, row.end.line, row.end.character));
+                    }
+                }
+
+                if (message.insertions) {
+                    for (let { position, value } of message.insertions) {
+                        edit.insert(new Position(position.line, position.character), value);
+                    }
+                }
+            });
+        })()
+            .catch(() => {});
     }));
 
     let complexFileWatcher = new ComplexFileWatcher(client);

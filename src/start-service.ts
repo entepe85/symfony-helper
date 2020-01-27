@@ -68,50 +68,53 @@ async function tryRestartPhpParserProcess(params?: { port: number; phpPath: stri
     }
 }
 
-connection.onInitialized(async () => {
-    service.setConnection(connection);
+connection.onInitialized(() => {
+    (async () => {
+        service.setConnection(connection);
 
-    connection.client.register(DidChangeConfigurationNotification.type, undefined);
+        connection.client.register(DidChangeConfigurationNotification.type, undefined);
 
-    nikic.setErrorCallback((message) => {
-        connection.sendRequest('errorMessage', { message });
-    });
+        nikic.setErrorCallback((message) => {
+            connection.sendRequest('errorMessage', { message });
+        });
 
-    let { portForParser, phpPathForParser } = await getConfiguration();
+        let { portForParser, phpPathForParser } = await getConfiguration();
 
-    // it must be finished before calling 'Service#setProjects()'
-    await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
+        // it must be finished before calling 'Service#setProjects()'
+        await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
 
-    service.setSettingsResolver(async (uri: string) => {
-        let result = await connection.sendRequest<SymfonyHelperSettings|null>('getConfiguration', uri);
+        service.setSettingsResolver(async (uri: string) => {
+            let result = await connection.sendRequest<SymfonyHelperSettings|null>('getConfiguration', uri);
 
-        let slashTrimmer = /^\/+|\/+$/g;
+            let slashTrimmer = /^\/+|\/+$/g;
 
-        if (result !== null) {
-            result.templatesFolder = result.templatesFolder.replace(slashTrimmer, '');
+            if (result !== null) {
+                result.templatesFolder = result.templatesFolder.replace(slashTrimmer, '');
 
-            let newSourceFolders = [];
-            for (let str of result.sourceFolders) {
-                newSourceFolders.push(str.replace(slashTrimmer, ''));
+                let newSourceFolders = [];
+                for (let str of result.sourceFolders) {
+                    newSourceFolders.push(str.replace(slashTrimmer, ''));
+                }
+                newSourceFolders = [... new Set(newSourceFolders)]; // remove duplicates
+                newSourceFolders.sort();
+
+                result.sourceFolders = newSourceFolders;
             }
-            newSourceFolders = [... new Set(newSourceFolders)]; // remove duplicates
-            newSourceFolders.sort();
 
-            result.sourceFolders = newSourceFolders;
+            return result;
+        });
+
+        let workspaceFolders = await connection.workspace.getWorkspaceFolders();
+        if (workspaceFolders !== null) {
+            service.setProjects(workspaceFolders)
+                .then(() => {})
+                .catch(() => {})
+                ;
         }
 
-        return result;
-    });
-
-    let workspaceFolders = await connection.workspace.getWorkspaceFolders();
-    if (workspaceFolders !== null) {
-        service.setProjects(workspaceFolders)
-            .then(() => {})
-            .catch(() => {})
-            ;
-    }
-
-    connection.sendRequest('statusBarMessage', { message: 'initialized' });
+        connection.sendRequest('statusBarMessage', { message: 'initialized' });
+    })()
+        .catch(() => {});
 });
 
 async function getConfiguration() {
@@ -123,12 +126,15 @@ async function getConfiguration() {
     return { portForParser, phpPathForParser };
 }
 
-connection.onDidChangeConfiguration(async () => {
-    let { portForParser, phpPathForParser } = await getConfiguration();
+connection.onDidChangeConfiguration(() => {
+    (async () => {
+        let { portForParser, phpPathForParser } = await getConfiguration();
 
-    if (portForParser !== nikic.getCurrentParserPort() || phpPathForParser !== nikic.getCurrentPhpPath()) {
-        await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
-    }
+        if (portForParser !== nikic.getCurrentParserPort() || phpPathForParser !== nikic.getCurrentPhpPath()) {
+            await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
+        }
+    })()
+        .catch(() => {});
 });
 
 connection.onCompletion((params) => service.onCompletition(params));

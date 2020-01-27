@@ -1235,22 +1235,34 @@ export class Project {
         this.sourceFolders = ['src'];
 
         this.throttledScanRoutes = throttle(
-            this.scanRoutes.bind(this),
+            () => {
+                this.scanRoutes()
+                    .catch(() => {});
+            },
             3000,
         );
 
         this.throttledScanContainerParameters = throttle(
-            this.scanContainerParameters.bind(this),
+            () => {
+                this.scanContainerParameters()
+                    .catch(() => {});
+            },
             3000,
         );
 
         this.throttledScanAutowired = throttle(
-            this.scanAutowired.bind(this),
+            () => {
+                this.scanAutowired()
+                    .catch(() => {});
+            },
             3000,
         );
 
         this.throttledScanDoctrineEntityNamespaces = throttle(
-            this.scanDoctrineEntityNamespaces.bind(this),
+            () => {
+                this.scanDoctrineEntityNamespaces()
+                    .catch(() => {});
+            },
             1000,
         );
     }
