@@ -4,53 +4,6 @@
  * Licensed under the GNU General Public License
  */
 
-/**
- * Hacky (and kinda wrong) union of types
- */
-export function combineTypes(types: Type[]): Type {
-    if (types.length === 0) {
-        return new AnyType();
-    }
-
-    if (types.length === 1) {
-        return types[0];
-    }
-
-    let firstArrayType = types.find(row => row instanceof ArrayType);
-    if (firstArrayType !== undefined) {
-        let noOtherTypes = true;
-        for (let t of types) {
-            if (!(t instanceof AnyType)) {
-                if (!t.equals(firstArrayType)) {
-                    noOtherTypes = false;
-                    break;
-                }
-            }
-        }
-        if (noOtherTypes) {
-            return firstArrayType;
-        }
-    }
-
-    let firstObjectType = types.find(row => row instanceof ObjectType);
-    if (firstObjectType !== undefined) {
-        let noOtherTypes = true;
-        for (let t of types) {
-            if (!(t instanceof AnyType)) {
-                if (!t.equals(firstObjectType)) {
-                    noOtherTypes = false;
-                    break;
-                }
-            }
-        }
-        if (noOtherTypes) {
-            return firstObjectType;
-        }
-    }
-
-    return new AnyType();
-}
-
 export abstract class Type {
     private _topClass = 'Type'; // could not get errors without it. use something else instead of classes?
 
@@ -160,4 +113,51 @@ export class DoctrineQueryType extends Type {
     public equals(type: Type): boolean {
         return (type instanceof DoctrineQueryType) && (this.entityClassName === type.getEntityClassName());
     }
+}
+
+/**
+ * Hacky (and kinda wrong) union of types
+ */
+export function combineTypes(types: Type[]): Type {
+    if (types.length === 0) {
+        return new AnyType();
+    }
+
+    if (types.length === 1) {
+        return types[0];
+    }
+
+    let firstArrayType = types.find(row => row instanceof ArrayType);
+    if (firstArrayType !== undefined) {
+        let noOtherTypes = true;
+        for (let t of types) {
+            if (!(t instanceof AnyType)) {
+                if (!t.equals(firstArrayType)) {
+                    noOtherTypes = false;
+                    break;
+                }
+            }
+        }
+        if (noOtherTypes) {
+            return firstArrayType;
+        }
+    }
+
+    let firstObjectType = types.find(row => row instanceof ObjectType);
+    if (firstObjectType !== undefined) {
+        let noOtherTypes = true;
+        for (let t of types) {
+            if (!(t instanceof AnyType)) {
+                if (!t.equals(firstObjectType)) {
+                    noOtherTypes = false;
+                    break;
+                }
+            }
+        }
+        if (noOtherTypes) {
+            return firstObjectType;
+        }
+    }
+
+    return new AnyType();
 }

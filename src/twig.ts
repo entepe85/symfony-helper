@@ -444,6 +444,10 @@ export function findTwigPieces(tokens: Token[]): TwigPiece[] {
     return result;
 }
 
+export function tokenValue(orginalText: string, token: Token): string {
+    return orginalText.substr(token.offset, token.length);
+}
+
 /**
  * Returns full macro file imports as map from alias name to template name
  */
@@ -560,10 +564,6 @@ export function stringTokenContainingCursor(tokens: ReadonlyArray<Token>, cursor
         }
     }
     return null;
-}
-
-export function tokenValue(orginalText: string, token: Token): string {
-    return orginalText.substr(token.offset, token.length);
 }
 
 // don't forget to synchronize

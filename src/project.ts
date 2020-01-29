@@ -109,218 +109,6 @@ export interface TwigExtensionGlobal {
 }
 
 /**
- * Searches for 'new TwigFunction()', 'new TwigTest()' and 'new TwigFilter()' calls everywhere and also for 'getGlobals()' call
- *
- * @param stmts         parsed 'code'
- */
-export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
-    let result: { elements: TwigExtensionCallable[]; globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
-
-    let classStmts = nikic.findNodesOfType(stmts, 'Stmt_Class');
-
-    if (classStmts.length === 0) {
-        return result;
-    }
-
-    let classStmt = classStmts[0] as nikic.Stmt_Class;
-
-    let someInfo = extractSomePhpClassInfo(code, stmts);
-    let classMethods = (someInfo === null) ? [] : someInfo.methods;
-
-    let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
-
-    // TODO: fully resolve class names
-    let classNames = ['TwigFunction', 'Twig_Function', 'TwigTest', 'Twig_Test', 'TwigFilter', 'Twig_Filter'];
-
-    for (let exprNew of exprNewNodes) {
-        if (!(exprNew.class.nodeType === 'Name_FullyQualified' || exprNew.class.nodeType === 'Name')) {
-            continue;
-        }
-        let classNameParts = exprNew.class.parts;
-        let className = classNameParts[classNameParts.length - 1];
-
-        if (!classNames.includes(className)) {
-            continue;
-        }
-
-        let args = exprNew.args;
-
-        if (args.length === 0) {
-            continue;
-        }
-
-        let firstArg = args[0];
-
-        if (firstArg.value.nodeType !== 'Scalar_String') {
-            continue;
-        }
-        let itemName = firstArg.value.value;
-        let itemNameStartOffset = firstArg.value.attributes.startFilePos;
-        let itemNameEndOffset = firstArg.value.attributes.endFilePos + 1;
-
-        let element: TwigExtensionCallable | null = null;
-        let offset = exprNew.attributes.startFilePos;
-
-        if (className === 'TwigFunction' || className === 'Twig_Function') {
-            element = { type: 'function', name: itemName, constructorOffset: offset, nameStartOffset: itemNameStartOffset, nameEndOffset: itemNameEndOffset };
-        } else if (className === 'TwigTest' || className === 'Twig_Test') {
-            element = { type: 'test', name: itemName, constructorOffset: offset, nameStartOffset: itemNameStartOffset, nameEndOffset: itemNameEndOffset };
-        } else if (className === 'TwigFilter' || className === 'Twig_Filter') {
-            element = { type: 'filter', name: itemName, constructorOffset: offset, nameStartOffset: itemNameStartOffset, nameEndOffset: itemNameEndOffset };
-        } else {
-            continue;
-        }
-
-        result.elements.push(element);
-
-        if (args.length < 2) {
-            continue;
-        }
-
-        let needsContext = false;
-        let needsEnvironment = false;
-        // search for environment-aware and contenxt-aware functions and filters
-        do {
-            if (args.length < 3) {
-                break;
-            }
-
-            let thirdArgValue = args[2].value;
-
-            if (thirdArgValue.nodeType !== 'Expr_Array') {
-                break;
-            }
-
-            for (let item of thirdArgValue.items) {
-                if (item.key !== null && item.key.nodeType === 'Scalar_String' && item.key.value === 'needs_context') {
-                    if (nikic.nodeText(item.value, code).toLowerCase() === 'true') {
-                        needsContext = true;
-                    }
-                }
-
-                if (item.key !== null && item.key.nodeType === 'Scalar_String' && item.key.value === 'needs_environment') {
-                    if (nikic.nodeText(item.value, code).toLowerCase() === 'true') {
-                        needsEnvironment = true;
-                    }
-                }
-            }
-        } while (false);
-
-        let secondArgValue = args[1].value;
-
-        let implData: { params: { name: string }[]; offset: number; help?: string; returnType: php.Type } | undefined;
-
-        if (secondArgValue.nodeType === 'Expr_Array') {
-            do {
-                let arrayItems = secondArgValue.items;
-
-                if (arrayItems.length < 2) {
-                    break;
-                }
-
-                if (arrayItems[0].key !== null || arrayItems[1].key !== null) {
-                    break;
-                }
-
-                let firstElementIsThis = arrayItems[0].value.nodeType === 'Expr_Variable' && arrayItems[0].value.name === 'this';
-
-                let secondElementStringLiteral: string | undefined;
-                if (arrayItems[1].value.nodeType === 'Scalar_String') {
-                    secondElementStringLiteral = arrayItems[1].value.value;
-                }
-
-                let foundMethod: PhpClassMethod | undefined;
-                if (firstElementIsThis && secondElementStringLiteral !== undefined) {
-                    foundMethod = classMethods.filter(row => row.name === secondElementStringLiteral)[0];
-                }
-
-                if (foundMethod !== undefined) {
-                    implData = { params: foundMethod.params, offset: foundMethod.offset, help: foundMethod.shortHelp, returnType: foundMethod.returnType };
-                }
-            } while (false);
-        } else if (secondArgValue.nodeType === 'Expr_Closure') {
-            let params = [];
-            for (let p of secondArgValue.params) {
-                if (typeof p.var.name === 'string') {
-                    params.push({
-                        name: p.var.name,
-                    });
-                }
-            }
-
-            implData = { params, offset: secondArgValue.attributes.startFilePos, returnType: new php.AnyType() };
-        }
-
-        if (implData !== undefined) {
-            let usedParams;
-            if (element.type === 'test' || element.type === 'filter') {
-                usedParams = implData.params.slice(1);
-            } else {
-                usedParams = implData.params;
-            }
-
-            if (element.type === 'filter' || element.type === 'function') {
-                if (needsContext) {
-                    usedParams = usedParams.slice(1);
-                }
-
-                if (needsEnvironment) {
-                    usedParams = usedParams.slice(1);
-                }
-            }
-
-            element.implementation = {
-                params: usedParams,
-                offset: implData.offset,
-                returnType: implData.returnType,
-            };
-
-            if (implData.help !== undefined) {
-                element.implementation.help = implData.help;
-            }
-        }
-    }
-
-    // search for globals
-    do {
-        let classMethodStmts = nikic.findNodesOfType(classStmt, 'Stmt_ClassMethod') as nikic.Stmt_ClassMethod[];
-
-        let getGlobalsMethod = classMethodStmts.find(row => row.name.name === 'getGlobals');
-        if (getGlobalsMethod === undefined) {
-            break;
-        }
-
-        let returns = nikic.findNodesOfType(getGlobalsMethod, 'Stmt_Return') as nikic.Stmt_Return[];
-        if (returns.length === 0) {
-            break;
-        }
-
-        let lastReturn = returns[returns.length - 1]; // probably the best bet
-        if (lastReturn.expr === null || lastReturn.expr.nodeType !== 'Expr_Array') {
-            break;
-        }
-
-        for (let arrayItem of lastReturn.expr.items) {
-            if (arrayItem.key === null) {
-                continue;
-            }
-            let arrayItemKey = arrayItem.key;
-
-            if (arrayItemKey.nodeType === 'Scalar_String') {
-                result.globals.push({
-                    type: 'global',
-                    name: arrayItemKey.value,
-                    nameStartOffset: arrayItemKey.attributes.startFilePos,
-                    nameEndOffset: arrayItemKey.attributes.endFilePos,
-                });
-            }
-        }
-    } while (false);
-
-    return result;
-}
-
-/**
  * Finds types of method parameters
  */
 function methodParamsSymbolTable(method: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData) {
@@ -647,6 +435,218 @@ export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]):
     if (classShortHelp !== null) {
         result.shortHelp = classShortHelp;
     }
+    return result;
+}
+
+/**
+ * Searches for 'new TwigFunction()', 'new TwigTest()' and 'new TwigFilter()' calls everywhere and also for 'getGlobals()' call
+ *
+ * @param stmts         parsed 'code'
+ */
+export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]) {
+    let result: { elements: TwigExtensionCallable[]; globals: TwigExtensionGlobal[] } = { elements: [], globals: [] };
+
+    let classStmts = nikic.findNodesOfType(stmts, 'Stmt_Class');
+
+    if (classStmts.length === 0) {
+        return result;
+    }
+
+    let classStmt = classStmts[0] as nikic.Stmt_Class;
+
+    let someInfo = extractSomePhpClassInfo(code, stmts);
+    let classMethods = (someInfo === null) ? [] : someInfo.methods;
+
+    let exprNewNodes = nikic.findNodesOfType(classStmt, 'Expr_New') as nikic.Expr_New[];
+
+    // TODO: fully resolve class names
+    let classNames = ['TwigFunction', 'Twig_Function', 'TwigTest', 'Twig_Test', 'TwigFilter', 'Twig_Filter'];
+
+    for (let exprNew of exprNewNodes) {
+        if (!(exprNew.class.nodeType === 'Name_FullyQualified' || exprNew.class.nodeType === 'Name')) {
+            continue;
+        }
+        let classNameParts = exprNew.class.parts;
+        let className = classNameParts[classNameParts.length - 1];
+
+        if (!classNames.includes(className)) {
+            continue;
+        }
+
+        let args = exprNew.args;
+
+        if (args.length === 0) {
+            continue;
+        }
+
+        let firstArg = args[0];
+
+        if (firstArg.value.nodeType !== 'Scalar_String') {
+            continue;
+        }
+        let itemName = firstArg.value.value;
+        let itemNameStartOffset = firstArg.value.attributes.startFilePos;
+        let itemNameEndOffset = firstArg.value.attributes.endFilePos + 1;
+
+        let element: TwigExtensionCallable | null = null;
+        let offset = exprNew.attributes.startFilePos;
+
+        if (className === 'TwigFunction' || className === 'Twig_Function') {
+            element = { type: 'function', name: itemName, constructorOffset: offset, nameStartOffset: itemNameStartOffset, nameEndOffset: itemNameEndOffset };
+        } else if (className === 'TwigTest' || className === 'Twig_Test') {
+            element = { type: 'test', name: itemName, constructorOffset: offset, nameStartOffset: itemNameStartOffset, nameEndOffset: itemNameEndOffset };
+        } else if (className === 'TwigFilter' || className === 'Twig_Filter') {
+            element = { type: 'filter', name: itemName, constructorOffset: offset, nameStartOffset: itemNameStartOffset, nameEndOffset: itemNameEndOffset };
+        } else {
+            continue;
+        }
+
+        result.elements.push(element);
+
+        if (args.length < 2) {
+            continue;
+        }
+
+        let needsContext = false;
+        let needsEnvironment = false;
+        // search for environment-aware and contenxt-aware functions and filters
+        do {
+            if (args.length < 3) {
+                break;
+            }
+
+            let thirdArgValue = args[2].value;
+
+            if (thirdArgValue.nodeType !== 'Expr_Array') {
+                break;
+            }
+
+            for (let item of thirdArgValue.items) {
+                if (item.key !== null && item.key.nodeType === 'Scalar_String' && item.key.value === 'needs_context') {
+                    if (nikic.nodeText(item.value, code).toLowerCase() === 'true') {
+                        needsContext = true;
+                    }
+                }
+
+                if (item.key !== null && item.key.nodeType === 'Scalar_String' && item.key.value === 'needs_environment') {
+                    if (nikic.nodeText(item.value, code).toLowerCase() === 'true') {
+                        needsEnvironment = true;
+                    }
+                }
+            }
+        } while (false);
+
+        let secondArgValue = args[1].value;
+
+        let implData: { params: { name: string }[]; offset: number; help?: string; returnType: php.Type } | undefined;
+
+        if (secondArgValue.nodeType === 'Expr_Array') {
+            do {
+                let arrayItems = secondArgValue.items;
+
+                if (arrayItems.length < 2) {
+                    break;
+                }
+
+                if (arrayItems[0].key !== null || arrayItems[1].key !== null) {
+                    break;
+                }
+
+                let firstElementIsThis = arrayItems[0].value.nodeType === 'Expr_Variable' && arrayItems[0].value.name === 'this';
+
+                let secondElementStringLiteral: string | undefined;
+                if (arrayItems[1].value.nodeType === 'Scalar_String') {
+                    secondElementStringLiteral = arrayItems[1].value.value;
+                }
+
+                let foundMethod: PhpClassMethod | undefined;
+                if (firstElementIsThis && secondElementStringLiteral !== undefined) {
+                    foundMethod = classMethods.filter(row => row.name === secondElementStringLiteral)[0];
+                }
+
+                if (foundMethod !== undefined) {
+                    implData = { params: foundMethod.params, offset: foundMethod.offset, help: foundMethod.shortHelp, returnType: foundMethod.returnType };
+                }
+            } while (false);
+        } else if (secondArgValue.nodeType === 'Expr_Closure') {
+            let params = [];
+            for (let p of secondArgValue.params) {
+                if (typeof p.var.name === 'string') {
+                    params.push({
+                        name: p.var.name,
+                    });
+                }
+            }
+
+            implData = { params, offset: secondArgValue.attributes.startFilePos, returnType: new php.AnyType() };
+        }
+
+        if (implData !== undefined) {
+            let usedParams;
+            if (element.type === 'test' || element.type === 'filter') {
+                usedParams = implData.params.slice(1);
+            } else {
+                usedParams = implData.params;
+            }
+
+            if (element.type === 'filter' || element.type === 'function') {
+                if (needsContext) {
+                    usedParams = usedParams.slice(1);
+                }
+
+                if (needsEnvironment) {
+                    usedParams = usedParams.slice(1);
+                }
+            }
+
+            element.implementation = {
+                params: usedParams,
+                offset: implData.offset,
+                returnType: implData.returnType,
+            };
+
+            if (implData.help !== undefined) {
+                element.implementation.help = implData.help;
+            }
+        }
+    }
+
+    // search for globals
+    do {
+        let classMethodStmts = nikic.findNodesOfType(classStmt, 'Stmt_ClassMethod') as nikic.Stmt_ClassMethod[];
+
+        let getGlobalsMethod = classMethodStmts.find(row => row.name.name === 'getGlobals');
+        if (getGlobalsMethod === undefined) {
+            break;
+        }
+
+        let returns = nikic.findNodesOfType(getGlobalsMethod, 'Stmt_Return') as nikic.Stmt_Return[];
+        if (returns.length === 0) {
+            break;
+        }
+
+        let lastReturn = returns[returns.length - 1]; // probably the best bet
+        if (lastReturn.expr === null || lastReturn.expr.nodeType !== 'Expr_Array') {
+            break;
+        }
+
+        for (let arrayItem of lastReturn.expr.items) {
+            if (arrayItem.key === null) {
+                continue;
+            }
+            let arrayItemKey = arrayItem.key;
+
+            if (arrayItemKey.nodeType === 'Scalar_String') {
+                result.globals.push({
+                    type: 'global',
+                    name: arrayItemKey.value,
+                    nameStartOffset: arrayItemKey.attributes.startFilePos,
+                    nameEndOffset: arrayItemKey.attributes.endFilePos,
+                });
+            }
+        }
+    } while (false);
+
     return result;
 }
 

@@ -68,6 +68,15 @@ async function tryRestartPhpParserProcess(params?: { port: number; phpPath: stri
     }
 }
 
+async function getConfiguration() {
+    let config = await connection.workspace.getConfiguration('symfonyHelper');
+
+    let portForParser: number = config.phpParser.port;
+    let phpPathForParser: string = config.phpParser.phpPath;
+
+    return { portForParser, phpPathForParser };
+}
+
 connection.onInitialized(() => {
     (async () => {
         service.setConnection(connection);
@@ -116,15 +125,6 @@ connection.onInitialized(() => {
     })()
         .catch(() => {});
 });
-
-async function getConfiguration() {
-    let config = await connection.workspace.getConfiguration('symfonyHelper');
-
-    let portForParser: number = config.phpParser.port;
-    let phpPathForParser: string = config.phpParser.phpPath;
-
-    return { portForParser, phpPathForParser };
-}
 
 connection.onDidChangeConfiguration(() => {
     (async () => {
