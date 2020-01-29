@@ -161,3 +161,38 @@ export function combineTypes(types: Type[]): Type {
 
     return new AnyType();
 }
+
+export interface PhpClassConstant {
+    name: string;
+    offset: number;
+    shortHelp?: string; // first paragraph of doc-comment if found
+    valueText?: string; // literally copied symbols of value if it's not too long and has no '\n'
+    isPublic: boolean;
+}
+
+export interface PhpClassMethod {
+    name: string;
+    offset: number;
+    isPublic: boolean;
+    isStatic: boolean;
+    params: { name: string }[];
+    shortHelp?: string; // first paragraph of doc-comment if found
+    returnType: Type;
+}
+
+export interface PhpClassProperty {
+    name: string;
+    offset: number;
+    shortHelp?: string;  // first paragraph of doc-comment if found
+    isPublic: boolean;
+    type: Type;
+}
+
+export interface PhpClassSomeInfo {
+    shortHelp?: string;
+    constants: PhpClassConstant[];
+    properties: PhpClassProperty[];
+    methods: PhpClassMethod[];
+}
+
+export type PhpClassSomeInfoResolver = (className: string) => Promise<PhpClassSomeInfo|null>;

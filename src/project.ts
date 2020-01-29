@@ -29,6 +29,13 @@ import {
 } from 'vscode-languageserver';
 
 import {
+    PhpClassConstant,
+    PhpClassProperty,
+    PhpClassMethod,
+    PhpClassSomeInfo,
+} from './php';
+
+import {
     tokenize as tokenizeTwig,
     TokenType as TwigTokenType,
     tokenUnderCursor as twigTokenUnderCursor,
@@ -197,41 +204,6 @@ interface PhpClass {
     properties: PhpClassProperty[];
     methods: PhpClassMethod[];
 }
-
-export interface PhpClassConstant {
-    name: string;
-    offset: number;
-    shortHelp?: string; // first paragraph of doc-comment if found
-    valueText?: string; // literally copied symbols of value if it's not too long and has no '\n'
-    isPublic: boolean;
-}
-
-export interface PhpClassMethod {
-    name: string;
-    offset: number;
-    isPublic: boolean;
-    isStatic: boolean;
-    params: { name: string }[];
-    shortHelp?: string; // first paragraph of doc-comment if found
-    returnType: php.Type;
-}
-
-export interface PhpClassProperty {
-    name: string;
-    offset: number;
-    shortHelp?: string;  // first paragraph of doc-comment if found
-    isPublic: boolean;
-    type: php.Type;
-}
-
-export interface PhpClassSomeInfo {
-    shortHelp?: string;
-    constants: PhpClassConstant[];
-    properties: PhpClassProperty[];
-    methods: PhpClassMethod[];
-}
-
-export type PhpClassSomeInfoResolver = (className: string) => Promise<PhpClassSomeInfo|null>;
 
 interface PlainSymbolTable {
     [varName: string ]: php.Type;
