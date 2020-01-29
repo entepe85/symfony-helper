@@ -10,7 +10,7 @@ class BFakeController extends AbstractController
     /**
      * @Route("/b-fake")
      */
-    public function page(.tw, .ent, .req)
+    public function page(.sw, .ent, .req)
     {
     }
 }

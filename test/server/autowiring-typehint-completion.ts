@@ -92,7 +92,7 @@ describe('complete autowiring typehint', function () {
         let expectedArgumentNames = [
             [prefix + 'FormFactoryInterface', 'formFactory'], // test for classname ending with 'Interface'
             [prefix + 'RequestContext', 'requestContext'], // test for classname not ending with 'Interface'
-            // TODO: add test for classname with '_' (there was 'Twig_Environment' earlier)
+            [prefix + 'Swift_Mailer', 'swiftMailer'], // test for classname with '_'
         ];
 
         for (let [label, argumentName] of expectedArgumentNames) {
@@ -108,18 +108,15 @@ describe('complete autowiring typehint', function () {
         let documentUri = projectUri + '/src/Controller/BFakeController.php';
 
         {
-            // TODO: find class with '_'
-            // ignore classes without '\'
-            /*
+            // don't use 'use statement' for classes without '\'
             let actual = await service.onCompletition({
                 textDocument: { uri: documentUri },
                 position: Position.create(12, 28),
             });
 
-            let item = actual.items.filter(row => row.label === '.twig')[0];
+            let item = actual.items.filter(row => row.label === '.Swift_Mailer')[0];
             assert.ok(item.additionalTextEdits === undefined);
-            assert.ok(item.textEdit!.newText.startsWith('\\Twig_Environment '));
-            */
+            assert.ok(item.textEdit!.newText.startsWith('\\Swift_Mailer '));
         }
 
         {
