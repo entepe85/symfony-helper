@@ -32,6 +32,8 @@ export interface SymfonyHelperSettings {
     sourceFolders: string[];
 }
 
+export type SymfonyHelperSettingsResolver = () => Promise<SymfonyHelperSettings|null>;
+
 // this is for 'npm run coverage'
 let forcedPackagePath = process.env.FORCE_HELPER_DIRECTORY_PATH;
 if (forcedPackagePath !== undefined) {

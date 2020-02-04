@@ -64,13 +64,10 @@ import * as nikic from './nikic-php-parser';
 import {
     readFile,
     findFiles,
-    exec,
     AllTextDocuments,
     parsePhpDocBlock,
     fileExists,
     sqlSelectFields,
-    packagePath,
-    requestHttpCommandsHelper,
     SymfonyHelperSettings,
     ParsedDocBlock,
     throttle
@@ -78,6 +75,7 @@ import {
 
 import { tokenize as tokenizeDql, Token as DqlToken, TokenType as DqlTokenType } from './dql';
 import * as dql from './dql';
+import DirectSymfonyReader from './DirectSymfonyReader';
 
 // render call of twig template in php file
 export interface TemplateRenderCall {
@@ -846,26 +844,6 @@ function collectEntitiesAliases(tokens: DqlToken[], entities: { [className: stri
 }
 
 /**
- * Returns names of params of route path
- */
-function parseSymfonyRoutePath(routePath: string): string[] {
-    let params: string[] = [];
-
-    // I don't need to parse stuff like '{name<\d+?1>}' by myself because 'debug:router' does it for me
-    let regexp = /{(\w+)}/g;
-
-    let match;
-    do {
-        match = regexp.exec(routePath);
-        if (match !== null) {
-            params.push(match[1]);
-        }
-    } while (match !== null);
-
-    return params;
-}
-
-/**
  * Searches for scalar in map of maps at certain offset
  */
 function findYamlScalarOnSecondLevel(node: yaml.YAMLNode, key: string, offset: number): yaml.YAMLScalar | null {
@@ -1130,16 +1108,7 @@ export class Project {
         uri: string;
         globals: { name: string; offset: number; value: string }[];
     };
-    private routes: Map< /* name */ string, { path: string; pathParams: string[]; controller: string }> = new Map();
     private containerParametersPositions: { [fileUri: string]: { [name: string]: { offset: number } } } = Object.create(null);
-    private containerParameters: { [name: string]: any } = Object.create(null);
-
-    /**
-     * Use 'this.getAutowiredServices()' for full list.
-     */
-    private autowiredServices: { fullClassName: string; serviceId?: string }[] = [];
-
-    private doctrineEntityNamespaces: { [alias: string]: string } = Object.create(null);
 
     private readonly NAMESPACE_REGEXP = /^namespace\s+([\w\\]+)/m;
 
@@ -1148,10 +1117,10 @@ export class Project {
 
     private readonly TWIG_REGEXP = /TwigFunction|TwigFilter|TwigTest|Twig_Function|Twig_Filter|Twig_Test|getGlobals/;
 
-    private throttledScanRoutes: () => void;
-    private throttledScanContainerParameters: () => void;
-    private throttledScanAutowired: () => void;
-    private throttledScanDoctrineEntityNamespaces: () => void;
+    private throttledScanRoutes?: () => void;
+    private throttledScanContainerParameters?: () => void;
+    private throttledScanAutowired?: () => void;
+    private throttledScanDoctrineEntityNamespaces?: () => void;
 
     private isScanning = false;
 
@@ -1160,6 +1129,8 @@ export class Project {
     public templatesFolderUri: string;
     public sourceFolders: string[]; // Relative paths to folders with php and configuration. Elements must not start and end with '/'.
     private type: ProjectType = ProjectType.BASIC;
+
+    private symfonyReader?: DirectSymfonyReader;
 
     constructor(name: string, folderUri: string, allDocuments: AllTextDocuments) {
         this.name = name;
@@ -1206,61 +1177,46 @@ export class Project {
 
         this.sourceFolders = ['src'];
 
-        this.throttledScanRoutes = throttle(
-            () => {
-                this.scanRoutes()
-                    .catch(() => {});
-            },
-            3000,
-        );
+        if (this.type == ProjectType.SYMFONY) {
+            let symfonyReader = new DirectSymfonyReader(
+                () => this.getSettings(), // 'this.getSettings' is not defined right now. How to fix it?
+                this.getFolderPath(),
+            );
 
-        this.throttledScanContainerParameters = throttle(
-            () => {
-                this.scanContainerParameters()
-                    .catch(() => {});
-            },
-            3000,
-        );
+            this.symfonyReader = symfonyReader;
 
-        this.throttledScanAutowired = throttle(
-            () => {
-                this.scanAutowired()
-                    .catch(() => {});
-            },
-            3000,
-        );
+            this.throttledScanRoutes = throttle(
+                () => {
+                    symfonyReader.scanRoutes()
+                        .catch(() => {});
+                },
+                3000,
+            );
 
-        this.throttledScanDoctrineEntityNamespaces = throttle(
-            () => {
-                this.scanDoctrineEntityNamespaces()
-                    .catch(() => {});
-            },
-            1000,
-        );
-    }
+            this.throttledScanAutowired = throttle(
+                () => {
+                    symfonyReader.scanAutowiredServices()
+                        .catch(() => {});
+                },
+                3000,
+            );
 
-    private setRoute(name: string, routePath: string, controller: string): void {
-        let params = parseSymfonyRoutePath(routePath);
-        this.routes.set(name, { path: routePath, controller, pathParams: params });
-    }
+            this.throttledScanContainerParameters = throttle(
+                () => {
+                    symfonyReader.scanContainerParameters()
+                        .catch(() => {});
+                },
+                3000,
+            );
 
-    private getRoute(name: string): { path: string; controller: string } | undefined {
-        return this.routes.get(name);
-    }
-
-    private getAllRoutes() {
-        let result = [];
-
-        for (let row of this.routes) {
-            result.push({
-                name: row[0],
-                path: row[1].path,
-                pathParams: row[1].pathParams,
-                controller: row[1].controller,
-            });
+            this.throttledScanDoctrineEntityNamespaces = throttle(
+                () => {
+                    symfonyReader.scanDoctrineEntityNamespaces()
+                        .catch(() => {});
+                },
+                1000,
+            );
         }
-
-        return result;
     }
 
     public getFolderUri() {
@@ -1312,7 +1268,9 @@ export class Project {
         };
 
         // should be executed before collecting render calls
-        await this.scanDoctrineEntityNamespaces();
+        if (this.symfonyReader !== undefined) {
+            await this.symfonyReader.scanDoctrineEntityNamespaces();
+        }
 
         // searching services in xml-files in 'vendor/
         {
@@ -1509,11 +1467,20 @@ export class Project {
             }
         }
 
-        await this.scanRoutes();
+        if (this.symfonyReader !== undefined) {
+            // don't combine into one try-block! try each method.
+            try {
+                await this.symfonyReader.scanRoutes();
+            } catch {}
 
-        await this.scanContainerParameters();
+            try {
+                await this.symfonyReader.scanAutowiredServices();
+            } catch {}
 
-        await this.scanAutowired();
+            try {
+                await this.symfonyReader.scanContainerParameters();
+            } catch {}
+        }
 
         // searching for parameters in 'config/services.yaml'
         do {
@@ -1814,175 +1781,6 @@ export class Project {
         }
 
         this.containerParametersPositions[fileUri] = paramsPositions;
-    }
-
-    private async scanRoutes() {
-        if (this.type !== ProjectType.SYMFONY) {
-            return;
-        }
-
-        let settings = await this.getSettings();
-        if (settings === null) {
-            return;
-        }
-
-        let routesRaw = null;
-        try {
-            if (settings.consoleHelper.type === 'direct') {
-                routesRaw = await exec(
-                    settings.consoleHelper.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getRoutes']
-                );
-            } else if (settings.consoleHelper.type === 'http') {
-                routesRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'directCommand', 'getRoutes');
-            }
-        } catch {}
-
-        let routes = null;
-        if (routesRaw !== null) {
-            try {
-                routes = JSON.parse(routesRaw);
-            } catch {}
-        }
-
-        if (routes !== null) {
-            for (let name in routes) {
-                if (name.startsWith('_')) {
-                    continue;
-                }
-                this.setRoute(name, routes[name].path,routes[name].defaults._controller);
-            }
-        }
-    }
-
-    private async scanContainerParameters() {
-        if (this.type !== ProjectType.SYMFONY) {
-            return;
-        }
-
-        let settings = await this.getSettings();
-        if (settings === null) {
-            return;
-        }
-
-        let parametersRaw = null;
-        try {
-            if (settings.consoleHelper.type === 'direct') {
-                parametersRaw = await exec(
-                    settings.consoleHelper.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getParameters']
-                );
-            } else if (settings.consoleHelper.type === 'http') {
-                parametersRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'directCommand', 'getParameters');
-            }
-
-            // why response is not clean json?
-            if (parametersRaw !== null && !parametersRaw.trim().endsWith('}')) {
-                let jsonEndIndex = parametersRaw.lastIndexOf('}');
-                if (jsonEndIndex > 0) {
-                    parametersRaw = parametersRaw.substr(0, jsonEndIndex + 1);
-                }
-            }
-        } catch {}
-
-        let parameters = null;
-        if (parametersRaw !== null) {
-            try {
-                parameters = JSON.parse(parametersRaw);
-            } catch {}
-        }
-
-        if (parameters !== null) {
-            this.containerParameters = parameters;
-        }
-    }
-
-    private async scanAutowired() {
-        if (this.type !== ProjectType.SYMFONY) {
-            return;
-        }
-
-        let settings = await this.getSettings();
-        if (settings === null) {
-            return;
-        }
-
-        let responseRaw;
-        try {
-            if (settings.consoleHelper.type === 'direct') {
-                responseRaw = await exec(
-                    settings.consoleHelper.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'directCommand', 'getAutowiredServices']
-                );
-            } else if (settings.consoleHelper.type === 'http') {
-                responseRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'directCommand', 'getAutowiredServices');
-            }
-        } catch {}
-
-        if (responseRaw === undefined) {
-            return;
-        }
-
-        let autowiredServices = [];
-
-        let regexp = /^\s*([\w\\]+)\s+\(([\w\.]+)\)/;
-        let regexp2 = /^\s*([\w\\]+)\s*$/;
-        let lines = responseRaw.split('\n');
-
-        for (let line of lines) {
-            let match2 = regexp2.exec(line);
-            if (match2 !== null) {
-                let fullClassName = match2[1];
-                if (fullClassName.includes('\\')) {
-                    autowiredServices.push({ fullClassName });
-                }
-            } else {
-                let match = regexp.exec(line);
-                if (match !== null) {
-                    let fullClassName = match[1];
-                    let serviceId = match[2];
-                    autowiredServices.push({ fullClassName, serviceId });
-                }
-            }
-        }
-
-        this.autowiredServices = autowiredServices;
-    }
-
-    private async scanDoctrineEntityNamespaces() {
-        if (this.type !== ProjectType.SYMFONY) {
-            return;
-        }
-
-        let settings = await this.getSettings();
-        if (settings === null) {
-            return;
-        }
-
-        let responseRaw: any;
-        try {
-            if (settings.consoleHelper.type === 'direct') {
-                responseRaw = await exec(
-                    settings.consoleHelper.phpPath,
-                    [path.join(packagePath, 'php-bin/symfony-commands.php'), this.getFolderPath(), 'otherCommand', 'getEntityNamespaces']
-                );
-            } else if (settings.consoleHelper.type === 'http') {
-                responseRaw = await requestHttpCommandsHelper(settings.consoleHelper.webPath, 'otherCommand', 'getEntityNamespaces');
-            }
-        } catch {
-            return;
-        }
-
-        let response: any;
-        try {
-            response = JSON.parse(responseRaw);
-        } catch {
-            return;
-        }
-
-        if (response && response.result === 'success') {
-            this.doctrineEntityNamespaces = response.data;
-        }
     }
 
     private getFolderPath() {
@@ -2316,7 +2114,7 @@ export class Project {
 
                 let entities = this.getEntities();
 
-                let identifierToEntity = collectEntitiesAliases(tokens, entities, this.doctrineEntityNamespaces);
+                let identifierToEntity = collectEntitiesAliases(tokens, entities, this.getDoctrineEntityNamespaces());
 
                 let selectedEntityClassName = identifierToEntity[selectedName];
                 if (selectedEntityClassName === undefined) {
@@ -2429,6 +2227,10 @@ export class Project {
 
             // complete route in first argument (if it is also a string) of path() and url()
             do {
+                if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+                    break;
+                }
+
                 if (stringTokenContainingCursorIndex === null) {
                     break;
                 }
@@ -2458,7 +2260,7 @@ export class Project {
 
                 let stringToken = tokens[stringTokenContainingCursorIndex];
 
-                let routes = this.getAllRoutes();
+                let routes = this.symfonyReader.getAllRoutes();
 
                 let codeAfterCursor = text.substr(offset);
 
@@ -3080,6 +2882,10 @@ export class Project {
         } else {
             // complete route name in <a href="">
             do {
+                if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+                    break;
+                }
+
                 let textToCursor = text.substring(0, offset);
                 let match = /[^\w]href="([\w-]*)$/.exec(textToCursor);
                 if (match === null) {
@@ -3087,7 +2893,8 @@ export class Project {
                 }
 
                 let prefix = match[1];
-                let routes = this.getAllRoutes();
+
+                let routes = this.symfonyReader.getAllRoutes();
 
                 let items: CompletionItem[] = [];
                 for (let row of routes) {
@@ -3727,6 +3534,10 @@ export class Project {
 
         // completion of parameters and services in controllers
         do {
+            if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+                break;
+            }
+
             if (!this.isController(document)) {
                 break;
             }
@@ -3740,7 +3551,7 @@ export class Project {
                     let prefix = match[1];
 
                     let items: CompletionItem[] = [];
-                    for (let name in this.containerParameters) {
+                    for (let name in this.symfonyReader.getAllContainerParameters()) {
                         items.push({
                             label: name,
                             textEdit: {
@@ -3791,6 +3602,10 @@ export class Project {
 
         // complete route in UrlGeneratorInterface#generate() and AbstractController#generateUrl()
         do {
+            if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+                break;
+            }
+
             if (!this.isFromSourceFolders(document.uri)) {
                 break;
             }
@@ -3812,7 +3627,7 @@ export class Project {
 
             let prefix = match[1];
 
-            let routes = this.getAllRoutes();
+            let routes = this.symfonyReader.getAllRoutes();
 
             let codeAfterCursor = code.substr(offset);
 
@@ -3890,7 +3705,7 @@ export class Project {
 
         let entities = this.getEntities();
 
-        let identifierToEntity = collectEntitiesAliases(tokens, entities, this.doctrineEntityNamespaces);
+        let identifierToEntity = collectEntitiesAliases(tokens, entities, this.getDoctrineEntityNamespaces());
 
         let cursorOffsetInString = cursorOffset - stringLiteralOffset;
 
@@ -5090,8 +4905,9 @@ export class Project {
 
                     if (token.type === DqlTokenType.ALIASED_NAME) {
                         let [aliasPart, entityPart] = token.value.split(':');
-                        if (this.doctrineEntityNamespaces[aliasPart] !== undefined) {
-                            let queryFullClassName = this.doctrineEntityNamespaces[aliasPart] + '\\' + entityPart;
+                        let deNamespaces = this.getDoctrineEntityNamespaces();
+                        if (deNamespaces[aliasPart] !== undefined) {
+                            let queryFullClassName = deNamespaces[aliasPart] + '\\' + entityPart;
                             if (queryFullClassName === fullClassName) {
                                 let phpClassDocument = await this.getDocument(phpClass.fileUri);
                                 if (phpClassDocument !== null) {
@@ -5150,7 +4966,7 @@ export class Project {
             }
 
             for (let { literalOffset, tokens } of phpClass.parsedDqlQueries) {
-                let entitiesAliases = collectEntitiesAliases(tokens, this.getEntities(), this.doctrineEntityNamespaces);
+                let entitiesAliases = collectEntitiesAliases(tokens, this.getEntities(), this.getDoctrineEntityNamespaces());
 
                 for (let i = 0; i < tokens.length; i++) {
                     let token = tokens[i];
@@ -5439,8 +5255,8 @@ export class Project {
         {
             let result = this.phpTestContainerParameterName(document, code, scalarString);
 
-            if (result !== null) {
-                let value = this.containerParameters[result.name];
+            if (result !== null && this.symfonyReader !== undefined) {
+                let value = this.symfonyReader.getContainerParameter(result.name);
 
                 if (value !== undefined) {
                     let printValue: string;
@@ -6587,7 +6403,11 @@ export class Project {
     }
 
     private async routeLocation(name: string): Promise<Location | null> {
-        let route = this.getRoute(name);
+        if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+            return null;
+        }
+
+        let route = this.symfonyReader.getRoute(name);
 
         if (route === undefined) {
             return null;
@@ -6615,7 +6435,11 @@ export class Project {
     }
 
     private routeHoverMarkdown(name: string) {
-        let route = this.getRoute(name);
+        if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+            return null;
+        }
+
+        let route = this.symfonyReader.getRoute(name);
         if (route === undefined) {
             return null;
         }
@@ -7069,11 +6893,13 @@ export class Project {
                     return null;
                 }
 
-                if (this.doctrineEntityNamespaces[usedAlias] === undefined) {
+                let deNamespaces = this.getDoctrineEntityNamespaces();
+
+                if (deNamespaces[usedAlias] === undefined) {
                     return null;
                 }
 
-                entityClass = this.doctrineEntityNamespaces[usedAlias] + '\\' + usedEntity;
+                entityClass = deNamespaces[usedAlias] + '\\' + usedEntity;
             }
 
             const phpClass = await this.getPhpClass(entityClass);
@@ -7089,7 +6915,7 @@ export class Project {
 
         let entities = this.getEntities();
 
-        let identifierToEntity = collectEntitiesAliases(tokens, entities, this.doctrineEntityNamespaces);
+        let identifierToEntity = collectEntitiesAliases(tokens, entities, this.getDoctrineEntityNamespaces());
 
         let accessPath: string[] = [cursorToken.value];
         for (let i = cursorTokenIndex - 2; i >= 0; i -= 2) {
@@ -7441,15 +7267,24 @@ export class Project {
         }
 
         if (documentUri === this.folderUri + '/config/services.yaml') {
-            this.throttledScanContainerParameters();
+            if (this.throttledScanContainerParameters !== undefined) {
+                this.throttledScanContainerParameters();
+            }
         }
 
         if (documentUri === this.folderUri + '/config/packages/doctrine.yaml') {
-            this.throttledScanDoctrineEntityNamespaces();
+            if (this.throttledScanDoctrineEntityNamespaces !== undefined) {
+                this.throttledScanDoctrineEntityNamespaces();
+            }
         }
 
-        this.throttledScanRoutes();
-        this.throttledScanAutowired();
+        if (this.throttledScanRoutes !== undefined) {
+            this.throttledScanRoutes();
+        }
+
+        if (this.throttledScanAutowired !== undefined) {
+            this.throttledScanAutowired();
+        }
     }
 
     /**
@@ -7546,6 +7381,10 @@ export class Project {
     }
 
     private getAutowiredServices() {
+        if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
+            return [];
+        }
+
         let moreServices = [];
 
         moreServices.push({
@@ -7560,7 +7399,9 @@ export class Project {
             }
         }
 
-        let result = this.autowiredServices.concat(moreServices);
+        let basicServices = this.symfonyReader.getAllAutowiredServices();
+
+        let result = basicServices.concat(moreServices);
 
         return result;
     }
@@ -8028,5 +7869,9 @@ export class Project {
         }
 
         return items;
+    }
+
+    private getDoctrineEntityNamespaces() {
+        return (this.symfonyReader === undefined) ? {} : this.symfonyReader.getAllDoctrineEntitynamespaces();
     }
 }
