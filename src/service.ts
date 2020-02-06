@@ -51,6 +51,7 @@ import {
 } from './utils';
 
 import { Project } from './project';
+import TwigService from './TwigService';
 
 export class Service {
     private allDocuments: AllTextDocuments;
@@ -70,8 +71,12 @@ export class Service {
 
     private getSettings?: (uri: string) => Promise<SymfonyHelperSettings|null>;
 
+    private twigService: TwigService;
+
     constructor(allDocuments: AllTextDocuments) {
         this.allDocuments = allDocuments;
+
+        this.twigService = new TwigService;
     }
 
     public setConnection(connection: IConnection | undefined) {
@@ -158,6 +163,16 @@ export class Service {
         let project = this.findFileProject(documentUri);
 
         if (project === null) {
+            return result;
+        }
+
+        let document = await this.getDocument(documentUri);
+        if (document === null) {
+            return result;
+        }
+
+        if (documentUri.endsWith('.twig')) {
+            result.items = await this.twigService.complete(project, document, params.position);
             return result;
         }
 
