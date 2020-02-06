@@ -56,7 +56,6 @@ import {
     throttle
 } from './utils';
 
-import { tokenize as tokenizeDql, Token as DqlToken, TokenType as DqlTokenType } from './dql';
 import * as dql from './dql';
 import DirectSymfonyReader from './DirectSymfonyReader';
 
@@ -179,7 +178,7 @@ export interface PhpClass {
     twigExtensionElements?: TwigExtensionCallable[];
     twigExtensionGlobals?: TwigExtensionGlobal[];
     bundle?: { name: string; folderUri: string };
-    parsedDqlQueries?: { literalOffset: number; tokens: DqlToken[] }[];
+    parsedDqlQueries?: { literalOffset: number; tokens: dql.Token[] }[];
     shortHelp?: string;
     constants: php.PhpClassConstant[];
     properties: php.PhpClassProperty[];
@@ -757,18 +756,18 @@ function isLooksLikeDQL(str: string): boolean {
 /**
  * Returns object of form { p: 'App\Entity\Product', ... }
  */
-function collectEntitiesAliases(tokens: DqlToken[], entities: { [className: string]: EntityData }, entityNamespaces: { [alias: string]: string }): { [alias: string]: string } {
+function collectEntitiesAliases(tokens: dql.Token[], entities: { [className: string]: EntityData }, entityNamespaces: { [alias: string]: string }): { [alias: string]: string } {
     let result: { [alias: string]: string } = Object.create(null);
 
     let tokenToEntityClass = (tokenIndex: number) => {
         let token = tokens[tokenIndex];
 
-        if (token.type === DqlTokenType.FULLY_QUALIFIED_NAME) {
+        if (token.type === dql.TokenType.FULLY_QUALIFIED_NAME) {
             let entityClass = token.value;
             if (entities[entityClass] !== undefined) {
                 return entityClass;
             }
-        } else if (token.type === DqlTokenType.ALIASED_NAME) {
+        } else if (token.type === dql.TokenType.ALIASED_NAME) {
             let [usedAlias, usedEntity] = token.value.split(':');
             if (usedAlias !== undefined && usedEntity !== undefined && entityNamespaces[usedAlias] !== undefined) {
                 let entityClass = entityNamespaces[usedAlias] + '\\' + usedEntity;
@@ -783,9 +782,9 @@ function collectEntitiesAliases(tokens: DqlToken[], entities: { [className: stri
     for (let i = 0; i < tokens.length; i++) {
         let token = tokens[i];
 
-        if (token.type === DqlTokenType.FROM && i + 2 < tokens.length) {
-            if ((tokens[i+1].type === DqlTokenType.FULLY_QUALIFIED_NAME || tokens[i+1].type === DqlTokenType.ALIASED_NAME)
-                    && tokens[i+2].type === DqlTokenType.IDENTIFIER) {
+        if (token.type === dql.TokenType.FROM && i + 2 < tokens.length) {
+            if ((tokens[i+1].type === dql.TokenType.FULLY_QUALIFIED_NAME || tokens[i+1].type === dql.TokenType.ALIASED_NAME)
+                    && tokens[i+2].type === dql.TokenType.IDENTIFIER) {
                 let entityClass = tokenToEntityClass(i+1);
                 if (entityClass !== null) {
                     result[tokens[i+2].value] = entityClass;
@@ -793,13 +792,13 @@ function collectEntitiesAliases(tokens: DqlToken[], entities: { [className: stri
             }
         }
 
-        if (token.type === DqlTokenType.JOIN) {
+        if (token.type === dql.TokenType.JOIN) {
             if (i + 4 < tokens.length
-                    && tokens[i+1].type === DqlTokenType.IDENTIFIER
-                    && tokens[i+2].type === DqlTokenType.DOT
-                    && tokens[i+3].type === DqlTokenType.IDENTIFIER
+                    && tokens[i+1].type === dql.TokenType.IDENTIFIER
+                    && tokens[i+2].type === dql.TokenType.DOT
+                    && tokens[i+3].type === dql.TokenType.IDENTIFIER
                     && dql.touchEachOther(tokens[i+1], tokens[i+2], tokens[i+3])
-                    && tokens[i+4].type === DqlTokenType.IDENTIFIER) {
+                    && tokens[i+4].type === dql.TokenType.IDENTIFIER) {
                 let alias = tokens[i+4].value;
                 let existingAlias = tokens[i+1].value;
                 let existingAliasField = tokens[i+3].value;
@@ -813,8 +812,8 @@ function collectEntitiesAliases(tokens: DqlToken[], entities: { [className: stri
                     }
                 }
             } else if (i + 2 < tokens.length
-                    && (tokens[i+1].type === DqlTokenType.FULLY_QUALIFIED_NAME || tokens[i+1].type === DqlTokenType.ALIASED_NAME)
-                    && tokens[i+2].type === DqlTokenType.IDENTIFIER) {
+                    && (tokens[i+1].type === dql.TokenType.FULLY_QUALIFIED_NAME || tokens[i+1].type === dql.TokenType.ALIASED_NAME)
+                    && tokens[i+2].type === dql.TokenType.IDENTIFIER) {
                 let entityClass = tokenToEntityClass(i+1);
                 if (entityClass !== null) {
                     result[tokens[i+2].value] = entityClass;
@@ -1607,7 +1606,7 @@ export class Project {
                         let stringLiteralOffset = str.attributes.startFilePos + scalarStringValueIndex;
 
                         if (isLooksLikeDQL(str.value)) {
-                            let dqlTokens = tokenizeDql(str.value);
+                            let dqlTokens = dql.tokenize(str.value);
                             parsedDqlQueries.push({
                                 literalOffset: stringLiteralOffset,
                                 tokens: dqlTokens,
@@ -2086,11 +2085,11 @@ export class Project {
                     break;
                 }
 
-                let tokens = tokenizeDql(firstArg.value.value);
+                let tokens = dql.tokenize(firstArg.value.value);
                 let selectedName;
                 if (tokens.length >= 2
                         && tokens[0].value.toLowerCase() === 'select'
-                        && tokens[1].type === DqlTokenType.IDENTIFIER) {
+                        && tokens[1].type === dql.TokenType.IDENTIFIER) {
                     selectedName = tokens[1].value;
                 } else {
                     break;
@@ -2488,7 +2487,7 @@ export class Project {
 
         let stringLiteralOffset = scalarString.attributes.startFilePos + scalarStringValueIndex;
 
-        let tokens = tokenizeDql(scalarString.value);
+        let tokens = dql.tokenize(scalarString.value);
 
         let entities = this.getEntities();
 
@@ -2499,7 +2498,7 @@ export class Project {
         let dotBeforeCursorIndex: number | undefined;
         for (let i = 0; i < tokens.length; i++) {
             let token = tokens[i];
-            if (token.type === DqlTokenType.DOT) {
+            if (token.type === dql.TokenType.DOT) {
                 if (token.position < cursorOffsetInString) {
                     dotBeforeCursorIndex = i;
                 } else {
@@ -2523,8 +2522,8 @@ export class Project {
             let possibleIdentifier = tokens[i];
             let possibleDot = tokens[i + 1];
 
-            if (possibleDot.type === DqlTokenType.DOT) {
-                if (possibleIdentifier.type === DqlTokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
+            if (possibleDot.type === dql.TokenType.DOT) {
+                if (possibleIdentifier.type === dql.TokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
                     accessPath.unshift(possibleIdentifier.value);
                 } else {
                     // something bad happened
@@ -3407,7 +3406,7 @@ export class Project {
 
             for (let { literalOffset, tokens } of phpClass.parsedDqlQueries) {
                 for (let token of tokens) {
-                    if (token.type === DqlTokenType.FULLY_QUALIFIED_NAME && token.value === fullClassName) {
+                    if (token.type === dql.TokenType.FULLY_QUALIFIED_NAME && token.value === fullClassName) {
                         let phpClassDocument = await this.getDocument(phpClass.fileUri);
                         if (phpClassDocument !== null) {
                             result.push({
@@ -3420,7 +3419,7 @@ export class Project {
                         }
                     }
 
-                    if (token.type === DqlTokenType.ALIASED_NAME) {
+                    if (token.type === dql.TokenType.ALIASED_NAME) {
                         let [aliasPart, entityPart] = token.value.split(':');
                         let deNamespaces = this.getDoctrineEntityNamespaces();
                         if (deNamespaces[aliasPart] !== undefined) {
@@ -3487,7 +3486,7 @@ export class Project {
 
                 for (let i = 0; i < tokens.length; i++) {
                     let token = tokens[i];
-                    if (token.type !== DqlTokenType.IDENTIFIER) {
+                    if (token.type !== dql.TokenType.IDENTIFIER) {
                         continue;
                     }
 
@@ -3496,8 +3495,8 @@ export class Project {
                         let possibleDot = tokens[j + 1];
                         let possibleIdentifier = tokens[j];
 
-                        if (possibleDot.type === DqlTokenType.DOT) {
-                            if (possibleIdentifier.type === DqlTokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
+                        if (possibleDot.type === dql.TokenType.DOT) {
+                            if (possibleIdentifier.type === dql.TokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
                                 accessPath.unshift(possibleIdentifier.value);
                             } else {
                                 // something wrong happened
@@ -4755,11 +4754,11 @@ export class Project {
 
         let cursorTokenIndex: number | undefined;
 
-        let tokens = tokenizeDql(scalarString.value);
+        let tokens = dql.tokenize(scalarString.value);
         for (let i = 0; i < tokens.length; i++) {
             let t = tokens[i];
             // tokens often touch each other. filtered tokens should not touch each other.
-            if (t.type === DqlTokenType.IDENTIFIER || t.type === DqlTokenType.FULLY_QUALIFIED_NAME || t.type === DqlTokenType.ALIASED_NAME) {
+            if (t.type === dql.TokenType.IDENTIFIER || t.type === dql.TokenType.FULLY_QUALIFIED_NAME || t.type === dql.TokenType.ALIASED_NAME) {
                 if (t.position <= offsetInString && offsetInString <= t.position + t.value.length) {
                     cursorTokenIndex = i;
                     break;
@@ -4776,10 +4775,10 @@ export class Project {
         let hoverLeftOffset = scalarStringValueOffset + cursorToken.position;
         let hoverRightOffset = hoverLeftOffset + cursorToken.value.length;
 
-        if (cursorToken.type === DqlTokenType.FULLY_QUALIFIED_NAME || cursorToken.type === DqlTokenType.ALIASED_NAME) {
+        if (cursorToken.type === dql.TokenType.FULLY_QUALIFIED_NAME || cursorToken.type === dql.TokenType.ALIASED_NAME) {
             let entityClass: string;
 
-            if (cursorToken.type === DqlTokenType.FULLY_QUALIFIED_NAME) {
+            if (cursorToken.type === dql.TokenType.FULLY_QUALIFIED_NAME) {
                 entityClass = cursorToken.value;
             } else {
                 let [usedAlias, usedEntity] = cursorToken.value.split(':');
@@ -4816,8 +4815,8 @@ export class Project {
             let possibleDot = tokens[i + 1];
             let possibleIdentifier = tokens[i];
 
-            if (possibleDot.type === DqlTokenType.DOT) {
-                if (possibleIdentifier.type === DqlTokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
+            if (possibleDot.type === dql.TokenType.DOT) {
+                if (possibleIdentifier.type === dql.TokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
                     accessPath.unshift(possibleIdentifier.value);
                 } else {
                     // something wrong happened
