@@ -28,13 +28,6 @@ import {
 } from 'vscode-languageserver';
 
 import {
-    PhpClassConstant,
-    PhpClassProperty,
-    PhpClassMethod,
-    PhpClassSomeInfo,
-} from './php';
-
-import {
     tokenize as tokenizeTwig,
     TokenType as TwigTokenType,
     tokenUnderCursor as twigTokenUnderCursor,
@@ -193,9 +186,9 @@ export interface PhpClass {
     bundle?: { name: string; folderUri: string };
     parsedDqlQueries?: { literalOffset: number; tokens: DqlToken[] }[];
     shortHelp?: string;
-    constants: PhpClassConstant[];
-    properties: PhpClassProperty[];
-    methods: PhpClassMethod[];
+    constants: php.PhpClassConstant[];
+    properties: php.PhpClassProperty[];
+    methods: php.PhpClassMethod[];
 }
 
 interface PlainSymbolTable {
@@ -278,7 +271,7 @@ function commentNodeToShortHelp(node: nikic.Comment_Doc | null): string | null {
     return null;
 }
 
-export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]): PhpClassSomeInfo | null {
+export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]): php.PhpClassSomeInfo | null {
     if (stmts.length === 0) {
         return null;
     }
@@ -300,9 +293,9 @@ export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]):
 
     let nameResolverData = nikic.findNameResolverData(stmts);
 
-    let constants: PhpClassConstant[] = [];
-    let methods: PhpClassMethod[] = [];
-    let properties: PhpClassProperty[] = [];
+    let constants: php.PhpClassConstant[] = [];
+    let methods: php.PhpClassMethod[] = [];
+    let properties: php.PhpClassProperty[] = [];
 
     for (let stmt of classStmt.stmts) {
         let isPublic = (stmt.flags & (nikic.ClassModifier.MODIFIER_PROTECTED + nikic.ClassModifier.MODIFIER_PRIVATE)) === 0;
@@ -314,7 +307,7 @@ export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]):
             let constHelp = commentNodeToShortHelp(constCommentNode);
 
             for (let c of stmt.consts) {
-                let constData: PhpClassConstant = {
+                let constData: php.PhpClassConstant = {
                     isPublic,
                     name: c.name.name,
                     offset: (stmt.consts.length === 1) ? offset : c.attributes.startFilePos,
@@ -338,7 +331,7 @@ export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]):
             let propHelp = commentNodeToShortHelp(propCommentNode);
 
             for (let prop of stmt.props) {
-                let propData: PhpClassProperty = {
+                let propData: php.PhpClassProperty = {
                     isPublic,
                     name: prop.name.name,
                     offset: (stmt.props.length === 1) ? offset : prop.attributes.startFilePos,
@@ -353,7 +346,7 @@ export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]):
             }
 
         } else if (stmt.nodeType === 'Stmt_ClassMethod') {
-            let methodData: PhpClassMethod = {
+            let methodData: php.PhpClassMethod = {
                 isPublic,
                 name: stmt.name.name,
                 offset: stmt.attributes.startFilePos,
@@ -391,7 +384,7 @@ export function extractSomePhpClassInfo(code: string, stmts: nikic.Statement[]):
         }
     }
 
-    let result: PhpClassSomeInfo = {
+    let result: php.PhpClassSomeInfo = {
         constants,
         properties,
         methods,
@@ -524,7 +517,7 @@ export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]
                     secondElementStringLiteral = arrayItems[1].value.value;
                 }
 
-                let foundMethod: PhpClassMethod | undefined;
+                let foundMethod: php.PhpClassMethod | undefined;
                 if (firstElementIsThis && secondElementStringLiteral !== undefined) {
                     foundMethod = classMethods.filter(row => row.name === secondElementStringLiteral)[0];
                 }
