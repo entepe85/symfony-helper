@@ -23,21 +23,16 @@ import {
     MarkupKind,
     TextEdit,
     ReferenceParams,
-    SignatureHelp,
-    ParameterInformation,
 } from 'vscode-languageserver';
 
 import {
     tokenize as tokenizeTwig,
     TokenType as TwigTokenType,
     tokenUnderCursor as twigTokenUnderCursor,
-    stringTokenContainingCursor as twigStringTokenContainingCursor,
     tokenValue as twigTokenValue,
     Token as TwigToken,
-    TwigPiece,
     findTwigPieces,
     twigFileMacroImports,
-    twigMacroImports,
     macroArguments,
     findExpressionData,
     Scope,
@@ -887,7 +882,7 @@ interface TemplateMacroDescription {
     arguments: { name: string }[];
 }
 
-interface TemplateDescription {
+export interface TemplateDescription {
     name: string; // which is used in 'render()'
     fileUri: string;
     extends?: string; // value of {%extends%}. don't remove '!' from '@!AnyBundle/...'.
@@ -922,7 +917,7 @@ type TwigTestObjectResult = {
     hoverRightOffset: number;
 };
 
-function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string) {
+export function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string) {
     let helpPieces: string[] = ['```'];
 
     let prefix = 'function';
@@ -1772,7 +1767,7 @@ export class Project {
         this.containerParametersPositions[fileUri] = paramsPositions;
     }
 
-    private getFolderPath() {
+    public getFolderPath() {
         return URI.parse(this.folderUri).fsPath;
     }
 
@@ -2805,9 +2800,7 @@ export class Project {
             return null;
         }
 
-        if (documentUri.endsWith('.twig')) {
-            return await this.definitionTwig(document, params.position);
-        } else if (documentUri.endsWith('.php')) {
+        if (documentUri.endsWith('.php')) {
             return await this.definitionPhp(document, params.position);
         } else if (documentUri.endsWith('.yaml')) {
             return await this.definitionYaml(document, params.position);
@@ -3121,274 +3114,6 @@ export class Project {
                 }
             }
         }
-
-        return null;
-    }
-
-    private async definitionTwig(document: TextDocument, position: Position): Promise<Definition | null> {
-        let template = this.templates[document.uri];
-        if (template === undefined) {
-            return null;
-        }
-
-        let code = document.getText();
-        let offset = document.offsetAt(position);
-
-        let parsed = twigFullParse(code);
-        let { tokens, pieces } = parsed;
-
-        let cursorPiece: TwigPiece | null = null;
-        for (let p of pieces) {
-            if (p.start <= offset && offset <= p.end) {
-                cursorPiece = p;
-                break;
-            }
-        }
-
-        if (cursorPiece === null) {
-            return null;
-        }
-
-        // test name of {% block %}
-        {
-            let result = this.twigTestBlockName(code, tokens, template, offset);
-
-            if (result !== null) {
-                let locations: Location[] = [];
-
-                for (let definition of result.definitions) {
-                    if (definition.templateName === template.name) {
-                        continue;
-                    }
-
-                    let templateInfo = this.getTemplate(definition.templateName);
-                    if (templateInfo === null) {
-                        continue;
-                    }
-
-                    let definitionDocument = await this.getDocument(templateInfo.fileUri);
-                    if (definitionDocument === null) {
-                        continue;
-                    }
-
-                    let definitionPosition = definitionDocument.positionAt(definition.offset);
-
-                    locations.push({
-                        uri: templateInfo.fileUri,
-                        range: Range.create(definitionPosition, definitionPosition),
-                    });
-                }
-
-                locations.reverse();
-
-                return locations;
-            }
-        }
-
-        // test route in 'path()' or 'url()'
-        {
-            let result = this.twigTestRouteName(code, tokens, offset);
-
-            if (result !== null) {
-                let controllerLocation = await this.routeLocation(result.route);
-                if (controllerLocation !== null) {
-                    return controllerLocation;
-                }
-            }
-        }
-
-        // test argument of 'constant()'
-        {
-            let result = this.twigTestConstantFunction(code, tokens, offset);
-
-            if (result !== null) {
-                if (result.constantName === undefined) {
-                    return this.phpClassLocation(result.className);
-                } else {
-                    return this.phpClassLocation(result.className, 'constant', result.constantName);
-                }
-            }
-        }
-
-        // test template name
-        {
-            let result = this.twigTestTemplateName(code, tokens, offset);
-
-            if (result !== null) {
-                if (result.startsWith('@')) {
-                    let match = /^@!?(\w+)\//.exec(result);
-                    if (match !== null) {
-                        let bundleName = match[1];
-                        let bundleInfo = this.getBundleInfo(bundleName + 'Bundle');
-                        if (bundleInfo !== null) {
-                            let templateName = result.substr(match[0].length);
-
-                            let locations: Location[] = [];
-
-                            if (result[1] !== '!') {
-                                let overridePath = '/templates/bundles/' + bundleName + 'Bundle/' + templateName;
-                                if (await fileExists(this.getFolderPath() + overridePath)) {
-                                    locations.push({
-                                        uri: this.folderUri + overridePath,
-                                        range: Range.create(0, 0, 0, 0),
-                                    });
-                                }
-                            }
-
-                            locations.push({
-                                uri: bundleInfo.folderUri + '/Resources/views/' + templateName,
-                                range: Range.create(0, 0, 0, 0),
-                            });
-
-                            return locations;
-                        }
-                    }
-                }
-
-                return {
-                    uri: this.templatesFolderUri + '/' + result,
-                    range: Range.create(0, 0, 0, 0),
-                };
-            }
-        }
-
-        // test '{%from%} for imported macros' and 'macro calls'
-        {
-            let result = this.twigTestMacroImport(parsed, offset);
-
-            if (result === null) {
-                result = this.twigTestMacroCall(parsed, offset);
-            }
-
-            if (result !== null) {
-                let { templateName, macroName } = result;
-
-                let macroTemplate = this.getTemplate(templateName);
-
-                if (macroTemplate !== null) {
-                    let macro = macroTemplate.macros.find(row => row.name === macroName);
-                    let templateDocument = await this.getDocument(this.templatesFolderUri + '/' + macroTemplate.name);
-
-                    if (macro !== undefined && templateDocument !== null) {
-                        let macroPosition = templateDocument.positionAt(macro.offset);
-
-                        return {
-                            uri: templateDocument.uri,
-                            range: Range.create(macroPosition, macroPosition),
-                        };
-                    }
-                }
-            }
-        }
-
-        // tests for variables and functions
-        {
-            let result = this.twigTestObject(document.uri, parsed, offset);
-
-            if (result !== null) {
-                if (result.type === 'function') {
-                    let extensionDocument = await this.getDocument(result.fileUri);
-
-                    if (extensionDocument !== null) {
-                        let elementPosition: Position;
-
-                        if (result.element.implementation !== undefined) {
-                            elementPosition = extensionDocument.positionAt(result.element.implementation.offset);
-                        } else {
-                            elementPosition = extensionDocument.positionAt(result.element.constructorOffset);
-                        }
-
-                        return {
-                            uri: result.fileUri,
-                            range: Range.create(elementPosition, elementPosition),
-                        };
-                    }
-                } else if (result.type === 'renderParams') {
-                    let locations: Location[] = [];
-
-                    for (let row of result.params) {
-                        let callerDocument = await this.getDocument(row.callerFileUri);
-
-                        if (callerDocument !== null) {
-                            let paramPosition = callerDocument.positionAt(row.paramOffset);
-
-                            locations.push({
-                                uri: row.callerFileUri,
-                                range: Range.create(paramPosition, paramPosition)
-                            });
-                        }
-                    }
-
-                    return locations;
-
-                } else if (result.type === 'global') {
-                    let twigYamlDocument = await this.getDocument(result.fileUri);
-
-                    if (twigYamlDocument !== null) {
-                        let globalPosition = twigYamlDocument.positionAt(result.offset);
-
-                        return {
-                            uri: result.fileUri,
-                            range: Range.create(globalPosition, globalPosition),
-                        };
-                    }
-                } else if (result.type === 'macroFileImport') {
-                    return {
-                        uri: this.templatesFolderUri + '/' + result.templateName,
-                        range: Range.create(0, 0, 0, 0),
-                    };
-                }
-            }
-        }
-
-        // new way of testing variables and functions
-        do {
-            let nameTokenUnderCursorIndex = tokenUnderCursor(tokens, TwigTokenType.NAME, offset);
-            if (nameTokenUnderCursorIndex === null) {
-                break;
-            }
-
-            let initialScope = new Scope();
-
-            let params = await this.collectRenderCallsParams(template.name);
-            for (let name in params) {
-                initialScope.setValue(name, params[name]);
-            }
-
-            let expressionData = await findExpressionData(
-                parsed,
-                initialScope,
-                (className: string) => this.getPhpClass(className),
-                (name: string) => this.twigFunctionReturnType(name)
-            );
-
-            let nameTokenInfo = expressionData.names[nameTokenUnderCursorIndex];
-            if (nameTokenInfo === undefined) {
-                break;
-            }
-
-            if (nameTokenInfo.type === 'classMethod') {
-                // it looks like a hack
-                let propName: string | undefined;
-                if (nameTokenInfo.methodName.startsWith('get') || nameTokenInfo.methodName.startsWith('has')) {
-                    propName = nameTokenInfo.methodName.substr(3);
-                } else if (nameTokenInfo.methodName.startsWith('is')) {
-                    propName = nameTokenInfo.methodName.substr(2);
-                }
-                if (propName !== undefined && propName.length > 0) {
-                    propName = propName[0].toLowerCase() + propName.substr(1);
-
-                    let loc = await this.phpClassLocation(nameTokenInfo.className, 'property', propName);
-                    if (loc !== null) {
-                        return loc;
-                    }
-                }
-
-                return this.phpClassLocation(nameTokenInfo.className, 'method', nameTokenInfo.methodName);
-            } else if (nameTokenInfo.type === 'classProperty') {
-                return this.phpClassLocation(nameTokenInfo.className, 'property', nameTokenInfo.propertyName);
-            }
-        } while (false);
 
         return null;
     }
@@ -3880,8 +3605,6 @@ export class Project {
 
         if (documentUri.endsWith('.php')) {
             return await this.hoverPhp(document, params.position);
-        } else if (documentUri.endsWith('.twig')) {
-            return await this.hoverTwig(document, params.position);
         } else if (documentUri.endsWith('.xml')) {
             return await this.hoverXml(document, params.position);
         } else if (documentUri.endsWith('.yaml')) {
@@ -4170,303 +3893,6 @@ export class Project {
         return null;
     }
 
-    private async hoverTwig(document: TextDocument, position: Position): Promise<Hover | null> {
-        let template = this.templates[document.uri];
-        if (template === undefined) {
-            return null;
-        }
-
-        let code = document.getText();
-        let offset = document.offsetAt(position);
-
-        let parsed = twigFullParse(code);
-
-        let { tokens, pieces } = parsed;
-
-        let cursorPiece: TwigPiece | null = null;
-        for (let p of pieces) {
-            if (p.start <= offset && offset <= p.end) {
-                cursorPiece = p;
-                break;
-            }
-        }
-
-        if (cursorPiece === null) {
-            return null;
-        }
-
-        // test name of {% block %}
-        {
-            let result = this.twigTestBlockName(code, tokens, template, offset);
-
-            if (result !== null) {
-                let blockDefinitions = result.definitions;
-
-                let hoverValuePieces = ['```'];
-
-                for (let i = 0; i < blockDefinitions.length; i++) {
-                    let definition = blockDefinitions[blockDefinitions.length - 1 - i];
-                    if (i === 0) {
-                        hoverValuePieces.push('defined in ' + definition.templateName);
-                    } else {
-                        hoverValuePieces.push('used in ' + definition.templateName);
-                    }
-                }
-
-                hoverValuePieces.push('```');
-
-                return {
-                    contents: {
-                        value: hoverValuePieces.join('\n'),
-                        kind: MarkupKind.Markdown,
-                    },
-                    range: Range.create(
-                        document.positionAt(result.hoverLeftOffset),
-                        document.positionAt(result.hoverRightOffset)
-                    ),
-                };
-            }
-        }
-
-        // test route in 'path()' or 'url()'
-        {
-            let result = this.twigTestRouteName(code, tokens, offset);
-
-            if (result !== null) {
-                let hoverMarkdown = this.routeHoverMarkdown(result.route);
-                if (hoverMarkdown !== null) {
-                    return {
-                        contents: {
-                            value: hoverMarkdown,
-                            kind: MarkupKind.Markdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        ),
-                    };
-                }
-            }
-        }
-
-        // test argument of 'constant()'
-        {
-            let result = this.twigTestConstantFunction(code, tokens, offset);
-
-            if (result !== null) {
-                let hoverMarkdown: string | null = null;
-
-                if (result.constantName === undefined) {
-                    hoverMarkdown = await this.phpClassHoverMarkdown(result.className);
-                } else {
-                    hoverMarkdown = await this.phpClassHoverMarkdown(result.className, 'constant', result.constantName);
-                }
-
-                if (hoverMarkdown !== null) {
-                    return {
-                        contents: {
-                            kind: MarkupKind.Markdown,
-                            value: hoverMarkdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                }
-            }
-        }
-
-        {
-            let result = this.twigTestMacroImport(parsed, offset);
-
-            if (result === null) {
-                result = this.twigTestMacroCall(parsed, offset);
-            }
-
-            if (result !== null) {
-                let { templateName, macroName } = result;
-
-                let macroTemplate = this.getTemplate(templateName);
-
-                if (macroTemplate !== null) {
-                    let macro = macroTemplate.macros.find(row => row.name === macroName);
-
-                    if (macro !== undefined) {
-                        let markdownPieces = ['```'];
-                        if (macro.comment !== undefined) {
-                            markdownPieces.push(macro.comment);
-                            markdownPieces.push('');
-                        }
-                        markdownPieces.push(macro.definitionString);
-                        markdownPieces.push('```');
-
-                        return {
-                            contents: {
-                                kind: MarkupKind.Markdown,
-                                value: markdownPieces.join('\n'),
-                            },
-                            range: Range.create(
-                                document.positionAt(result.hoverLeftOffset),
-                                document.positionAt(result.hoverRightOffset)
-                            )
-                        };
-                    }
-                }
-            }
-        }
-
-        // tests for variables and functions
-        {
-            let result = this.twigTestObject(document.uri, parsed, offset);
-
-            if (result !== null) {
-                if (result.type === 'function') {
-                    let { element, fileUri } = result;
-
-                    let extensionFilePath = fileUri.substr((this.folderUri+'/').length);
-
-                    let hoverValue = hoverForTwigExtension(element, extensionFilePath);
-
-                    return {
-                        contents: {
-                            kind: MarkupKind.Markdown,
-                            value: hoverValue,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                } else if (result.type === 'renderParams') {
-                    let markdownPieces = ['```', 'render parameter'];
-
-                    for (let param of result.params) {
-                        markdownPieces.push(param.className + '#' + param.methodName);
-                    }
-
-                    markdownPieces.push('```');
-
-                    return {
-                        contents: {
-                            kind: MarkupKind.Markdown,
-                            value: markdownPieces.join('\n'),
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                } else if (result.type === 'global') {
-                    let markdownPieces = ['```'];
-
-                    let value = result.value;
-                    if (value !== undefined && !(value.includes('\n') || value.includes('\r'))) {
-                        markdownPieces.push(`${result.name} = ${value}`);
-                    }
-
-                    let relativePath = result.fileUri.substr(this.folderUri.length);
-                    markdownPieces.push(`from '${relativePath}'`);
-
-                    markdownPieces.push('```');
-
-                    return {
-                        contents: {
-                            kind: MarkupKind.Markdown,
-                            value: markdownPieces.join('\n'),
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                } else if (result.type === 'macroFileImport') {
-                    let markdownPieces = [
-                        '```',
-                        `macro collection '${result.templateName}'`,
-                        '```',
-                    ];
-
-                    return {
-                        contents: {
-                            kind: MarkupKind.Markdown,
-                            value: markdownPieces.join('\n'),
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                }
-            }
-        }
-
-        // new way of testing variables and functions
-        do {
-            let nameTokenUnderCursorIndex = tokenUnderCursor(tokens, TwigTokenType.NAME, offset);
-            if (nameTokenUnderCursorIndex === null) {
-                break;
-            }
-
-            let initialScope = new Scope();
-
-            let params = await this.collectRenderCallsParams(template.name);
-            for (let name in params) {
-                initialScope.setValue(name, params[name]);
-            }
-
-            let expressionData = await findExpressionData(
-                parsed,
-                initialScope,
-                (className: string) => this.getPhpClass(className),
-                (name: string) => this.twigFunctionReturnType(name)
-            );
-
-            let nameTokenInfo = expressionData.names[nameTokenUnderCursorIndex];
-            if (nameTokenInfo === undefined) {
-                break;
-            }
-
-            let nameToken = tokens[nameTokenUnderCursorIndex];
-            let hoverMarkdown: string | null = null;
-
-            if (nameTokenInfo.type === 'classMethod') {
-                // it's a hack. I should test body of method for used field
-                let propName: string | undefined;
-                if (nameTokenInfo.methodName.startsWith('get') || nameTokenInfo.methodName.startsWith('has')) {
-                    propName = nameTokenInfo.methodName.substr(3);
-                } else if (nameTokenInfo.methodName.startsWith('is')) {
-                    propName = nameTokenInfo.methodName.substr(2);
-                }
-                if (propName !== undefined && propName.length > 0) {
-                    propName = propName[0].toLowerCase() + propName.substr(1);
-                    hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'property', propName);
-                }
-
-                if (hoverMarkdown === null) {
-                    hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'method', nameTokenInfo.methodName);
-                }
-            } else if (nameTokenInfo.type === 'classProperty') {
-                hoverMarkdown = await this.phpClassHoverMarkdown(nameTokenInfo.className, 'property', nameTokenInfo.propertyName);
-            }
-
-            if (hoverMarkdown !== null) {
-                return {
-                    contents: {
-                        kind: MarkupKind.Markdown,
-                        value: hoverMarkdown,
-                    },
-                    range: Range.create(
-                        document.positionAt(nameToken.offset),
-                        document.positionAt(nameToken.offset + nameToken.length)
-                    )
-                };
-            }
-        } while (false);
-
-        return null;
-    }
-
     private async hoverXml(document: TextDocument, position: Position): Promise<Hover | null> {
         let offset = document.offsetAt(position);
 
@@ -4577,43 +4003,6 @@ export class Project {
             }
 
             parentTemplateName = parentTemplate.extends;
-        }
-
-        return result;
-    }
-
-    /**
-     * Finds definitions of block for given template
-     */
-    private findBlockDefinitions(templateName: string, blockName: string) {
-        let result: { templateName: string; offset: number }[] = [];
-
-        let currentTemplateName: string | undefined = templateName;
-
-        for (let i = 0; i < 19; i++ /* protection from infinite cycle */) {
-            if (currentTemplateName === undefined) {
-                break;
-            }
-
-            let currentTemplate = this.getTemplate(currentTemplateName);
-            if (currentTemplate === null) {
-                break;
-            }
-
-            for (let block of currentTemplate.blocks) {
-                if (block.name === blockName) {
-                    result.push({
-                        templateName: currentTemplateName,
-                        offset: block.offset,
-                    });
-                }
-            }
-
-            if (currentTemplate.extends === undefined) {
-                break;
-            }
-
-            currentTemplateName = currentTemplate.extends;
         }
 
         return result;
@@ -5158,43 +4547,7 @@ export class Project {
         };
     }
 
-    /**
-     * Search for name of '{% block %}'
-     */
-    private twigTestBlockName(code: string, tokens: ReadonlyArray<TwigToken>, template: TemplateDescription, offset: number) {
-        let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
-        let i = tokenIndex;
-
-        if (i === null || i < 2) {
-            return null;
-        }
-
-        if (twigTokenValue(code, tokens[i-1]) !== 'block') {
-            return null;
-        }
-
-        if (tokens[i-2].type !== TwigTokenType.BLOCK_START) {
-            return null;
-        }
-
-        if (template.extends === undefined) {
-            return null;
-        }
-
-        let nameToken = tokens[i];
-        let blockName = twigTokenValue(code, nameToken);
-
-        let foundBlocks = this.findBlockDefinitions(template.extends, blockName);
-
-        return {
-            name: blockName,
-            hoverLeftOffset: nameToken.offset,
-            hoverRightOffset: nameToken.offset + nameToken.length,
-            definitions: foundBlocks,
-        };
-    }
-
-    private async routeLocation(name: string): Promise<Location | null> {
+    public async routeLocation(name: string): Promise<Location | null> {
         if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
             return null;
         }
@@ -5226,7 +4579,7 @@ export class Project {
         return null;
     }
 
-    private routeHoverMarkdown(name: string) {
+    public routeHoverMarkdown(name: string) {
         if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
             return null;
         }
@@ -5241,261 +4594,10 @@ export class Project {
         return hoverValue;
     }
 
-    private twigTestRouteName(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
-        let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.STRING, offset);
-        let i = tokenIndex;
-
-        if (i === null || i <= 2) {
-            return null;
-        }
-
-        if (twigTokenValue(code, tokens[i-1]) !== '(') {
-            return null;
-        }
-
-        let prevPrevTokenvValue = twigTokenValue(code, tokens[i-2]);
-        if (!['path', 'url'].includes(prevPrevTokenvValue)) {
-            return null;
-        }
-
-        let routeName = code.substr(tokens[i].offset + 1, tokens[i].length - 2);
-
-        return {
-            route: routeName,
-            hoverLeftOffset: tokens[i].offset,
-            hoverRightOffset: tokens[i].offset + tokens[i].length,
-        };
-    }
-
-    private twigTestConstantFunction(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
-        let tokenIndex = twigStringTokenContainingCursor(tokens, offset);
-        let i = tokenIndex;
-
-        if (i === null || i <= 2) {
-            return null;
-        }
-
-        if (twigTokenValue(code, tokens[i-1]) !== '(') {
-            return null;
-        }
-
-        if (twigTokenValue(code, tokens[i-2]) !== 'constant') {
-            return null;
-        }
-
-        let token = tokens[i];
-
-        let rawValue = code.substr(token.offset + 1, token.length - 2);
-
-        let regexp = /^([\w\\]+)(:|::(\w+)?)?$/;
-        let match = regexp.exec(rawValue);
-        if (match === null) {
-            return null;
-        }
-
-        let rawClassName = match[1];
-        let rawConstantName = match[3];
-
-        let rawClassNameLeftOffset = token.offset + 1;
-        let rawClassNameRightOffset = rawClassNameLeftOffset + rawClassName.length;
-
-        let className = rawClassName.replace(/\\\\/g, '\\');
-        if (className.startsWith('\\')) {
-            className = className.substr(1);
-        }
-
-        if (rawClassNameLeftOffset <= offset && offset <= rawClassNameRightOffset) {
-            return {
-                className,
-                hoverLeftOffset: rawClassNameLeftOffset,
-                hoverRightOffset: rawClassNameRightOffset,
-            };
-        }
-
-        if (rawConstantName !== undefined) {
-            let constantName = rawConstantName;
-            let rawConstantNameLeftOffset = rawClassNameRightOffset + 2;
-            let rawConstantNameRightOffset = rawConstantNameLeftOffset + rawConstantName.length;
-
-            if (rawConstantNameLeftOffset <= offset && offset <= rawConstantNameRightOffset) {
-                return {
-                    className,
-                    constantName,
-                    hoverLeftOffset: rawConstantNameLeftOffset,
-                    hoverRightOffset: rawConstantNameRightOffset,
-                };
-            }
-        }
-
-        return null;
-    }
-
-    private twigTestTemplateName(code: string, tokens: ReadonlyArray<TwigToken>, offset: number) {
-        let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.STRING, offset);
-        let i = tokenIndex;
-
-        if (i === null) {
-            return null;
-        }
-
-        let token = tokens[i];
-
-        let value = code.substr(token.offset + 1, token.length - 2);
-
-        if (value.endsWith('.twig')) {
-            return value;
-        }
-
-        return null;
-    }
-
-    /**
-     * Search for imported macro name in {%from%}
-     */
-    private twigTestMacroImport(parsed: ParsedTwig, offset: number) {
-        let { code, tokens, pieces } = parsed;
-
-        let piece: TwigPiece | undefined;
-
-        for (let p of pieces) {
-            if (p.start <= offset && offset <= p.end) {
-                piece = p;
-                break;
-            }
-        }
-
-        if (piece === undefined) {
-            return null;
-        }
-
-        let ti = piece.startToken;
-
-        if (!(ti + 3 < tokens.length
-                && piece.type === 'block'
-                && twigTokenValue(code, tokens[ti+1]) === 'from'
-                && tokens[ti+2].type === TwigTokenType.STRING
-                && twigTokenValue(code, tokens[ti+3]) === 'import')) {
-            return null;
-        }
-
-        let nameTokenUnderCursor: { token: TwigToken; index: number } | undefined;
-        for (let i = ti + 4; i <= piece.endToken; i++)  {
-            let t = tokens[i];
-            if (t.type === TwigTokenType.NAME && t.offset <= offset && offset <= t.offset + t.length) {
-                nameTokenUnderCursor = { token: t, index: i };
-                break;
-            }
-        }
-
-        if (nameTokenUnderCursor === undefined) {
-            return null;
-        }
-
-        let prevTokenValue = twigTokenValue(code, tokens[nameTokenUnderCursor.index - 1]);
-        if (prevTokenValue !== 'import' && prevTokenValue !== ',') {
-            return null;
-        }
-
-        let templateName = twigTokenValue(code, tokens[ti+2]);
-        templateName = templateName.substr(1, templateName.length - 2);
-
-        const nameToken = nameTokenUnderCursor.token;
-        return {
-            templateName,
-            macroName: twigTokenValue(code, nameToken),
-            hoverLeftOffset: nameToken.offset,
-            hoverRightOffset: nameToken.offset + nameToken.length,
-        };
-    }
-
-    private twigTestMacroCall(parsed: ParsedTwig, offset: number) {
-        let { code, tokens, pieces } = parsed;
-
-        let cursorTokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
-        if (cursorTokenIndex === null) {
-            return null;
-        }
-
-        let piece: TwigPiece | undefined;
-
-        for (let p of pieces) {
-            if (p.start <= offset && offset <= p.end) {
-                piece = p;
-                break;
-            }
-        }
-
-        if (piece === undefined) {
-            return null;
-        }
-
-        let st = piece.startToken;
-
-        if (st + 1 < tokens.length
-                && piece.type === 'block'
-                && twigTokenValue(code, tokens[st+1]) === 'from') {
-            return null;
-        }
-
-        let fileMacroImports = twigFileMacroImports(parsed);
-        let macroImports = twigMacroImports(parsed);
-
-        let cursorToken = tokens[cursorTokenIndex];
-        let cursorTokenText = twigTokenValue(code, cursorToken);
-
-        let prevTokenText = twigTokenValue(code, tokens[cursorTokenIndex - 1]);
-        if (prevTokenText === '.') {
-            do {
-                if (cursorTokenIndex <= 1) {
-                    break;
-                }
-
-                let prevPrevToken = tokens[cursorTokenIndex - 2];
-                if (prevPrevToken.type !== TwigTokenType.NAME) {
-                    break;
-                }
-
-                if (cursorTokenIndex >= 3) {
-                    let prevPrevPrevTokenText = twigTokenValue(code, tokens[cursorTokenIndex - 3]);
-                    if (prevPrevPrevTokenText === '.') {
-                        break;
-                    }
-                }
-
-                let alias = twigTokenValue(code, prevPrevToken);
-                if (fileMacroImports[alias] === undefined) {
-                    break;
-                }
-
-                let templateName = fileMacroImports[alias];
-
-                return {
-                    macroName: cursorTokenText,
-                    templateName,
-                    hoverLeftOffset: cursorToken.offset,
-                    hoverRightOffset: cursorToken.offset + cursorToken.length,
-                };
-
-            } while (false);
-        } else {
-            if (macroImports[cursorTokenText] !== undefined) {
-                let data = macroImports[cursorTokenText];
-                return {
-                    macroName: data.macroName,
-                    templateName: data.templateName,
-                    hoverLeftOffset: cursorToken.offset,
-                    hoverRightOffset: cursorToken.offset + cursorToken.length,
-                };
-            }
-        }
-
-        return null;
-    }
-
     /**
      * Tests for variables (local and global) and functions (functions, tests and filters)
      */
-    private twigTestObject(documentUri: string, parsed: ParsedTwig, offset: number): TwigTestObjectResult | null {
+    public twigTestObject(documentUri: string, parsed: ParsedTwig, offset: number): TwigTestObjectResult | null {
         let { code, tokens } = parsed;
 
         let tokenIndex = twigTokenUnderCursor(tokens, TwigTokenType.NAME, offset);
@@ -5890,7 +4992,7 @@ export class Project {
         return null;
     }
 
-    private async phpClassLocation(fullClassName: string, memberType?: 'method'|'constant'|'property', memberName?: string): Promise<Location|null> {
+    public async phpClassLocation(fullClassName: string, memberType?: 'method'|'constant'|'property', memberName?: string): Promise<Location|null> {
         let phpClass = await this.getPhpClass(fullClassName);
         if (phpClass === null) {
             return null;
@@ -6161,7 +5263,7 @@ export class Project {
         return result;
     }
 
-    private getBundleInfo(name: string) {
+    public getBundleInfo(name: string) {
         for (let fileUri in this.phpClasses) {
             let bundleInfo = this.phpClasses[fileUri].bundle;
             if (bundleInfo !== undefined && bundleInfo.name === name) {
@@ -6282,239 +5384,6 @@ export class Project {
         }
 
         return result;
-    }
-
-    public async onSignatureHelp(params: TextDocumentPositionParams): Promise<SignatureHelp | null> {
-        let documentUri = params.textDocument.uri;
-
-        if (!documentUri.startsWith(this.folderUri + '/')) {
-            return null;
-        }
-
-        let document = await this.getDocument(documentUri);
-
-        if (document === null) {
-            return null;
-        }
-
-        if (documentUri.endsWith('.twig')) {
-            return this.signatureTwig(document, params.position);
-        } else {
-            return null;
-        }
-    }
-
-    private async signatureTwig(document: TextDocument, position: Position): Promise<SignatureHelp | null> {
-        let template = this.templates[document.uri];
-        if (template === undefined) {
-            return null;
-        }
-
-        if (!document.uri.startsWith(this.templatesFolderUri + '/')) {
-            return null;
-        }
-        let currentTemplateName = document.uri.substr((this.templatesFolderUri + '/').length);
-
-        let code = document.getText();
-        let offset = document.offsetAt(position);
-
-        let parsed = twigFullParse(code);
-        let { tokens, pieces } = parsed;
-
-        let cursorPiece: TwigPiece | null = null;
-        for (let p of pieces) {
-            if (p.start <= offset && offset <= p.end) {
-                cursorPiece = p;
-                break;
-            }
-        }
-
-        if (cursorPiece === null) {
-            return null;
-        }
-
-        // stack of real calls (with 'nameIndex') and parenthesis of arithmetic expressions
-        let stack: { nameTokenIndex?: number; argPosition: number }[] = [];
-
-        for (let i = cursorPiece.startToken; i <= cursorPiece.endToken; i++) {
-            if (tokens[i].offset >= offset) {
-                break;
-            }
-
-            let tokenValue = twigTokenValue(code, tokens[i]);
-
-            if (tokenValue === '(') {
-                stack.push({ argPosition: 0 });
-                if (i - 1 >= cursorPiece.startToken && tokens[i-1].type === TwigTokenType.NAME) {
-                    stack[stack.length - 1].nameTokenIndex = i - 1;
-                }
-                continue;
-            }
-
-            if (tokenValue === ')') {
-                if (stack.length > 0) {
-                    stack.pop();
-                }
-                continue;
-            }
-
-            if (tokenValue === ',') {
-                stack[stack.length - 1].argPosition += 1;
-            }
-        }
-
-        let lastCall: { nameTokenIndex: number; argPosition: number } | undefined;
-        for (let i = stack.length - 1; i >= 0; i--) {
-            let t = stack[i];
-            if (t.nameTokenIndex !== undefined) {
-                lastCall = { nameTokenIndex: t.nameTokenIndex, argPosition: t.argPosition };
-                break;
-            }
-        }
-
-        if (lastCall === undefined) {
-            return null;
-        }
-
-        // first test macro calls
-        do {
-            let macroTestResult = this.twigTestMacroCall(parsed, tokens[lastCall.nameTokenIndex].offset);
-            if (macroTestResult === null) {
-                break;
-            }
-
-            let { templateName, macroName } = macroTestResult;
-
-            let macroTemplate = this.getTemplate(templateName);
-            if (macroTemplate === null) {
-                break;
-            }
-
-            let macro = macroTemplate.macros.find(row => row.name === macroName);
-            if (macro === undefined) {
-                break;
-            }
-
-            let signatureLabel = macroName + '(';
-
-            let macroArgs = macro.arguments;
-            let signatureParams: ParameterInformation[] = [];
-            for (let i = 0; i < macroArgs.length; i++) {
-                let { name: argName } = macroArgs[i];
-                signatureParams.push({label: [signatureLabel.length, signatureLabel.length + argName.length]});
-                signatureLabel += argName + ((i === macroArgs.length - 1) ? '' : ', ');
-            }
-            signatureLabel += ')';
-
-            let signatureHelp = {
-                activeSignature: 0,
-                activeParameter: lastCall.argPosition,
-                signatures: [
-                    {
-                        label: signatureLabel,
-                        parameters: signatureParams,
-                    },
-                ],
-            };
-
-            return signatureHelp;
-        } while (false);
-
-        if (lastCall.nameTokenIndex > cursorPiece.start) {
-            if (twigTokenValue(code, tokens[lastCall.nameTokenIndex - 1]) === '.') {
-                return null;
-            }
-        }
-
-        let tokenTestResult = this.twigTestObject(document.uri, parsed, tokens[lastCall.nameTokenIndex].offset);
-
-        if (tokenTestResult !== null) {
-            if (tokenTestResult.type === 'function') {
-                let twigExtensionElement = tokenTestResult.element;
-
-                if (twigExtensionElement.implementation === undefined) {
-                    return null;
-                }
-
-                let signatureLabel = twigExtensionElement.name + '(';
-
-                let extensionParams = twigExtensionElement.implementation.params;
-                let signatureParams: ParameterInformation[] = [];
-                for (let i = 0; i < extensionParams.length; i++) {
-                    let { name: paramName } = extensionParams[i];
-                    signatureParams.push({label: [signatureLabel.length, signatureLabel.length + paramName.length]});
-                    signatureLabel += paramName + ((i === extensionParams.length - 1) ? '' : ', ');
-                }
-                signatureLabel += ')';
-
-                let result = {
-                    activeSignature: 0,
-                    activeParameter: lastCall.argPosition,
-                    signatures: [
-                        {
-                            label: signatureLabel,
-                            parameters: signatureParams,
-                        },
-                    ],
-                };
-
-                return result;
-            }
-        }
-
-        let initialScope = new Scope();
-        let params = await this.collectRenderCallsParams(currentTemplateName);
-        initialScope.setValue('app', new php.ObjectType('Symfony\\Bridge\\Twig\\AppVariable'));
-        for (let name in params) {
-            initialScope.setValue(name, params[name]);
-        }
-
-        let { names } = await findExpressionData(
-            parsed,
-            initialScope,
-            (className: string) => this.getPhpClass(className),
-            (name: string) => this.twigFunctionReturnType(name)
-        );
-
-        if (names[lastCall.nameTokenIndex] !== undefined) {
-            let nameInfo = names[lastCall.nameTokenIndex];
-            if (nameInfo.type === 'classMethod') {
-                let signatureLabel = nameInfo.methodName + '(';
-                let methodName = nameInfo.methodName;
-
-                let phpClass = await this.getPhpClass(nameInfo.className);
-                if (phpClass !== null) {
-                    let method = phpClass.methods.find(row => (row.isPublic && row.name === methodName));
-                    if (method !== undefined) {
-                        let signatureParams: ParameterInformation[] = [];
-
-                        for (let i = 0; i < method.params.length; i++) {
-                            let p = method.params[i];
-
-                            signatureParams.push({ label: [signatureLabel.length, signatureLabel.length + p.name.length] });
-                            signatureLabel += p.name + ((i === method.params.length - 1) ? '' : ', ');
-                        }
-
-                        signatureLabel += ')';
-
-                        let result = {
-                            activeSignature: 0,
-                            activeParameter: lastCall.argPosition,
-                            signatures: [
-                                {
-                                    label: signatureLabel,
-                                    parameters: signatureParams,
-                                },
-                            ],
-                        };
-
-                        return result;
-                    }
-                }
-            }
-        }
-
-        return null;
     }
 
     public getName() {

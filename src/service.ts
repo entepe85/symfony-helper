@@ -76,7 +76,7 @@ export class Service {
     constructor(allDocuments: AllTextDocuments) {
         this.allDocuments = allDocuments;
 
-        this.twigService = new TwigService;
+        this.twigService = new TwigService(allDocuments);
     }
 
     public setConnection(connection: IConnection | undefined) {
@@ -188,6 +188,15 @@ export class Service {
 
         if (project === null) {
             return null;
+        }
+
+        let document = await this.getDocument(documentUri);
+        if (document === null) {
+            return null;
+        }
+
+        if (documentUri.endsWith('.twig')) {
+            return this.twigService.definition(project, document, params.position);
         }
 
         return await project.onDefinition(params);
@@ -324,6 +333,15 @@ export class Service {
             return null;
         }
 
+        let document = await this.getDocument(documentUri);
+        if (document === null) {
+            return null;
+        }
+
+        if (documentUri.endsWith('.twig')) {
+            return this.twigService.hover(project, document, params.position);
+        }
+
         return await project.onHover(params);
     }
 
@@ -336,7 +354,16 @@ export class Service {
             return null;
         }
 
-        return await project.onSignatureHelp(params);
+        let document = await this.getDocument(documentUri);
+        if (document === null) {
+            return null;
+        }
+
+        if (documentUri.endsWith('.twig')) {
+            return this.twigService.signature(project, document, params.position);
+        }
+
+        return null;
     }
 
     public findFileProject(fileUri: string): Project | null {
