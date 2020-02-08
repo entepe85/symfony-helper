@@ -195,7 +195,6 @@ interface PlainSymbolTable {
  * Very unfinished. Uses only first real ClassName.
  */
 function parsePhpDocBlockType(typeString: string, nameResolverData: nikic.NameResolverData): php.Type {
-    // TODO: review
     let pieces = typeString.split('|');
 
     let regexp = /^([\w\\]+)((\[\])*)$/;
@@ -971,8 +970,6 @@ interface XmlFile {
     entity?: EntityData;
 }
 
-// TODO: use dom-api instead of sax-api?
-// TODO: properly handle xml namespaces?
 function parseXmlForEntityData(code: string): null | EntityData {
     let indexA = code.indexOf('<doctrine-mapping');
     let indexB = code.indexOf('<entity');
@@ -1079,7 +1076,6 @@ export class Project {
     private phpClassNameToFileUri: { [className: string]: string } = Object.create(null);
     public phpClasses: { [fileUri: string]: PhpClass } = Object.create(null);
 
-    // TODO: remove 'for in' iteration when searching for 'entity.className'
     private xmlFiles: { [fileUri: string]: XmlFile } = Object.create(null);
 
     private services: { [id: string]: ServiceXmlDescription } = Object.create(null);
@@ -3856,7 +3852,6 @@ export class Project {
         return null;
     }
 
-    // TODO: this is so wrong. fix it.
     private async accessEntityWithPath(className: string, accessPath: string[]) {
         let phpClass = await this.getPhpClass(className);
         let entities = this.getEntities();
@@ -5221,7 +5216,6 @@ export class Project {
         return entityFullClassName;
     }
 
-    // TODO: this is so wrong. fix it.
     public async getPhpClass(fullClassName: string): Promise<PhpClass | null> {
         for (let fileUri in this.phpClasses) {
             let info = this.phpClasses[fileUri];

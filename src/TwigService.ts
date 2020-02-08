@@ -1038,8 +1038,6 @@ export default class TwigService {
                     },
                 };
 
-                // TODO: test 'phpClass.entity !== undefined' everywhere
-
                 // it's a hack. I should test method body for used fields.
                 if (phpClass.entity !== undefined) {
                     let field = phpClass.entity.fields.find(row => row.name === label);

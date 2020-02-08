@@ -51,10 +51,8 @@ export default class DirectSymfonyReader {
 
     private autowiredServices: ServiceDescription[] = [];
 
-    // TODO: use 'Map'
     private containerParameters: { [name: string]: any } = Object.create(null);
 
-    // TODO: use 'Map'
     private doctrineEntityNamespaces: { [alias: string]: string } = Object.create(null);
 
     public constructor(private settingsResolver: SymfonyHelperSettingsResolver, private projectPath: string) {
