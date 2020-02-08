@@ -28,7 +28,7 @@ import ComplexFileWatcher from './ComplexFileWatcher';
 
 let client: LanguageClient;
 
-export function activate(context: ExtensionContext) {
+export function activate(context: ExtensionContext): void {
     let packageDirectory = __dirname + '/../..';
     let serverModule = packageDirectory + '/out/src/start-service.js';
 
@@ -186,7 +186,7 @@ export function activate(context: ExtensionContext) {
     }));
 
     context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.openCompiledTemplate', (editor: TextEditor) => {
-        (async () => {
+        (async (): Promise<void> => {
             if (editor.document.uri.scheme !== 'file') {
                 await window.showErrorMessage('This command is only for real files');
                 return;
@@ -210,7 +210,7 @@ export function activate(context: ExtensionContext) {
     }));
 
     context.subscriptions.push(commands.registerTextEditorCommand('symfonyHelper.toggleTwigComment', (editor: TextEditor) => {
-        (async () => {
+        (async (): Promise<void> => {
             if (editor.document.uri.scheme !== 'file') {
                 await window.showErrorMessage('This command is only for real files');
                 return;
@@ -321,10 +321,10 @@ export function activate(context: ExtensionContext) {
         .catch(() => {});
 }
 
-export function deactivate() {
+export function deactivate(): void {
     if (client === undefined) {
         return undefined;
     }
 
-    return client.stop();
+    client.stop();
 }

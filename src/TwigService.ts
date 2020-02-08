@@ -992,7 +992,7 @@ export default class TwigService {
         return items;
     }
 
-    private async twigCompletionsForClass(project: Project, phpClass: PhpClass, editRange: Range) {
+    private async twigCompletionsForClass(project: Project, phpClass: PhpClass, editRange: Range): Promise<CompletionItem[]> {
         let items: CompletionItem[] = [];
 
         for (let property of phpClass.properties) {
@@ -2222,7 +2222,7 @@ export default class TwigService {
         return null;
     }
 
-    private twigTestTemplateName(code: string, tokens: ReadonlyArray<twig.Token>, offset: number) {
+    private twigTestTemplateName(code: string, tokens: ReadonlyArray<twig.Token>, offset: number): string | null {
         let tokenIndex = twig.tokenUnderCursor(tokens, twig.TokenType.STRING, offset);
         let i = tokenIndex;
 
@@ -2385,7 +2385,7 @@ export default class TwigService {
         return null;
     }
 
-    private async getDocument(uri: string) {
+    private async getDocument(uri: string): Promise<TextDocument | null> {
         return this.allDocuments.get(uri);
     }
 }

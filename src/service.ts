@@ -79,11 +79,11 @@ export class Service {
         this.twigService = new TwigService(allDocuments);
     }
 
-    public setConnection(connection: IConnection | undefined) {
+    public setConnection(connection: IConnection | undefined): void {
         this.connection = connection;
     }
 
-    public async setProjects(folders: WorkspaceFolder[]) {
+    public async setProjects(folders: WorkspaceFolder[]): Promise<void> {
         let filteredFolders: WorkspaceFolder[] = [];
         for (let folder of folders) {
             let composerJsonPath = URI.parse(folder.uri + '/composer.json').fsPath;
@@ -126,7 +126,7 @@ export class Service {
         await this.scanProjects(newProjects);
     }
 
-    private async scanProjects(projects: Project[]) {
+    private async scanProjects(projects: Project[]): Promise<void> {
         if (this.isScanning) {
             return;
         }
@@ -246,7 +246,7 @@ export class Service {
             }
         }
 
-        let addFoldBetweenPieces = (pieceIndex: number, pieceIndex2: number, doc: TextDocument) => {
+        let addFoldBetweenPieces = (pieceIndex: number, pieceIndex2: number, doc: TextDocument): void => {
             let startLine = doc.positionAt(pieces[pieceIndex].start).line;
             let endLine = doc.positionAt(pieces[pieceIndex2].start).line;
             if (endLine > startLine + 1) {
@@ -257,7 +257,7 @@ export class Service {
             }
         };
 
-        let walker = (stmts: TwigStatement[], doc: TextDocument) => {
+        let walker = (stmts: TwigStatement[], doc: TextDocument): void => {
             for (let stmt of stmts) {
                 if (stmt.type === 'if') {
                     let pieceIndexes: number[] = [stmt.startPiece];
@@ -741,7 +741,7 @@ export class Service {
         return { success: true, message: JSON.stringify(edits) };
     }
 
-    public documentChanged(action: 'deleted'|'createdOrChanged', documentUri: string) {
+    public documentChanged(action: 'deleted'|'createdOrChanged', documentUri: string): void {
         let project = this.findFileProject(documentUri);
 
         if (project === null) {
@@ -751,7 +751,7 @@ export class Service {
         project.documentChanged(action, documentUri);
     }
 
-    public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>) {
+    public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>): void {
         this.getSettings = resolver;
 
         for (let folderUri in this.projects) {

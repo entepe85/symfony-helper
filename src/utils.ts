@@ -44,7 +44,7 @@ if (forcedPackagePath !== undefined) {
 // TODO why is 'exec' slow on travis machine?
 let execTimeout /* ms */ = (process.env.NODE_ENV === 'test') ? 10000 : 1500;
 
-export async function fileExists(filePath: string) {
+export async function fileExists(filePath: string): Promise<boolean> {
     try {
         await util.promisify(fs.access)(filePath);
         return true;
@@ -53,18 +53,18 @@ export async function fileExists(filePath: string) {
     }
 }
 
-export async function readFile(filePath: string) {
+export async function readFile(filePath: string): Promise<string> {
     return util.promisify(fs.readFile)(filePath, 'utf8');
 }
 
-export async function writeFile(filePath: string, text: string) {
+export async function writeFile(filePath: string, text: string): Promise<void> {
     return util.promisify(fs.writeFile)(filePath, text);
 }
 
 /**
  * Creates directory (recursively if needed)
  */
-export async function createDirectory(dirPath: string) {
+export async function createDirectory(dirPath: string): Promise<void> {
     return util.promisify(fs.mkdir)(dirPath, { recursive: true });
 }
 
@@ -73,7 +73,7 @@ export async function createDirectory(dirPath: string) {
  *
  * Returns strings of form 'c:/...' on windows
  */
-export async function findFiles(pattern: string) {
+export async function findFiles(pattern: string): Promise<string[]> {
     return util.promisify(glob)(pattern, {
         nodir: true,
     });
@@ -82,7 +82,7 @@ export async function findFiles(pattern: string) {
 /**
  * Executes something and returns its stdout
  */
-export async function exec(executable: string, args: string[]) {
+export async function exec(executable: string, args: string[]): Promise<string> {
     return (await util.promisify(child_process.execFile)(executable, args, { timeout: execTimeout})).stdout;
 }
 
@@ -100,11 +100,11 @@ export class AllTextDocuments {
         this.fakeFiles = fakeFiles;
     }
 
-    public static productionInstance(documents: TextDocuments) {
+    public static productionInstance(documents: TextDocuments): AllTextDocuments {
         return new AllTextDocuments(false, documents);
     }
 
-    public static testInstance(fakeFiles: { [uri: string]: string }) {
+    public static testInstance(fakeFiles: { [uri: string]: string }): AllTextDocuments {
         return new AllTextDocuments(true, undefined, fakeFiles);
     }
 
@@ -367,7 +367,7 @@ export async function requestHttpCommandsHelper(httpPath: string, type: 'directC
 export function throttle(func: () => void, timeout: number): () => void {
     let timeoutHandle: NodeJS.Timeout | undefined;
 
-    return () => {
+    return (): void => {
         if (timeoutHandle === undefined) {
             timeoutHandle = setTimeout(() => {
                 func();

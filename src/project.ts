@@ -98,7 +98,7 @@ export interface TwigExtensionGlobal {
 /**
  * Finds types of method parameters
  */
-function methodParamsSymbolTable(method: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData) {
+function methodParamsSymbolTable(method: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData): PlainSymbolTable {
     let params = method.params;
     let symbols: PlainSymbolTable = Object.create(null);
 
@@ -759,7 +759,7 @@ function isLooksLikeDQL(str: string): boolean {
 function collectEntitiesAliases(tokens: dql.Token[], entities: { [className: string]: EntityData }, entityNamespaces: { [alias: string]: string }): { [alias: string]: string } {
     let result: { [alias: string]: string } = Object.create(null);
 
-    let tokenToEntityClass = (tokenIndex: number) => {
+    let tokenToEntityClass = (tokenIndex: number): string | null => {
         let token = tokens[tokenIndex];
 
         if (token.type === dql.TokenType.FULLY_QUALIFIED_NAME) {
@@ -916,7 +916,7 @@ type TwigTestObjectResult = {
     hoverRightOffset: number;
 };
 
-export function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string) {
+export function hoverForTwigExtension(element: TwigExtensionCallable, filePath: string): string {
     let helpPieces: string[] = ['```'];
 
     let prefix = 'function';
@@ -987,7 +987,7 @@ function parseXmlForEntityData(code: string): null | EntityData {
 
     let fields: EntityFieldData[] = [];
 
-    parser.onopentag = (tag) => {
+    parser.onopentag = (tag): void => {
         if (tag.name === 'entity') {
             let tagStart = code.lastIndexOf('<entity', parser.position);
             if (tagStart >= 0 && typeof tag.attributes.name === 'string') {
@@ -1202,11 +1202,11 @@ export class Project {
         }
     }
 
-    public getFolderUri() {
+    public getFolderUri(): string {
         return this.folderUri;
     }
 
-    public async scan() {
+    public async scan(): Promise<void> {
         if (this.isScanning) {
             return;
         }
@@ -1223,7 +1223,7 @@ export class Project {
     }
 
     // how to remove code duplication with 'this.documentChanged()'?
-    private async doScan() {
+    private async doScan(): Promise<void> {
         if (this.type === ProjectType.BASIC) {
             let settings = await this.getSettings();
             if (settings !== null) {
@@ -1235,7 +1235,7 @@ export class Project {
         let folderFsPath = this.getFolderPath();
 
         // use 'readFile()' for 'vendor/' and 'TextDocument#getText()' for everything else
-        let getCode = async (filePath: string) => {
+        let getCode = async (filePath: string): Promise<string | null> => {
             let fileUri = URI.file(filePath).toString();
 
             if (fileUri.startsWith(this.folderUri + '/vendor/')) {
@@ -1281,7 +1281,7 @@ export class Project {
 
                 let parser = sax.parser(true, { position: true });
 
-                parser.onopentag = (tag) => {
+                parser.onopentag = (tag): void => {
                     if (!(tag.name === 'service' && typeof tag.attributes.id === 'string')) {
                         return;
                     }
@@ -1633,7 +1633,7 @@ export class Project {
         return result;
     }
 
-    private scanTwigTemplate(fileUri: string, templateName: string, code: string) {
+    private scanTwigTemplate(fileUri: string, templateName: string, code: string): TemplateDescription {
         let tokens = tokenizeTwig(code);
         let twigPieces = findTwigPieces(tokens);
 
@@ -1766,11 +1766,11 @@ export class Project {
         this.containerParametersPositions[fileUri] = paramsPositions;
     }
 
-    public getFolderPath() {
+    public getFolderPath(): string {
         return URI.parse(this.folderUri).fsPath;
     }
 
-    private async getDocument(uri: string) {
+    private async getDocument(uri: string): Promise<TextDocument | null> {
         return this.allDocuments.get(uri);
     }
 
@@ -2176,7 +2176,7 @@ export class Project {
         }
     }
 
-    private findRenderCallsForTemplate(templateUri: string) {
+    private findRenderCallsForTemplate(templateUri: string): TemplateRenderCall[] {
         let result: TemplateRenderCall[] = [];
 
         for (let fileUri in this.phpClasses) {
@@ -2614,7 +2614,7 @@ export class Project {
         return items;
     }
 
-    private getEntities() {
+    private getEntities(): { [fullClassName: string]: EntityData } {
         let result: { [fullClassName: string]: EntityData } = Object.create(null);
 
         for (let fileUri in this.phpClasses) {
@@ -3117,7 +3117,7 @@ export class Project {
         return null;
     }
 
-    public async collectRenderCallsParams(templateName: string) {
+    public async collectRenderCallsParams(templateName: string): Promise<{[name: string]: php.Type}> {
         let result0: { [name: string]: php.Type[] } = {};
 
         for (let fileUri in this.phpClasses) {
@@ -3316,7 +3316,7 @@ export class Project {
         return [];
     }
 
-    private async referencesTwigExtensionElement(params: ReferenceParams, element: TwigExtensionCallable, elementDocument: TextDocument) {
+    private async referencesTwigExtensionElement(params: ReferenceParams, element: TwigExtensionCallable, elementDocument: TextDocument): Promise<Location[]> {
         let result: Location[] = [];
 
         if (params.context.includeDeclaration) {
@@ -3373,7 +3373,7 @@ export class Project {
         return result;
     }
 
-    private async referencesEntity(fullClassName: string) {
+    private async referencesEntity(fullClassName: string): Promise<Location[]> {
         let result: Location[] = [];
 
         let entityClass = await this.getPhpClass(fullClassName);
@@ -3445,7 +3445,7 @@ export class Project {
         return result;
     }
 
-    private async referencesEntityField(fullClassName: string, fieldName: string) {
+    private async referencesEntityField(fullClassName: string, fieldName: string): Promise<Location[]> {
         let result: Location[] = [];
 
         let entityClass = await this.getPhpClass(fullClassName);
@@ -4007,7 +4007,7 @@ export class Project {
         return result;
     }
 
-    private findServiceDescription(fileUri: string, offset: number) {
+    private findServiceDescription(fileUri: string, offset: number): ServiceXmlDescription | null {
         for (let serviceId in this.services) {
             let service = this.services[serviceId];
             if (service.fileUri === fileUri && service.tagStartOffset <= offset && offset <= service.tagEndOffset) {
@@ -4110,7 +4110,7 @@ export class Project {
 
         let data: { serviceId: string; leftOffset: number; rightOffset: number } | undefined;
 
-        parser.onopentag = (tag) => {
+        parser.onopentag = (tag): void => {
             // answer is found already
             if (data !== undefined) {
                 return;
@@ -4578,7 +4578,7 @@ export class Project {
         return null;
     }
 
-    public routeHoverMarkdown(name: string) {
+    public routeHoverMarkdown(name: string): string | null {
         if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
             return null;
         }
@@ -4909,7 +4909,7 @@ export class Project {
         return null;
     }
 
-    private yamlTestRoutingResource(node: yaml.YAMLNode, offset: number) {
+    private yamlTestRoutingResource(node: yaml.YAMLNode, offset: number): string | null {
         let resourceScalar = findYamlScalarOnSecondLevel(node, 'resource', offset);
         if (resourceScalar === null) {
             return null;
@@ -5051,7 +5051,7 @@ export class Project {
         return null;
     }
 
-    public async documentChanged(action: 'createdOrChanged' | 'deleted', documentUri: string) {
+    public async documentChanged(action: 'createdOrChanged' | 'deleted', documentUri: string): Promise<void> {
         if (!documentUri.startsWith(this.folderUri + '/')) {
             return;
         }
@@ -5222,7 +5222,7 @@ export class Project {
     }
 
     // TODO: this is so wrong. fix it.
-    public async getPhpClass(fullClassName: string) {
+    public async getPhpClass(fullClassName: string): Promise<PhpClass | null> {
         for (let fileUri in this.phpClasses) {
             let info = this.phpClasses[fileUri];
 
@@ -5415,7 +5415,7 @@ export class Project {
         return null;
     }
 
-    public templateName(templateUri: string) {
+    public templateName(templateUri: string): string | null {
         let relativePath = templateUri.substr(this.folderUri.length + 1);
 
         if (relativePath.startsWith('vendor/')) {
@@ -5456,7 +5456,7 @@ export class Project {
         return false;
     }
 
-    public isSymfony() {
+    public isSymfony(): boolean {
         return this.type === ProjectType.SYMFONY;
     }
 

@@ -24,7 +24,7 @@ export class ObjectType extends Type {
         this.className = className;
     }
 
-    public getClassName() {
+    public getClassName(): string {
         return this.className;
     }
 
@@ -44,11 +44,11 @@ export class ArrayType extends Type {
         this.knownValues = knownValues;
     }
 
-    public getValueType() {
+    public getValueType(): Type {
         return this.valueType;
     }
 
-    public getKnownValues() {
+    public getKnownValues(): { [key: string]: Type } {
         return (this.knownValues === undefined) ? {} : this.knownValues;
     }
 
@@ -88,7 +88,7 @@ export class EntityRepositoryType extends Type {
         this.entityClassName = entityClassName;
     }
 
-    public getEntityClassName() {
+    public getEntityClassName(): string {
         return this.entityClassName;
     }
 
@@ -106,7 +106,7 @@ export class DoctrineQueryType extends Type {
         this.entityClassName = entityClassName;
     }
 
-    public getEntityClassName() {
+    public getEntityClassName(): string {
         return this.entityClassName;
     }
 

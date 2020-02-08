@@ -31,29 +31,29 @@ let errorCallback: ((message: string) => void) | undefined;
 // or should not? what if file is parsed not on every request but only after changes?
 let phpParserHttpError = false;
 
-export function cleanPhpParserHttpError() {
+export function cleanPhpParserHttpError(): void {
     phpParserHttpError = false;
 }
 
-export function setErrorCallback(callback: ((message: string) => void) | undefined) {
+export function setErrorCallback(callback: ((message: string) => void) | undefined): void {
     errorCallback = callback;
 }
 
-export function isProcessFound() {
+export function isProcessFound(): boolean {
     return parserProcess !== undefined;
 }
 
-export function stopParserProcess() {
+export function stopParserProcess(): void {
     if (parserProcess !== undefined) {
         parserProcess.kill();
     }
 }
 
-export function getCurrentParserPort() {
+export function getCurrentParserPort(): number | undefined {
     return currentPort;
 }
 
-export function getCurrentPhpPath() {
+export function getCurrentPhpPath(): string | undefined {
     return currentPhpPath;
 }
 
@@ -396,7 +396,7 @@ export type Statement = Stmt_Expression | Stmt_Function | Stmt_Class | Stmt_Inte
 export function findNodesOfType(root: any, nodeType: string): any[] {
     let result: any[] = [];
 
-    let search = (param: any) => {
+    let search = (param: any): void => {
         if (param === null || param === undefined) {
             return;
         }
@@ -564,7 +564,7 @@ export function methodWithOffsetInArguments(code: string, methods: Stmt_ClassMet
     return null;
 }
 
-export function parentClass(classNode: Stmt_Class, nameResolverData: NameResolverData) {
+export function parentClass(classNode: Stmt_Class, nameResolverData: NameResolverData): string | null {
     if (classNode.extends === null) {
         return null;
     } else if (classNode.extends.nodeType === 'Name') {

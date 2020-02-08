@@ -173,7 +173,7 @@ class Lexer {
         return this.tokens;
     }
 
-    private lexData() {
+    private lexData(): void {
         // if no matches are left we return the rest of the template as simple text token
         if (this.position === this.positions.length - 1) {
             this.pushToken(TokenType.TEXT, this.cursor, this.end - this.cursor);
@@ -207,7 +207,7 @@ class Lexer {
         }
     }
 
-    private lexBlock() {
+    private lexBlock(): void {
         let newlinePosition = this.code.indexOf('\n', this.cursor);
 
         let remainingCode;
@@ -237,7 +237,7 @@ class Lexer {
         this.lexExpression();
     }
 
-    private lexVar() {
+    private lexVar(): void {
         let newlinePosition = this.code.indexOf('\n', this.cursor);
 
         let remainingCode;
@@ -267,7 +267,7 @@ class Lexer {
         this.lexExpression();
     }
 
-    private lexExpression() {
+    private lexExpression(): void {
         // regexps for 'remainingCode' must start with '^'
 
         let newlinePosition = this.code.indexOf('\n', this.cursor);
@@ -336,7 +336,7 @@ class Lexer {
         this.cursor++;
     }
 
-    private lexComment() {
+    private lexComment(): void {
         let commentEndPosition = this.code.indexOf('#}', this.cursor);
         if (commentEndPosition > 0) {
             if (commentEndPosition > this.cursor) {
@@ -352,7 +352,7 @@ class Lexer {
         }
     }
 
-    private pushToken(type: TokenType, offset: number, length: number) {
+    private pushToken(type: TokenType, offset: number, length: number): void {
         if (type === TokenType.TEXT && length === 0) {
             return;
         }
@@ -361,7 +361,7 @@ class Lexer {
     }
 }
 
-export function tokenize(code: string) {
+export function tokenize(code: string): Token[] {
     let lexer = new Lexer();
     return lexer.tokenize(code);
 }
@@ -888,7 +888,7 @@ class Parser {
         return secondTokenValue;
     }
 
-    private nextPiece() {
+    private nextPiece(): void {
         if (this.currentPieceIndex >= this.pieces.length) {
             return;
         }
@@ -940,7 +940,7 @@ class Parser {
     }
 }
 
-export function parse(code: string, tokens: Token[], pieces: TwigPiece[]) {
+export function parse(code: string, tokens: Token[], pieces: TwigPiece[]): Statement[] {
     let parser = new Parser(code, tokens, pieces);
 
     return parser.parse();
@@ -1055,11 +1055,11 @@ export class Scope {
         this.parent = parent;
     }
 
-    public setValue(name: string, type: php.Type) {
+    public setValue(name: string, type: php.Type): void {
         this.values[name] = type;
     }
 
-    public getOwnValues() {
+    public getOwnValues(): ScopeValues {
         let result: ScopeValues = Object.create(null);
 
         for (let name in this.values) {
@@ -1069,7 +1069,7 @@ export class Scope {
         return result;
     }
 
-    public getAllValues() {
+    public getAllValues(): ScopeValues {
         let result: ScopeValues;
 
         if (this.parent === undefined) {
@@ -1291,7 +1291,7 @@ class TreeWalker {
         this.functionTypeResolver = functionTypeResolver;
     }
 
-    public async getValues(offset: number) {
+    public async getValues(offset: number): Promise<ScopeValues | undefined> {
         let result: ScopeValues | undefined;
 
         let callback = (scope: Scope, pieceIndex: number) => {
@@ -1307,12 +1307,12 @@ class TreeWalker {
         return result;
     }
 
-    public async getExpressionData() {
+    public async getExpressionData(): Promise<ExpressionData> {
         await this.processNodes(this.stmts, this.initialScope, () => {});
         return this.expressionData;
     }
 
-    private async processNodes(stmts: ReadonlyArray<Statement>, scope: Scope, callback: TreeWalkerCallback) {
+    private async processNodes(stmts: ReadonlyArray<Statement>, scope: Scope, callback: TreeWalkerCallback): Promise<void> {
         for (let stmt of stmts) {
             await this.processNode(stmt, scope, callback);
         }
@@ -1321,7 +1321,7 @@ class TreeWalker {
     /**
      * Changes 'scope' according to 'stmt'
      */
-    private async processNode(stmt: Statement, scope: Scope, callback: TreeWalkerCallback) {
+    private async processNode(stmt: Statement, scope: Scope, callback: TreeWalkerCallback): Promise<void> {
         if (stmt.type === 'var') {
             callback(scope, stmt.pieceIndex);
 
@@ -1559,7 +1559,7 @@ class TreeWalker {
         return (expressionType === undefined) ? new php.AnyType() : expressionType;
     }
 
-    private tokenValue(tokenIndex: number) {
+    private tokenValue(tokenIndex: number): string {
         return tokenValue(this.code, this.tokens[tokenIndex]);
     }
 }

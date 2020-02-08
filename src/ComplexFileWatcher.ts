@@ -18,7 +18,7 @@ class ComplexFileWatcher implements Disposable {
         this.client = client;
     }
 
-    public setFolders(folders: WorkspaceFolder[] | undefined) {
+    public setFolders(folders: WorkspaceFolder[] | undefined): void {
         for (let w of this.watchers) {
             w.dispose();
         }
@@ -59,7 +59,7 @@ class ComplexFileWatcher implements Disposable {
         }
     }
 
-    public dispose() {
+    public dispose(): void {
         for (let w of this.watchers) {
             w.dispose();
         }

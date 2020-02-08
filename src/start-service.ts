@@ -46,7 +46,7 @@ connection.onInitialize(() => {
     };
 });
 
-async function tryRestartPhpParserProcess(params?: { port: number; phpPath: string }) {
+async function tryRestartPhpParserProcess(params?: { port: number; phpPath: string }): Promise<void> {
     let port: number;
     let phpPath: string;
 
@@ -68,17 +68,17 @@ async function tryRestartPhpParserProcess(params?: { port: number; phpPath: stri
     }
 }
 
-async function getConfiguration() {
+async function getConfiguration(): Promise<{ port: number; phpPath: string }> {
     let config = await connection.workspace.getConfiguration('symfonyHelper');
 
-    let portForParser: number = config.phpParser.port;
-    let phpPathForParser: string = config.phpParser.phpPath;
+    let port: number = config.phpParser.port;
+    let phpPath: string = config.phpParser.phpPath;
 
-    return { portForParser, phpPathForParser };
+    return { port, phpPath };
 }
 
 connection.onInitialized(() => {
-    (async () => {
+    (async (): Promise<void> => {
         service.setConnection(connection);
 
         connection.client.register(DidChangeConfigurationNotification.type, undefined);
@@ -87,10 +87,10 @@ connection.onInitialized(() => {
             connection.sendRequest('errorMessage', { message });
         });
 
-        let { portForParser, phpPathForParser } = await getConfiguration();
+        let config = await getConfiguration();
 
         // it must be finished before calling 'Service#setProjects()'
-        await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
+        await tryRestartPhpParserProcess(config);
 
         service.setSettingsResolver(async (uri: string) => {
             let result = await connection.sendRequest<SymfonyHelperSettings|null>('getConfiguration', uri);
@@ -127,11 +127,11 @@ connection.onInitialized(() => {
 });
 
 connection.onDidChangeConfiguration(() => {
-    (async () => {
-        let { portForParser, phpPathForParser } = await getConfiguration();
+    (async (): Promise<void> => {
+        let config = await getConfiguration();
 
-        if (portForParser !== nikic.getCurrentParserPort() || phpPathForParser !== nikic.getCurrentPhpPath()) {
-            await tryRestartPhpParserProcess({ port: portForParser, phpPath: phpPathForParser });
+        if (config.port !== nikic.getCurrentParserPort() || config.phpPath !== nikic.getCurrentPhpPath()) {
+            await tryRestartPhpParserProcess(config);
         }
     })()
         .catch(() => {});

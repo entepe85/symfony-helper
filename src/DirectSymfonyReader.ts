@@ -11,6 +11,13 @@ type RoutesMap = Map< /* name */ string, { path: string; pathParams: string[]; c
 
 type ServiceDescription = { fullClassName: string; serviceId?: string };
 
+type RouteCollection = {
+    name: string;
+    path: string;
+    pathParams: string[];
+    controller: string;
+}[];
+
 /**
  * Returns names of params of route path
  */
@@ -100,7 +107,7 @@ export default class DirectSymfonyReader {
         return this.routes.get(name);
     }
 
-    public getAllRoutes() {
+    public getAllRoutes(): RouteCollection {
         let result = [];
 
         for (let row of this.routes) {
@@ -165,7 +172,7 @@ export default class DirectSymfonyReader {
         return this.autowiredServices;
     }
 
-    public async scanContainerParameters() {
+    public async scanContainerParameters(): Promise<void> {
         let settings = await this.settingsResolver();
         if (settings === null) {
             return;
@@ -197,15 +204,15 @@ export default class DirectSymfonyReader {
         this.containerParameters = parameters;
     }
 
-    public getAllContainerParameters() {
+    public getAllContainerParameters(): { [name: string]: any } {
         return this.containerParameters;
     }
 
-    public getContainerParameter(name: string) {
+    public getContainerParameter(name: string): any {
         return this.containerParameters[name];
     }
 
-    public async scanDoctrineEntityNamespaces() {
+    public async scanDoctrineEntityNamespaces(): Promise<void> {
         let settings = await this.settingsResolver();
         if (settings === null) {
             return;
@@ -231,7 +238,7 @@ export default class DirectSymfonyReader {
         }
     }
 
-    public getAllDoctrineEntitynamespaces() {
+    public getAllDoctrineEntitynamespaces(): { [alias: string]: string } {
         return this.doctrineEntityNamespaces;
     }
 }
