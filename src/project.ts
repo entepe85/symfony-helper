@@ -57,7 +57,7 @@ import {
 } from './utils';
 
 import * as dql from './dql';
-import DirectSymfonyReader from './DirectSymfonyReader';
+import DirectSymfonyReader, { RouteCollection, ServiceDescription } from './DirectSymfonyReader';
 
 // render call of twig template in php file
 export interface TemplateRenderCall {
@@ -1058,6 +1058,11 @@ function parseXmlForEntityData(code: string): null | EntityData {
     }
 
     return null;
+}
+
+interface BundleInfo {
+    name: string;
+    folderUri: string;
 }
 
 // TODO: probably should create subclass 'SymfonyProject' of class 'Project'
@@ -3969,7 +3974,7 @@ export class Project {
      *
      * Data for every block sorted from lowest to highest parent
      */
-    public collectAllTemplateBlocks(templateName: string) {
+    public collectAllTemplateBlocks(templateName: string): { [blockName: string]: TemplateBlockInfo[] } {
         let result: { [blockName: string]: TemplateBlockInfo[] } = Object.create(null);
 
         let parentTemplateName: string | undefined = templateName;
@@ -5243,7 +5248,7 @@ export class Project {
         return null;
     }
 
-    private getBundles() {
+    private getBundles(): BundleInfo[] {
         let result = [];
 
         for (let fileUri in this.phpClasses) {
@@ -5256,7 +5261,7 @@ export class Project {
         return result;
     }
 
-    public getBundleInfo(name: string) {
+    public getBundleInfo(name: string): BundleInfo | null {
         for (let fileUri in this.phpClasses) {
             let bundleInfo = this.phpClasses[fileUri].bundle;
             if (bundleInfo !== undefined && bundleInfo.name === name) {
@@ -5267,7 +5272,7 @@ export class Project {
         return null;
     }
 
-    private getAutowiredServices() {
+    private getAutowiredServices(): readonly ServiceDescription[] {
         if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
             return [];
         }
@@ -5306,7 +5311,7 @@ export class Project {
      *
      * @param name      For templates from bundles, can start both from '@' and '@!'
      */
-    public getTemplate(name: string) {
+    public getTemplate(name: string): TemplateDescription | null {
         if (name.startsWith('@') && name[1] !== '!') {
             let match = /^@(\w+)\//.exec(name);
             if (match !== null) {
@@ -5335,7 +5340,7 @@ export class Project {
         return null;
     }
 
-    private findInTemplate(code: string, tokens: TwigToken[], name: string, type: 'functionCall' | 'filterCall' | 'testCall') {
+    private findInTemplate(code: string, tokens: TwigToken[], name: string, type: 'functionCall' | 'filterCall' | 'testCall'): number[] {
         let result: number[] = [];
 
         for (let i = 0; i < tokens.length; i++) {
@@ -5379,12 +5384,12 @@ export class Project {
         return result;
     }
 
-    public getName() {
+    public getName(): string {
         return this.name;
     }
 
-    public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>) {
-        this.getSettings = () => resolver(this.folderUri);
+    public setSettingsResolver(resolver: (uri: string) => Promise<SymfonyHelperSettings|null>): void {
+        this.getSettings = (): Promise<SymfonyHelperSettings | null> => resolver(this.folderUri);
     }
 
     /**
@@ -5454,11 +5459,11 @@ export class Project {
         return this.type === ProjectType.SYMFONY;
     }
 
-    private getDoctrineEntityNamespaces() {
+    private getDoctrineEntityNamespaces(): { [alias: string]: string } {
         return (this.symfonyReader === undefined) ? {} : this.symfonyReader.getAllDoctrineEntitynamespaces();
     }
 
-    public getAllRoutes() {
+    public getAllRoutes(): RouteCollection {
         return (this.symfonyReader === undefined) ? [] : this.symfonyReader.getAllRoutes();
     }
 

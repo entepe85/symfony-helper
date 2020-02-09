@@ -9,9 +9,9 @@ import {
 
 type RoutesMap = Map< /* name */ string, { path: string; pathParams: string[]; controller: string }>;
 
-type ServiceDescription = { fullClassName: string; serviceId?: string };
+export type ServiceDescription = { fullClassName: string; serviceId?: string };
 
-type RouteCollection = {
+export type RouteCollection = {
     name: string;
     path: string;
     pathParams: string[];

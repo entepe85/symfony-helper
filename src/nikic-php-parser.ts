@@ -435,9 +435,15 @@ export function findStringContainingOffset(root: any, offset: number): Scalar_St
     return null;
 }
 
+interface UseStatementShort {
+    offset: number;
+    fullName: string;
+    alias: string;
+}
+
 // support 'Stmt_GroupUse'?
-export function findUseStatements(stmts: Statement[]) {
-    let result: { offset: number; fullName: string; alias: string }[] = [];
+export function findUseStatements(stmts: Statement[]): UseStatementShort[] {
+    let result: UseStatementShort[] = [];
 
     let useStmts = findNodesOfType(stmts, 'Stmt_Use') as Stmt_Use[];
     for (let useStmt of useStmts) {
@@ -533,10 +539,16 @@ export function extractClassConstant(expr: Expr_ClassConstFetch, nameResolverDat
     return null;
 }
 
+interface MethodHeaderShort {
+    leftBracketIndex: number;
+    rightBracketIndex: number;
+    node: Stmt_ClassMethod;
+}
+
 /**
  * Finds method containing 'offset' between '(' and ')' of argument list
  */
-export function methodWithOffsetInArguments(code: string, methods: Stmt_ClassMethod[], offset: number) {
+export function methodWithOffsetInArguments(code: string, methods: Stmt_ClassMethod[], offset: number): MethodHeaderShort | null {
     for (let node of methods) {
         if (!(node.attributes.startFilePos < offset && offset < node.attributes.endFilePos)) {
             continue;

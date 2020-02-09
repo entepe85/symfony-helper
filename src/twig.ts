@@ -450,7 +450,7 @@ export function tokenValue(orginalText: string, token: Token): string {
 /**
  * Returns full macro file imports as map from alias name to template name
  */
-export function twigFileMacroImports(parsed: ParsedTwig) {
+export function twigFileMacroImports(parsed: ParsedTwig): { [alias: string]: string } {
     let { code, tokens, pieces } = parsed;
 
     let result: { [alias: string]: string } = Object.create(null);
@@ -478,13 +478,15 @@ export function twigFileMacroImports(parsed: ParsedTwig) {
     return result;
 }
 
+type TwigMacroImports = { [alias: string]: { templateName: string; macroName: string }};
+
 /**
  * Returns individual macro imports created with {%from%}
  */
-export function twigMacroImports(parsed: ParsedTwig) {
+export function twigMacroImports(parsed: ParsedTwig): TwigMacroImports {
     let { code, tokens, pieces } = parsed;
 
-    let result: { [alias: string]: { templateName: string; macroName: string }} = Object.create(null);
+    let result: TwigMacroImports = Object.create(null);
 
     for (let piece of pieces) {
         let st = piece.startToken;
@@ -521,7 +523,11 @@ export function twigMacroImports(parsed: ParsedTwig) {
     return result;
 }
 
-export function macroArguments(piece: TwigPiece, tokens: ReadonlyArray<Token>, code: string) {
+interface MacroArgument {
+    name: string;
+}
+
+export function macroArguments(piece: TwigPiece, tokens: ReadonlyArray<Token>, code: string): MacroArgument[] {
     let result = [];
 
     for (let i = piece.startToken + 4; i <= piece.endToken; i++) {
@@ -1102,7 +1108,7 @@ type ExpressionAccessPath = AccessPathElement[];
 /**
  * Collects expressions of form 'name[].name().name()[].'
  */
-export function parseExpression(code: string, tokens: ReadonlyArray<Token>, firstToken: number, lastToken: number) {
+export function parseExpression(code: string, tokens: ReadonlyArray<Token>, firstToken: number, lastToken: number): { accessPaths: ExpressionAccessPath[] } {
     let accessPaths: ExpressionAccessPath[] = [];
     let subExpressions: { firstToken: number; lastToken: number }[] = [];
 
@@ -1294,7 +1300,7 @@ class TreeWalker {
     public async getValues(offset: number): Promise<ScopeValues | undefined> {
         let result: ScopeValues | undefined;
 
-        let callback = (scope: Scope, pieceIndex: number) => {
+        let callback = (scope: Scope, pieceIndex: number): void => {
             let piece = this.pieces[pieceIndex];
 
             if (result === undefined && piece.start + 2 <= offset && offset <= piece.end) {
@@ -1564,13 +1570,13 @@ class TreeWalker {
     }
 }
 
-export async function findVariables(parsed: ParsedTwig, offset: number, initialScope: Scope, phpClassInfoResolver: php.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+export async function findVariables(parsed: ParsedTwig, offset: number, initialScope: Scope, phpClassInfoResolver: php.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver): Promise<ScopeValues | undefined> {
     let treeWalker = new TreeWalker(parsed, initialScope, phpClassInfoResolver, functionTypeResolver);
     let result = await treeWalker.getValues(offset);
     return result;
 }
 
-export async function findExpressionData(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: php.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver) {
+export async function findExpressionData(parsed: ParsedTwig, initialScope: Scope, phpClassInfoResolver: php.PhpClassSomeInfoResolver, functionTypeResolver: FunctionTypeResolver): Promise<ExpressionData> {
     let treeWalker = new TreeWalker(parsed, initialScope, phpClassInfoResolver, functionTypeResolver);
     let result = await treeWalker.getExpressionData();
     return result;
