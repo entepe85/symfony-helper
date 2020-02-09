@@ -52,6 +52,7 @@ import {
 
 import { Project } from './project';
 import TwigService from './TwigService';
+import XmlService from './XmlService';
 
 export class Service {
     private allDocuments: AllTextDocuments;
@@ -72,11 +73,13 @@ export class Service {
     private getSettings?: (uri: string) => Promise<SymfonyHelperSettings|null>;
 
     private twigService: TwigService;
+    private xmlService: XmlService;
 
     constructor(allDocuments: AllTextDocuments) {
         this.allDocuments = allDocuments;
 
         this.twigService = new TwigService(allDocuments);
+        this.xmlService = new XmlService(allDocuments);
     }
 
     public setConnection(connection: IConnection | undefined): void {
@@ -197,6 +200,10 @@ export class Service {
 
         if (documentUri.endsWith('.twig')) {
             return this.twigService.definition(project, document, params.position);
+        }
+
+        if (documentUri.endsWith('.xml')) {
+            return this.xmlService.definition(project, document, params.position);
         }
 
         return await project.onDefinition(params);
@@ -340,6 +347,10 @@ export class Service {
 
         if (documentUri.endsWith('.twig')) {
             return this.twigService.hover(project, document, params.position);
+        }
+
+        if (documentUri.endsWith('.xml')) {
+            return this.xmlService.hover(project, document, params.position);
         }
 
         return await project.onHover(params);
