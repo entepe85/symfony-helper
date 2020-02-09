@@ -1083,7 +1083,7 @@ export class Project {
     // it seems that 'TemplateDescription#name' is unique key
     public templates: { [fileUri: string]: TemplateDescription} = Object.create(null);
 
-    public twigYaml?: {
+    private twigYaml?: {
         uri: string;
         globals: { name: string; offset: number; value: string }[];
     };
@@ -5460,5 +5460,13 @@ export class Project {
 
     public getAllRoutes() {
         return (this.symfonyReader === undefined) ? [] : this.symfonyReader.getAllRoutes();
+    }
+
+    public twigYamlGlobals(): string[] {
+        if (this.twigYaml === undefined) {
+            return [];
+        }
+
+        return this.twigYaml.globals.map(row => row.name);
     }
 }

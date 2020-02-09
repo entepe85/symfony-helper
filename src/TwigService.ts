@@ -1159,19 +1159,17 @@ export default class TwigService {
             }
         }
 
-        // collecting globals from 'twig.yaml'
-        if (project.twigYaml !== undefined) {
-            for (let global of project.twigYaml.globals) {
-                items.push({
-                    label: global.name,
-                    kind: CompletionItemKind.Variable,
-                    textEdit: {
-                        range: editRange,
-                        newText: global.name,
-                    },
-                    detail: 'twig.yaml',
-                });
-            }
+        // globals from 'twig.yaml'
+        for (let name of project.twigYamlGlobals()) {
+            items.push({
+                label: name,
+                kind: CompletionItemKind.Variable,
+                textEdit: {
+                    range: editRange,
+                    newText: name,
+                },
+                detail: 'twig.yaml',
+            });
         }
 
         // collecting globals from twig extensions
