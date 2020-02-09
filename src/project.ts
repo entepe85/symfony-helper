@@ -1106,7 +1106,7 @@ export class Project {
     private getSettings: () => Promise<SymfonyHelperSettings|null> = () => Promise.resolve(null);
 
     public templatesFolderUri: string;
-    public sourceFolders: string[]; // Relative paths to folders with php and configuration. Elements must not start and end with '/'.
+    private sourceFolders: string[]; // Relative paths to folders with php and configuration. Elements must not start and end with '/'.
     private type: ProjectType = ProjectType.BASIC;
 
     private symfonyReader?: DirectSymfonyReader;
