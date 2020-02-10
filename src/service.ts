@@ -54,6 +54,7 @@ import { Project } from './project';
 import PhpService from './PhpService';
 import TwigService from './TwigService';
 import XmlService from './XmlService';
+import YamlService from './YamlService';
 
 export class Service {
     private allDocuments: AllTextDocuments;
@@ -76,6 +77,7 @@ export class Service {
     private phpService: PhpService;
     private twigService: TwigService;
     private xmlService: XmlService;
+    private yamlService: YamlService;
 
     constructor(allDocuments: AllTextDocuments) {
         this.allDocuments = allDocuments;
@@ -83,6 +85,7 @@ export class Service {
         this.phpService = new PhpService(allDocuments);
         this.twigService = new TwigService(allDocuments);
         this.xmlService = new XmlService(allDocuments);
+        this.yamlService = new YamlService(allDocuments);
     }
 
     public setConnection(connection: IConnection | undefined): void {
@@ -212,7 +215,11 @@ export class Service {
             return this.xmlService.definition(project, document, params.position);
         }
 
-        return await project.onDefinition(params);
+        if (documentUri.endsWith('.yaml')) {
+            return this.yamlService.definition(project, document, params.position);
+        }
+
+        return null;
     }
 
     public async onReferences(params: ReferenceParams): Promise<Location[]> {
@@ -363,7 +370,11 @@ export class Service {
             return this.xmlService.hover(project, document, params.position);
         }
 
-        return await project.onHover(params);
+        if (documentUri.endsWith('.yaml')) {
+            return this.yamlService.hover(project, document, params.position);
+        }
+
+        return null;
     }
 
     public async onSignatureHelp(params: TextDocumentPositionParams): Promise<SignatureHelp | null> {
