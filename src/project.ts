@@ -10,18 +10,14 @@ import URI from 'vscode-uri';
 import * as sax from 'sax';
 
 import {
-    CompletionParams,
     TextDocumentPositionParams,
     Definition,
     Range,
     Position,
-    CompletionItem,
-    CompletionItemKind,
     Location,
     TextDocument,
     Hover,
     MarkupKind,
-    TextEdit,
     ReferenceParams,
 } from 'vscode-languageserver';
 
@@ -601,7 +597,7 @@ export function findTwigExtensionElements(code: string, stmts: nikic.Statement[]
     return result;
 }
 
-let targetEntityRegexp = /(@(ORM\\)?(ManyToOne|ManyToMany|OneToOne|OneToMany)\s*\(.*targetEntity\s*=\s*["'])([\w\\]+)["']/;
+export let targetEntityRegexp = /(@(ORM\\)?(ManyToOne|ManyToMany|OneToOne|OneToMany)\s*\(.*targetEntity\s*=\s*["'])([\w\\]+)["']/;
 
 let embedRegexp = /(@(ORM\\)?Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/;
 
@@ -728,7 +724,7 @@ function parseEntity(classNode: nikic.Stmt_Class, nameResolverData: nikic.NameRe
 /**
  * Common data for annotation-mapping and xml-mapping
  */
-interface EntityData {
+export interface EntityData {
     className: string;
     offset: number; // 'natural' offset of entity definition
     fields: EntityFieldData[];
@@ -746,7 +742,7 @@ interface EntityFieldData {
 
 type EntityFieldJoinType = 'ManyToOne' | 'ManyToMany' | 'OneToOne' | 'OneToMany';
 
-function isLooksLikeDQL(str: string): boolean {
+export function isLooksLikeDQL(str: string): boolean {
     let regexp = /^\s*(select|update|delete)\s+/i;
 
     return regexp.test(str);
@@ -755,7 +751,7 @@ function isLooksLikeDQL(str: string): boolean {
 /**
  * Returns object of form { p: 'App\Entity\Product', ... }
  */
-function collectEntitiesAliases(tokens: dql.Token[], entities: { [className: string]: EntityData }, entityNamespaces: { [alias: string]: string }): { [alias: string]: string } {
+export function collectEntitiesAliases(tokens: dql.Token[], entities: { [className: string]: EntityData }, entityNamespaces: { [alias: string]: string }): { [alias: string]: string } {
     let result: { [alias: string]: string } = Object.create(null);
 
     let tokenToEntityClass = (tokenIndex: number): string | null => {
@@ -1066,13 +1062,6 @@ interface BundleInfo {
 }
 
 // TODO: probably should create subclass 'SymfonyProject' of class 'Project'
-/**
- * Logic for individual symfony project.
- *
- * Methods 'hover*()' and 'definition*()' should have similar structure.
- * Methods 'twigTest*()', 'xmlTest*()', 'phpTest*()' should not contain 'await this.getDocument()'.
- * Methods 'twigTest*()', 'xmlTest*()', 'phpTest*()' probably should only parse text and search data in properties like 'this.phpClasses' and 'this.templates'.
- */
 export class Project {
     private name: string;
     private folderUri: string;
@@ -1081,7 +1070,7 @@ export class Project {
     private phpClassNameToFileUri: { [className: string]: string } = Object.create(null);
     public phpClasses: { [fileUri: string]: PhpClass } = Object.create(null);
 
-    private xmlFiles: { [fileUri: string]: XmlFile } = Object.create(null);
+    public xmlFiles: { [fileUri: string]: XmlFile } = Object.create(null);
 
     private services: { [id: string]: ServiceXmlDescription } = Object.create(null);
 
@@ -1092,7 +1081,7 @@ export class Project {
         uri: string;
         globals: { name: string; offset: number; value: string }[];
     };
-    private containerParametersPositions: { [fileUri: string]: { [name: string]: { offset: number } } } = Object.create(null);
+    public containerParametersPositions: { [fileUri: string]: { [name: string]: { offset: number } } } = Object.create(null);
 
     private readonly NAMESPACE_REGEXP = /^namespace\s+([\w\\]+)/m;
 
@@ -1853,7 +1842,7 @@ export class Project {
     /**
      * Finds primitive symbol table of method
      */
-    private async symbolTable(methodNode: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData): Promise<PlainSymbolTable> {
+    public async symbolTable(methodNode: nikic.Stmt_ClassMethod, nameResolverData: nikic.NameResolverData): Promise<PlainSymbolTable> {
         let symbols: PlainSymbolTable = methodParamsSymbolTable(methodNode, nameResolverData);
 
         for (let stmt of methodNode.stmts) {
@@ -2157,26 +2146,6 @@ export class Project {
         return new php.AnyType();
     }
 
-    public async onCompletition(params: CompletionParams): Promise<CompletionItem[]> {
-        let documentUri = params.textDocument.uri;
-
-        if (!documentUri.startsWith(this.folderUri + '/')) {
-            return [];
-        }
-
-        let document = await this.getDocument(documentUri);
-
-        if (document === null) {
-            return [];
-        }
-
-        if (documentUri.endsWith('.php')) {
-            return await this.completePhp(document, params.position);
-        } else {
-            return [];
-        }
-    }
-
     private findRenderCallsForTemplate(templateUri: string): TemplateRenderCall[] {
         let result: TemplateRenderCall[] = [];
 
@@ -2196,426 +2165,7 @@ export class Project {
         return result;
     }
 
-    private async completePhp(document: TextDocument, position: Position): Promise<CompletionItem[]> {
-        let offset = document.offsetAt(position);
-        let code = document.getText();
-
-        let stmts = await nikic.parse(code);
-        if (stmts === null) {
-            return [];
-        }
-
-        // complete autowiring typehints
-        do {
-            if (!this.isFromSourceFolders(document.uri)) {
-                break;
-            }
-
-            let methodNodes = nikic.findNodesOfType(stmts, 'Stmt_ClassMethod') as nikic.Stmt_ClassMethod[];
-
-            let methodTest = nikic.methodWithOffsetInArguments(code, methodNodes, offset);
-            if (methodTest === null) {
-                break;
-            }
-
-            let textToCursor = code.substring(methodTest.leftBracketIndex, offset);
-
-            let match = /(,|\(|\s)\s*(\.[\w\.]*)$/.exec(textToCursor);
-            if (match === null) {
-                break;
-            }
-
-            let prefix = match[2];
-
-            let useStatements = nikic.findUseStatements(stmts);
-
-            let items: CompletionItem[] = [];
-
-            for (let row of this.getAutowiredServices()) {
-                let editRange = Range.create(document.positionAt(offset - prefix.length), document.positionAt(offset));
-                let fullClassName = row.fullClassName;
-
-                let className;
-                if (fullClassName.includes('\\')) {
-                    let pieces = fullClassName.split('\\');
-                    className = pieces[pieces.length - 1];
-                } else {
-                    className = fullClassName;
-                }
-
-                let argumentName = className.replace(/_/, '');
-                argumentName = argumentName[0].toLowerCase() + argumentName.substr(1);
-                if (argumentName.endsWith('Interface')) {
-                    argumentName = argumentName.substr(0, argumentName.length - 'Interface'.length);
-                }
-
-                let newTextPrefix = '\\' + fullClassName;
-                let additionalTextEdits: TextEdit[] = [];
-                {
-                    if (fullClassName.includes('\\')) {
-                        let stmt = useStatements.filter(d => d.fullName === fullClassName)[0];
-                        if (stmt !== undefined) {
-                            newTextPrefix = stmt.alias;
-                        } else {
-                            if (useStatements.length > 0) {
-                                let lastUseStatement = useStatements[useStatements.length - 1];
-                                let lastUseStatementPosition = document.positionAt(lastUseStatement.offset);
-                                let newUseStatementPosition = Position.create(lastUseStatementPosition.line + 1, 0);
-                                additionalTextEdits.push({
-                                    newText: 'use ' + fullClassName + ';\n',
-                                    range: Range.create(newUseStatementPosition, newUseStatementPosition),
-                                });
-
-                                let pieces = fullClassName.split('\\');
-                                newTextPrefix = pieces[pieces.length - 1];
-                            }
-                        }
-                    }
-                }
-
-                let newText = newTextPrefix + ' $' + argumentName;
-
-                {
-                    let use = (prefix.length === 1) || (prefix.length > 1 && className.toLowerCase().includes(prefix.substr(1).toLowerCase()));
-
-                    if (use) {
-                        let classBaseditem: CompletionItem = {
-                            label: '.' + className,
-                            textEdit: { newText, range: editRange },
-                            detail: fullClassName,
-                        };
-
-                        if (row.serviceId !== undefined) {
-                            classBaseditem.documentation = row.serviceId;
-                        }
-
-                        if (additionalTextEdits.length > 0) {
-                            classBaseditem.additionalTextEdits = additionalTextEdits;
-                        }
-
-                        items.push(classBaseditem);
-                    }
-                }
-
-                if (row.serviceId !== undefined) {
-                    let serviceId = row.serviceId;
-                    let use = (prefix.length === 1) || (prefix.length > 1 && serviceId.toLowerCase().includes(prefix.substr(1).toLowerCase()));
-                    if (use) {
-                        let idBasedItem: CompletionItem = {
-                            label: '.' + serviceId,
-                            textEdit: { newText, range: editRange },
-                            detail: fullClassName,
-                        };
-
-                        if (additionalTextEdits.length > 0) {
-                            idBasedItem.additionalTextEdits = additionalTextEdits;
-                        }
-
-                        items.push(idBasedItem);
-                    }
-                }
-            }
-
-            return items;
-        } while (false);
-
-        // completion of parameters and services in controllers
-        do {
-            if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
-                break;
-            }
-
-            if (!this.isController(document)) {
-                break;
-            }
-
-            let codeToCursor = code.substr(0, offset);
-
-            {
-                // completion of parameters
-                let match = /\$this\s*->\s*getParameter\s*\(\s*['"]([\w\.]*)$/.exec(codeToCursor);
-                if (match !== null) {
-                    let prefix = match[1];
-
-                    let items: CompletionItem[] = [];
-                    for (let name in this.symfonyReader.getAllContainerParameters()) {
-                        items.push({
-                            label: name,
-                            textEdit: {
-                                range: Range.create(document.positionAt(offset - prefix.length), position),
-                                newText: name,
-                            }
-                        });
-                    }
-                    return items;
-                }
-            }
-
-            {
-                // completion of services
-                let match = /\$this\s*->\s*get\s*\(\s*['"]([\w\.]*)$/.exec(codeToCursor);
-                if (match !== null) {
-                    let prefix = match[1];
-
-                    let allowedServices = [
-                        'doctrine',
-                        'form.factory',
-                        'http_kernel',
-                        'parameter_bag',
-                        'request_stack',
-                        'router',
-                        'security.authorization_checker',
-                        'security.csrf.token_manager',
-                        'security.token_storage',
-                        'serializer',
-                        'session',
-                        'twig',
-                    ];
-
-                    let items: CompletionItem[] = [];
-                    for (let serviceName of allowedServices) {
-                        items.push({
-                            label: serviceName,
-                            textEdit: {
-                                range: Range.create(document.positionAt(offset - prefix.length), position),
-                                newText: serviceName,
-                            }
-                        });
-                    }
-                    return items;
-                }
-            }
-        } while (false);
-
-        // complete route in UrlGeneratorInterface#generate() and AbstractController#generateUrl()
-        do {
-            if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
-                break;
-            }
-
-            if (!this.isFromSourceFolders(document.uri)) {
-                break;
-            }
-
-            let isUrlGenerator = await this.isCursorInsideUrlGenerator(offset, stmts);
-
-            let codeToCursor = code.substr(0, offset);
-
-            let isControllerGenerator = this.isController(document) && /\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/.test(codeToCursor);
-
-            if (!isUrlGenerator && !isControllerGenerator) {
-                break;
-            }
-
-            let match = /['"]([\.\w-]*)$/.exec(codeToCursor);
-            if (match === null) {
-                break;
-            }
-
-            let prefix = match[1];
-
-            let routes = this.symfonyReader.getAllRoutes();
-
-            let codeAfterCursor = code.substr(offset);
-
-            let postfixMatch = /^([\.\w-]*)['"]\s*\)/.exec(codeAfterCursor);
-
-            let items: CompletionItem[] = [];
-
-            for (let row of routes) {
-                let item: CompletionItem = {
-                    label: row.name,
-                    kind: CompletionItemKind.Method,
-                    textEdit: {
-                        newText: row.name,
-                        range: Range.create(document.positionAt(offset - prefix.length), position),
-                    },
-                    detail: row.path,
-                    documentation: row.controller,
-                };
-
-                if (row.pathParams.length > 0 && (postfixMatch !== null)) {
-                    let postfix = postfixMatch[1];
-                    let paramsPosition = document.positionAt(offset + postfix.length + 1);
-                    let paramsText = ', [' + row.pathParams.map(name => `'${name}' => ''`).join(', ') + ']';
-                    item.additionalTextEdits = [{
-                        newText: paramsText,
-                        range: Range.create(paramsPosition, paramsPosition),
-                    }];
-                }
-
-                items.push(item);
-            }
-
-            return items;
-        } while (false);
-
-        {
-            let items = await this.completeEntityField(document, stmts, position);
-            if (items.length > 0) {
-                return items;
-            }
-        }
-
-        {
-            let items = this.completeTemplateNameInPhp(document, position);
-            if (items.length > 0) {
-                return items;
-            }
-        }
-
-        return [];
-    }
-
-    private async completeEntityField(document: TextDocument, stmts: nikic.Statement[], position: Position): Promise<CompletionItem[]> {
-        let cursorOffset = document.offsetAt(position);
-
-        let scalarString = nikic.findStringContainingOffset(stmts, cursorOffset);
-        if (scalarString === null) {
-            return [];
-        }
-
-        if (!isLooksLikeDQL(scalarString.value)) {
-            return [];
-        }
-
-        let fullScalar = document.getText().substring(scalarString.attributes.startFilePos, scalarString.attributes.endFilePos + 1);
-
-        let scalarStringValueIndex = fullScalar.indexOf(scalarString.value);
-        if (scalarStringValueIndex < 0) {
-            return [];
-        }
-
-        let stringLiteralOffset = scalarString.attributes.startFilePos + scalarStringValueIndex;
-
-        let tokens = dql.tokenize(scalarString.value);
-
-        let entities = this.getEntities();
-
-        let identifierToEntity = collectEntitiesAliases(tokens, entities, this.getDoctrineEntityNamespaces());
-
-        let cursorOffsetInString = cursorOffset - stringLiteralOffset;
-
-        let dotBeforeCursorIndex: number | undefined;
-        for (let i = 0; i < tokens.length; i++) {
-            let token = tokens[i];
-            if (token.type === dql.TokenType.DOT) {
-                if (token.position < cursorOffsetInString) {
-                    dotBeforeCursorIndex = i;
-                } else {
-                    break;
-                }
-            }
-        }
-
-        if (dotBeforeCursorIndex === undefined) {
-            return [];
-        }
-
-        let textBetweenDotAndCursor = scalarString.value.substring(tokens[dotBeforeCursorIndex].position + 1, cursorOffsetInString);
-        if (!/^\w*$/.test(textBetweenDotAndCursor)) {
-            return [];
-        }
-
-        let accessPath: string[] = [];
-
-        for (let i = dotBeforeCursorIndex - 1; i >= 0; i -= 2) {
-            let possibleIdentifier = tokens[i];
-            let possibleDot = tokens[i + 1];
-
-            if (possibleDot.type === dql.TokenType.DOT) {
-                if (possibleIdentifier.type === dql.TokenType.IDENTIFIER && dql.touchEachOther(possibleIdentifier, possibleDot)) {
-                    accessPath.unshift(possibleIdentifier.value);
-                } else {
-                    // something bad happened
-                    accessPath.length = 0;
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-
-        if (accessPath.length === 0) {
-            return [];
-        }
-
-        if (identifierToEntity[accessPath[0]] === undefined) {
-            return [];
-        }
-
-        let phpClass: PhpClass | null;
-
-        if (accessPath.length === 1) {
-            phpClass = await this.getPhpClass(identifierToEntity[accessPath[0]]);
-        } else {
-            let result = await this.accessEntityWithPath(identifierToEntity[accessPath[0]], accessPath.slice(1));
-            if (result === null) {
-                return [];
-            }
-
-            if (result.phpClassField.isEmbedded) {
-                phpClass = await this.getPhpClass(result.phpClassField.type);
-            } else {
-                phpClass = null;
-            }
-        }
-
-        if (phpClass === null) {
-            return [];
-        }
-
-        let entityData: undefined | EntityData;
-
-        for (let fileUri in this.xmlFiles) {
-            let entity = this.xmlFiles[fileUri].entity;
-            if (entity !== undefined && entity.className === phpClass.fullClassName) {
-                entityData = entity;
-                break;
-            }
-        }
-
-        if (entityData === undefined) {
-            if (phpClass.entity !== undefined) {
-                entityData = phpClass.entity;
-            }
-        }
-
-        if (entityData === undefined) {
-            return [];
-        }
-
-        let items: CompletionItem[] = [];
-
-        for (let field of entityData.fields) {
-            let item: CompletionItem = {
-                label: field.name,
-                kind: CompletionItemKind.Property,
-                textEdit: {
-                    range: Range.create(
-                        document.positionAt(cursorOffset - textBetweenDotAndCursor.length),
-                        position
-                    ),
-                    newText: field.name,
-                },
-                detail: field.type,
-            };
-
-            let doc = await this.phpClassHoverMarkdown(phpClass.fullClassName, 'property', field.name);
-            if (doc !== null) {
-                item.documentation = {
-                    kind: MarkupKind.Markdown,
-                    value: doc,
-                };
-            }
-
-            items.push(item);
-        }
-
-        return items;
-    }
-
-    private getEntities(): { [fullClassName: string]: EntityData } {
+    public getEntities(): { [fullClassName: string]: EntityData } {
         let result: { [fullClassName: string]: EntityData } = Object.create(null);
 
         for (let fileUri in this.phpClasses) {
@@ -2635,158 +2185,6 @@ export class Project {
         return result;
     }
 
-    private completeTemplateNameInPhp(document: TextDocument, position: Position): CompletionItem[] {
-        let offset = document.offsetAt(position);
-        let lines = document.getText().split('\n');
-        let line = lines[position.line].substring(0, position.character);
-
-        let match = /[^\w](render|renderView)\s*\(\s*(['"]?[@!\w\./\-]*)?$/.exec(line);
-        let isQuotePlaced = false;
-        let existingPrefix = '';
-        if (match !== null) {
-            if (match[2] !== undefined) {
-                if (match[2].startsWith('"') || match[2].startsWith('\'')) {
-                    existingPrefix = match[2].substr(1);
-                    isQuotePlaced = true;
-                } else {
-                    existingPrefix = match[2];
-                }
-            }
-        } else {
-            // try previous line
-            if (position.line > 1) {
-                let prevLine = lines[position.line - 1];
-                let prevLineMatch = /[^\w](render|renderView)\s*\(\s*$/.exec(prevLine);
-                let lineMatch = /\s*(['"]?[@!\w\./\-]*)?$/.exec(line);
-                if (prevLineMatch === null || lineMatch === null) {
-                    return [];
-                }
-
-                if (lineMatch[1] !== undefined) {
-                    if (lineMatch[1].startsWith('"') || lineMatch[1].startsWith('\'')) {
-                        existingPrefix = lineMatch[1].substr(1);
-                        isQuotePlaced = true;
-                    } else {
-                        existingPrefix = lineMatch[1];
-                    }
-                }
-            } else {
-                return [];
-            }
-        }
-
-        let items: CompletionItem[] = [];
-
-        for (let fileUri in this.templates) {
-            let name = this.templates[fileUri].name;
-
-            if (name.startsWith('bundles/')) {
-                continue;
-            }
-
-            // fast hack. should be improved and tested.
-            if (existingPrefix.startsWith('@')) {
-                if (!name.startsWith('@')) {
-                    continue;
-                }
-                if (!name.toLowerCase().includes(existingPrefix.substr(1).toLowerCase())) {
-                    continue;
-                }
-            } else {
-                if (name.startsWith('@')) {
-                    continue;
-                }
-            }
-
-            let newText = name;
-            if (!isQuotePlaced) {
-                newText = '\'' + name + '\'';
-            }
-
-            items.push({
-                label: name,
-                kind: CompletionItemKind.File,
-                textEdit: {
-                    newText,
-                    range: Range.create(document.positionAt(offset - existingPrefix.length), position),
-                }
-            });
-        }
-
-        return items;
-    }
-
-    /**
-     * Tests if cursor inside of first parameter of UrlGeneratorInterface::generate() and that first parameter is string
-     */
-    private async isCursorInsideUrlGenerator(offset: number, fileStmts: nikic.Statement[]): Promise<false | nikic.Scalar_String> {
-        let stmts = fileStmts;
-
-        let nameResolverData = nikic.findNameResolverData(stmts);
-
-        let methodNode: nikic.Stmt_ClassMethod | undefined;
-
-        let classMethodsNodes = nikic.findNodesOfType(stmts, 'Stmt_ClassMethod') as nikic.Stmt_ClassMethod[];
-        for (let m of classMethodsNodes) {
-            if (m.attributes.startFilePos < offset && offset <= m.attributes.endFilePos) {
-                methodNode = m;
-                break;
-            }
-        }
-
-        if (methodNode === undefined) {
-            return false;
-        }
-
-        let methodSymbols = await this.symbolTable(methodNode, nameResolverData);
-
-        let methodCall: nikic.Expr_MethodCall | undefined;
-
-        let methodCallNodes = nikic.findNodesOfType(methodNode, 'Expr_MethodCall') as nikic.Expr_MethodCall[];
-        for (let i = 0; i < methodCallNodes.length; i++) {
-            let call = methodCallNodes[methodCallNodes.length - 1 - i];
-
-            if (call.attributes.startFilePos < offset && offset <= call.attributes.endFilePos) {
-                methodCall = call;
-                break;
-            }
-        }
-
-        if (methodCall === undefined) {
-            return false;
-        }
-
-        if (methodCall.name.nodeType !== 'Identifier' || methodCall.name.name !== 'generate') {
-            return false;
-        }
-
-        if (methodCall.var.nodeType !== 'Expr_Variable' || typeof methodCall.var.name !== 'string') {
-            return false;
-        }
-
-        let varName = methodCall.var.name;
-
-        let varType = methodSymbols[varName];
-        if (!(varType instanceof php.ObjectType && varType.getClassName() === 'Symfony\\Component\\Routing\\Generator\\UrlGeneratorInterface')) {
-            return false;
-        }
-
-        if (methodCall.args.length === 0) {
-            return false;
-        }
-
-        let firstArgValue = methodCall.args[0].value;
-        if (firstArgValue.nodeType !== 'Scalar_String') {
-            return false;
-        }
-
-        if (!(firstArgValue.attributes.startFilePos < offset && offset <= firstArgValue.attributes.endFilePos)) {
-            return false;
-        }
-
-        return firstArgValue;
-    }
-
     public async onDefinition(params: TextDocumentPositionParams): Promise<Definition | null> {
         let documentUri = params.textDocument.uri;
 
@@ -2800,9 +2198,7 @@ export class Project {
             return null;
         }
 
-        if (documentUri.endsWith('.php')) {
-            return await this.definitionPhp(document, params.position);
-        } else if (documentUri.endsWith('.yaml')) {
+        if (documentUri.endsWith('.yaml')) {
             return await this.definitionYaml(document, params.position);
         } else {
             return null;
@@ -2844,217 +2240,6 @@ export class Project {
                     uri: result,
                     range: Range.create(0, 0, 0, 0),
                 };
-            }
-        }
-
-        return null;
-    }
-
-    private async definitionPhp(document: TextDocument, position: Position): Promise<Definition | null> {
-        let offset = document.offsetAt(position);
-        let code = document.getText();
-
-        let stmts = await nikic.parse(code);
-        if (stmts === null) {
-            return null;
-        }
-
-        let scalarString = nikic.findStringContainingOffset(stmts, offset);
-        if (scalarString === null) {
-            // test autowired argument
-            {
-                let result = this.phpTestAutowiredArgment(document, code, stmts, offset);
-                if (result !== null) {
-                    if (this.services[result.serviceId] !== undefined) {
-                        let serviceInfo = this.services[result.serviceId];
-
-                        let serviceDocument = await this.getDocument(serviceInfo.fileUri);
-                        if (serviceDocument !== null) {
-                            let servicePosition = serviceDocument.positionAt(serviceInfo.tagStartOffset);
-
-                            return {
-                                uri: serviceInfo.fileUri,
-                                range: Range.create(servicePosition, servicePosition),
-                            };
-                        }
-                    }
-                }
-            }
-
-            // test 'targetEntity' and 'repositoryClass' in entity class
-            {
-                let result = this.phpTestTargetEntity(document, stmts, offset);
-
-                if (result === null) {
-                    result = this.phpTestRepositoryClass(document, stmts, offset);
-                }
-
-                if (result === null) {
-                    result = this.phpTestClassOfEmbedded(document, stmts, offset);
-                }
-
-                if (result !== null) {
-                    let phpClass = await this.getPhpClass(result.fullClassName);
-                    if (phpClass !== null) {
-                        let phpClassDocument = await this.getDocument(phpClass.fileUri);
-                        if (phpClassDocument !== null) {
-                            let classPosition = phpClassDocument.positionAt(phpClass.offset);
-                            return {
-                                uri: phpClass.fileUri,
-                                range: Range.create(classPosition, classPosition),
-                            };
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        if (isLooksLikeDQL(scalarString.value)) {
-            return this.definitionDql(scalarString, document, offset);
-        }
-
-        // test route name
-        {
-            let result = await this.phpTestRouteName(document, code, stmts, offset, scalarString);
-
-            if (result !== null) {
-                let controllerLocation = await this.routeLocation(result.route);
-
-                if (controllerLocation !== null) {
-                    return controllerLocation;
-                }
-            }
-        }
-
-        // test service name
-        {
-            let result = this.phpTestServiceName(document, code, offset, scalarString);
-
-            if (result !== null) {
-                let { service } = result;
-
-                let xmlDocument = await this.getDocument(service.fileUri);
-
-                if (xmlDocument !== null) {
-                    let tagPosition = xmlDocument.positionAt(service.tagStartOffset);
-
-                    return {
-                        uri: service.fileUri,
-                        range: Range.create(tagPosition, tagPosition),
-                    };
-                }
-            }
-        }
-
-        // test container parameter name
-        {
-            let result = this.phpTestContainerParameterName(document, code, scalarString);
-
-            if (result !== null) {
-                for (let fileUri in this.containerParametersPositions) {
-                    let parameterMap = this.containerParametersPositions[fileUri];
-                    if (parameterMap[result.name] !== undefined) {
-                        let paramOffset = parameterMap[result.name].offset;
-
-                        let fileDocument = await this.getDocument(fileUri);
-
-                        if (fileDocument !== null) {
-                            let paramPosition = fileDocument.positionAt(paramOffset);
-
-                            return {
-                                uri: fileUri,
-                                range: Range.create(paramPosition, paramPosition),
-                            };
-                        }
-                    }
-                }
-            }
-        }
-
-        // go to template
-        if (scalarString.value.endsWith('.twig')) {
-            let templateName = scalarString.value;
-            let templateInfo = this.getTemplate(templateName);
-
-            if (templateInfo !== null) {
-                return [{
-                    uri: templateInfo.fileUri,
-                    range: Range.create(0, 0, 0, 0),
-                }];
-            }
-        }
-
-        return null;
-    }
-
-    private async definitionDql(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<Definition | null> {
-        let result = await this.dqlTestPosition(scalarString, document, offset);
-
-        if (result === null) {
-            return null;
-        }
-
-        if (result.type === 'entityClass') {
-            for (let fileUri in this.xmlFiles) {
-                let entity = this.xmlFiles[fileUri].entity;
-                if (entity !== undefined && entity.className === result.className) {
-                    let xmlDocument = await this.getDocument(fileUri);
-                    if (xmlDocument !== null) {
-                        let pos = xmlDocument.positionAt(entity.offset);
-                        return {
-                            uri: fileUri,
-                            range: Range.create(pos, pos),
-                        };
-                    }
-                }
-            }
-
-            let phpClass = await this.getPhpClass(result.className);
-
-            if (phpClass !== null && phpClass.entity !== undefined) {
-                let classDocument = await this.getDocument(phpClass.fileUri);
-
-                if (classDocument !== null) {
-                    let classPosition = classDocument.positionAt(phpClass.offset);
-
-                    return {
-                        uri: phpClass.fileUri,
-                        range: Range.create(classPosition, classPosition),
-                    };
-                }
-            }
-        } else if (result.type === 'entityField') {
-            let result2 = await this.accessEntityWithPath(result.className, result.accessPath);
-
-            if (result2 !== null) {
-                let { phpClass, phpClassField } = result2;
-
-                for (let fileUri in this.xmlFiles) {
-                    let entity = this.xmlFiles[fileUri].entity;
-                    if (entity !== undefined && entity.className === phpClass.fullClassName) {
-                        let xmlDocument = await this.getDocument(fileUri);
-                        if (xmlDocument !== null) {
-                            let pos = xmlDocument.positionAt(phpClassField.offset);
-                            return {
-                                uri: fileUri,
-                                range: Range.create(pos, pos),
-                            };
-                        }
-                    }
-                }
-
-                let classDocument = await this.getDocument(phpClass.fileUri);
-
-                if (classDocument !== null) {
-                    let fieldPosition = classDocument.positionAt(phpClassField.offset);
-
-                    return {
-                        uri: phpClass.fileUri,
-                        range: Range.create(fieldPosition, fieldPosition),
-                    };
-                }
             }
         }
 
@@ -3546,9 +2731,7 @@ export class Project {
             return null;
         }
 
-        if (documentUri.endsWith('.php')) {
-            return await this.hoverPhp(document, params.position);
-        } else if (documentUri.endsWith('.yaml')) {
+        if (documentUri.endsWith('.yaml')) {
             return await this.hoverYaml(document, params.position);
         } else {
             return null;
@@ -3599,206 +2782,7 @@ export class Project {
         return null;
     }
 
-    private async hoverPhp(document: TextDocument, position: Position): Promise<Hover | null> {
-        let offset = document.offsetAt(position);
-        let code = document.getText();
-
-        let stmts = await nikic.parse(code);
-        if (stmts === null) {
-            return null;
-        }
-
-        let scalarString = nikic.findStringContainingOffset(stmts, offset);
-        if (scalarString === null) {
-            // test autowired argument
-            {
-                let result = this.phpTestAutowiredArgment(document, code, stmts, offset);
-                if (result !== null) {
-                    let hoverMarkdown = ['```', result.serviceId, '```'].join('\n');
-
-                    return {
-                        contents: {
-                            value: hoverMarkdown,
-                            kind: MarkupKind.Markdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                }
-            }
-
-            // test 'targetEntity' and 'repositoryClass' in entity class
-            {
-                let result = this.phpTestTargetEntity(document, stmts, offset);
-
-                if (result === null) {
-                    result = this.phpTestRepositoryClass(document, stmts, offset);
-                }
-
-                if (result === null) {
-                    result = this.phpTestClassOfEmbedded(document, stmts, offset);
-                }
-
-                if (result !== null) {
-                    let hoverMarkdown = await this.phpClassHoverMarkdown(result.fullClassName);
-
-                    if (hoverMarkdown !== null) {
-                        return {
-                            contents: {
-                                kind: MarkupKind.Markdown,
-                                value: hoverMarkdown,
-                            },
-                            range: Range.create(
-                                document.positionAt(result.hoverLeftOffset),
-                                document.positionAt(result.hoverRightOffset)
-                            )
-                        };
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        if (isLooksLikeDQL(scalarString.value)) {
-            return this.hoverDql(scalarString, document, offset);
-        }
-
-        // test route name
-        {
-            let result = await this.phpTestRouteName(document, code, stmts, offset, scalarString);
-
-            if (result !== null) {
-                let hoverMarkdown = this.routeHoverMarkdown(result.route);
-                if (hoverMarkdown !== null) {
-                    return {
-                        contents: {
-                            value: hoverMarkdown,
-                            kind: MarkupKind.Markdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        )
-                    };
-                }
-            }
-        }
-
-        // test service name
-        {
-            let result = this.phpTestServiceName(document, code, offset, scalarString);
-
-            if (result !== null) {
-                let hoverMarkdown = this.serviceHoverMarkdown(result.service);
-
-                return {
-                    range: Range.create(
-                        document.positionAt(result.hoverLeftOffset),
-                        document.positionAt(result.hoverRightOffset)
-                    ),
-                    contents: {
-                        kind: MarkupKind.Markdown,
-                        value: hoverMarkdown,
-                    }
-                };
-            }
-        }
-
-        // test container parameter name
-        {
-            let result = this.phpTestContainerParameterName(document, code, scalarString);
-
-            if (result !== null && this.symfonyReader !== undefined) {
-                let value = this.symfonyReader.getContainerParameter(result.name);
-
-                if (value !== undefined) {
-                    let printValue: string;
-                    if (value === null) {
-                        printValue = 'null';
-                    } else if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
-                        printValue = '' + value;
-                    } else if (typeof value === 'object') {
-                        printValue = 'some object';
-                    } else if (value.length !== undefined) {
-                        printValue = 'some array';
-                    } else {
-                        printValue = 'some value';
-                    }
-
-                    let markdown = ['```', printValue, '```'].join('\n');
-
-                    return {
-                        contents: {
-                            kind: MarkupKind.Markdown,
-                            value: markdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        ),
-                    };
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private async hoverDql(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<Hover | null> {
-        let result = await this.dqlTestPosition(scalarString, document, offset);
-
-        if (result === null) {
-            return null;
-        }
-
-        if (result.type === 'entityClass') {
-            let phpClass = await this.getPhpClass(result.className);
-
-            if (phpClass !== null) {
-                let classHoverMarkdown = await this.phpClassHoverMarkdown(result.className);
-                if (classHoverMarkdown !== null) {
-                    return {
-                        contents: {
-                            value: classHoverMarkdown,
-                            kind: MarkupKind.Markdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        ),
-                    };
-                }
-            }
-        } else if (result.type === 'entityField') {
-            let result2 = await this.accessEntityWithPath(result.className, result.accessPath);
-
-            if (result2 !== null) {
-                let { phpClass, phpClassField } = result2;
-
-                let fieldHoverMarkdown = await this.phpClassHoverMarkdown(phpClass.fullClassName, 'property', phpClassField.name);
-
-                if (fieldHoverMarkdown !== null) {
-                    return {
-                        contents: {
-                            value: fieldHoverMarkdown,
-                            kind: MarkupKind.Markdown,
-                        },
-                        range: Range.create(
-                            document.positionAt(result.hoverLeftOffset),
-                            document.positionAt(result.hoverRightOffset)
-                        ),
-                    };
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private async accessEntityWithPath(className: string, accessPath: string[]) {
+    public async accessEntityWithPath(className: string, accessPath: string[]) {
         let phpClass = await this.getPhpClass(className);
         let entities = this.getEntities();
 
@@ -3891,378 +2875,6 @@ export class Project {
         }
 
         return null;
-    }
-
-    private phpTestContainerParameterName(document: TextDocument, code: string, scalarString: nikic.Scalar_String) {
-        let parameterName: string | undefined;
-
-        // test for '$this->getParameter()'
-        do {
-            if (!this.isController(document)) {
-                break;
-            }
-
-            let codeToScalarString = code.substr(0, scalarString.attributes.startFilePos);
-
-            let match = /\$this\s*->\s*getParameter\s*\(\s*$/.exec(codeToScalarString);
-            if (match !== null) {
-                parameterName = scalarString.value;
-            }
-        } while (false);
-
-        if (parameterName === undefined) {
-            return null;
-        }
-
-        return {
-            name: parameterName,
-            hoverLeftOffset: scalarString.attributes.startFilePos,
-            hoverRightOffset: scalarString.attributes.endFilePos + 1,
-        };
-    }
-
-    /**
-     * Tests route name in '$this->generateUrl()' and 'UrlGeneratorInterface::generate()'
-     */
-    private async phpTestRouteName(document: TextDocument, code: string, stmts: nikic.Statement[], offset: number, scalarString: nikic.Scalar_String) {
-        let routeName: string | undefined;
-
-        // test for '$this->generateUrl()'
-        do {
-            if (!this.isController(document)) {
-                break;
-            }
-
-            let codeToCursor = code.substr(0, offset);
-
-            let match = /\$this\s*->\s*generateUrl\s*\(\s*['"]([\w-]*)$/.exec(codeToCursor);
-            if (match !== null) {
-                routeName = scalarString.value;
-            }
-        } while (false);
-
-        // test for 'UrlGeneratorInterface::generate()'
-        do {
-            if (routeName !== undefined) {
-                break;
-            }
-
-            if (!this.isFromSourceFolders(document.uri)) {
-                break;
-            }
-
-            let isCursorInsideUrlGenerator = await this.isCursorInsideUrlGenerator(offset, stmts);
-            if (isCursorInsideUrlGenerator === false) {
-                break;
-            }
-
-            routeName = isCursorInsideUrlGenerator.value;
-        } while (false);
-
-        if (routeName === undefined) {
-            return null;
-        }
-
-        return {
-            route: routeName,
-            hoverLeftOffset: scalarString.attributes.startFilePos,
-            hoverRightOffset: scalarString.attributes.endFilePos + 1,
-        };
-    }
-
-    private phpTestServiceName(document: TextDocument, code: string, offset: number, scalarString: nikic.Scalar_String) {
-        if (!this.isController(document)) {
-            return null;
-        }
-
-        let codeToCursor = code.substr(0, offset);
-
-        if (!/\$this\s*->\s*get\s*\(\s*['"]([\w\.\\]*)$/.test(codeToCursor)) {
-            return null;
-        }
-
-        let serviceName = scalarString.value;
-
-        let service = this.services[serviceName];
-
-        if (service === undefined) {
-            return null;
-        }
-
-        return {
-            service,
-            hoverLeftOffset: scalarString.attributes.startFilePos,
-            hoverRightOffset: scalarString.attributes.endFilePos + 1,
-        };
-    }
-
-    private phpTestAutowiredArgment(document: TextDocument, code: string, stmts: nikic.Statement[], offset: number) {
-        if (!this.isFromSourceFolders(document.uri)) {
-            return null;
-        }
-
-        let methodNodes = nikic.findNodesOfType(stmts, 'Stmt_ClassMethod') as nikic.Stmt_ClassMethod[];
-
-        let methodTest = nikic.methodWithOffsetInArguments(code, methodNodes, offset);
-        if (methodTest === null) {
-            return null;
-        }
-
-        let methodNode = methodTest.node;
-
-        let cursorParam: nikic.Param | undefined;
-
-        for (let param of methodNode.params) {
-            if (typeof param.var.name === 'string') {
-                if (param.var.attributes.startFilePos <= offset && offset <= param.var.attributes.endFilePos + 1) {
-                    cursorParam = param;
-                }
-            }
-        }
-
-        if (cursorParam === undefined || cursorParam.type === null) {
-            return null;
-        }
-
-        let nameResolverData = nikic.findNameResolverData(stmts);
-
-        if (!(cursorParam.type.nodeType === 'Name' || cursorParam.type.nodeType === 'Name_FullyQualified')) {
-            return null;
-        }
-
-        let className: string;
-        if (cursorParam.type.nodeType === 'Name') {
-            className = nikic.resolveName(cursorParam.type.parts, nameResolverData);
-        } else if (cursorParam.type.nodeType === 'Name_FullyQualified') {
-            className = cursorParam.type.parts.join('\\');
-        } else {
-            return null;
-        }
-
-        for (let row of this.getAutowiredServices()) {
-            if (row.fullClassName === className) {
-                if (row.serviceId === undefined) {
-                    break;
-                }
-
-                return {
-                    serviceId: row.serviceId,
-                    hoverLeftOffset: cursorParam.var.attributes.startFilePos,
-                    hoverRightOffset: cursorParam.var.attributes.endFilePos + 1,
-                };
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Tests 'targetEntity' attribute of entity annotation
-     */
-    private phpTestTargetEntity(document: TextDocument, stmts: nikic.Statement[], offset: number) {
-        let phpClass = this.phpClasses[document.uri];
-        if (phpClass === undefined || phpClass.entity === undefined) {
-            return null;
-        }
-
-        let namespaceStmt = stmts.filter(row => row.nodeType === 'Stmt_Namespace')[0] as nikic.Stmt_Namespace;
-        if (namespaceStmt === undefined) {
-            return null;
-        }
-
-        let classStmt = namespaceStmt.stmts.filter(row => row.nodeType === 'Stmt_Class')[0] as nikic.Stmt_Class;
-        if (classStmt === undefined) {
-            return null;
-        }
-
-        let commentNode: nikic.Comment_Doc | undefined;
-
-        for (let stmt of classStmt.stmts) {
-            if (stmt.nodeType !== 'Stmt_Property') {
-                continue;
-            }
-
-            let propCommentNode = nikic.lastDocComment(stmt.attributes.comments);
-            if (propCommentNode === null) {
-                continue;
-            }
-
-            if (propCommentNode.filePos <= offset && offset <= propCommentNode.filePos + propCommentNode.text.length) {
-                commentNode = propCommentNode;
-                break;
-            }
-        }
-
-        if (commentNode === undefined) {
-            return null;
-        }
-
-        let comment = commentNode.text;
-
-        let match = targetEntityRegexp.exec(comment);
-        if (match === null || match.index === undefined) {
-            return null;
-        }
-
-        let name = match[4];
-        let nameStartOffset = commentNode.filePos + match.index + match[1].length;
-
-        if (!(nameStartOffset <= offset && offset <= nameStartOffset + name.length)) {
-            return null;
-        }
-
-        let namespace = namespaceStmt.name.parts.join('\\');
-
-        let fullClassName: string;
-        if (name.includes('\\')) {
-            if (name.startsWith('\\')) {
-                fullClassName = name.substr(1);
-            } else {
-                fullClassName = name;
-            }
-        } else {
-            fullClassName = namespace + '\\' + name;
-        }
-
-        return {
-            fullClassName,
-            hoverLeftOffset: nameStartOffset,
-            hoverRightOffset: nameStartOffset + name.length,
-        };
-    }
-
-    /**
-     * Tests 'repositoryClass' attribute of entity annotation
-     */
-    private phpTestRepositoryClass(document: TextDocument, stmts: nikic.Statement[], offset: number) {
-        let phpClass = this.phpClasses[document.uri];
-        if (phpClass === undefined || phpClass.entity === undefined) {
-            return null;
-        }
-
-        let namespaceStmt = stmts.filter(row => row.nodeType === 'Stmt_Namespace')[0] as nikic.Stmt_Namespace;
-        if (namespaceStmt === undefined) {
-            return null;
-        }
-
-        let classStmt = namespaceStmt.stmts.filter(row => row.nodeType === 'Stmt_Class')[0] as nikic.Stmt_Class;
-        if (classStmt === undefined) {
-            return null;
-        }
-
-        let commentNode = nikic.lastDocComment(classStmt.attributes.comments);
-
-        if (commentNode === null) {
-            return null;
-        }
-
-        let comment = commentNode.text;
-
-        let match = /(\WrepositoryClass\s*=\s*["'])([\w\\]+)["']/.exec(comment);
-        if (match === null || match.index === undefined) {
-            return null;
-        }
-
-        let name = match[2];
-        let nameStartOffset = commentNode.filePos + match.index + match[1].length;
-
-        if (!(nameStartOffset <= offset && offset <= nameStartOffset + name.length)) {
-            return null;
-        }
-
-        let namespace = namespaceStmt.name.parts.join('\\');
-
-        let fullClassName: string;
-        if (name.includes('\\')) {
-            if (name.startsWith('\\')) {
-                fullClassName = name.substr(1);
-            } else {
-                fullClassName = name;
-            }
-        } else {
-            fullClassName = namespace + '\\' + name;
-        }
-
-        return {
-            fullClassName,
-            hoverLeftOffset: nameStartOffset,
-            hoverRightOffset: nameStartOffset + name.length,
-        };
-    }
-
-    /**
-     * Tests 'class' attribute of '@Embedded'
-     */
-    private phpTestClassOfEmbedded(document: TextDocument, stmts: nikic.Statement[], offset: number) {
-        let phpClass = this.phpClasses[document.uri];
-        if (phpClass === undefined || phpClass.entity === undefined) {
-            return null;
-        }
-
-        let namespaceStmt = stmts.filter(row => row.nodeType === 'Stmt_Namespace')[0] as nikic.Stmt_Namespace;
-        if (namespaceStmt === undefined) {
-            return null;
-        }
-
-        let classStmt = namespaceStmt.stmts.filter(row => row.nodeType === 'Stmt_Class')[0] as nikic.Stmt_Class;
-        if (classStmt === undefined) {
-            return null;
-        }
-
-        let commentNode: nikic.Comment_Doc | undefined;
-
-        for (let stmt of classStmt.stmts) {
-            if (stmt.nodeType !== 'Stmt_Property') {
-                continue;
-            }
-
-            let propCommentNode = nikic.lastDocComment(stmt.attributes.comments);
-            if (propCommentNode === null) {
-                continue;
-            }
-
-            if (propCommentNode.filePos <= offset && offset <= propCommentNode.filePos + propCommentNode.text.length) {
-                commentNode = propCommentNode;
-                break;
-            }
-        }
-
-        if (commentNode === undefined) {
-            return null;
-        }
-
-        let comment = commentNode.text;
-
-        let match = /(@(ORM\\)?Embedded\s*\(.*class\s*=\s*["'])([\w\\]+)["']/.exec(comment);
-        if (match === null || match.index === undefined) {
-            return null;
-        }
-
-        let name = match[3];
-        let nameStartOffset = commentNode.filePos + match.index + match[1].length;
-
-        if (!(nameStartOffset <= offset && offset <= nameStartOffset + name.length)) {
-            return null;
-        }
-
-        let namespace = namespaceStmt.name.parts.join('\\');
-
-        let fullClassName: string;
-        if (name.includes('\\')) {
-            if (name.startsWith('\\')) {
-                fullClassName = name.substr(1);
-            } else {
-                fullClassName = name;
-            }
-        } else {
-            fullClassName = namespace + '\\' + name;
-        }
-
-        return {
-            fullClassName,
-            hoverLeftOffset: nameStartOffset,
-            hoverRightOffset: nameStartOffset + name.length,
-        };
     }
 
     public async routeLocation(name: string): Promise<Location | null> {
@@ -4458,7 +3070,7 @@ export class Project {
         return null;
     }
 
-    private async dqlTestPosition(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<DqlTestPositionResult | null> {
+    public async dqlTestPosition(scalarString: nikic.Scalar_String, document: TextDocument, offset: number): Promise<DqlTestPositionResult | null> {
         // I need something like 'scalarString.valueOffset'
         let fullScalar = document.getText().substring(scalarString.attributes.startFilePos, scalarString.attributes.endFilePos + 1);
 
@@ -4991,7 +3603,7 @@ export class Project {
         return null;
     }
 
-    private getAutowiredServices(): readonly ServiceDescription[] {
+    public getAutowiredServices(): readonly ServiceDescription[] {
         if (this.type !== ProjectType.SYMFONY || this.symfonyReader === undefined) {
             return [];
         }
@@ -5155,17 +3767,7 @@ export class Project {
         return null;
     }
 
-    private isController(document: TextDocument): boolean {
-        let code = document.getText();
-
-        return document.uri.startsWith(this.folderUri + '/src/')
-            && (
-                code.includes('extends AbstractController')
-                || code.includes('extends Controller')
-            );
-    }
-
-    private isFromSourceFolders(fileUri: string): boolean {
+    public isFromSourceFolders(fileUri: string): boolean {
         for (let folder of this.sourceFolders) {
             if (fileUri.startsWith(this.folderUri + '/' + folder + '/')) {
                 return true;
@@ -5178,12 +3780,20 @@ export class Project {
         return this.type === ProjectType.SYMFONY;
     }
 
-    private getDoctrineEntityNamespaces(): { [alias: string]: string } {
+    public getDoctrineEntityNamespaces(): { [alias: string]: string } {
         return (this.symfonyReader === undefined) ? {} : this.symfonyReader.getAllDoctrineEntitynamespaces();
     }
 
     public getAllRoutes(): RouteCollection {
         return (this.symfonyReader === undefined) ? [] : this.symfonyReader.getAllRoutes();
+    }
+
+    public getAllContainerParameters(): { [name: string]: any } {
+        return (this.symfonyReader === undefined) ? [] : this.symfonyReader.getAllContainerParameters();
+    }
+
+    public getContainerParameter(name: string): any {
+        return (this.symfonyReader === undefined) ? undefined : this.symfonyReader.getContainerParameter(name);
     }
 
     public twigYamlGlobals(): string[] {

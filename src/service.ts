@@ -51,6 +51,7 @@ import {
 } from './utils';
 
 import { Project } from './project';
+import PhpService from './PhpService';
 import TwigService from './TwigService';
 import XmlService from './XmlService';
 
@@ -72,12 +73,14 @@ export class Service {
 
     private getSettings?: (uri: string) => Promise<SymfonyHelperSettings|null>;
 
+    private phpService: PhpService;
     private twigService: TwigService;
     private xmlService: XmlService;
 
     constructor(allDocuments: AllTextDocuments) {
         this.allDocuments = allDocuments;
 
+        this.phpService = new PhpService(allDocuments);
         this.twigService = new TwigService(allDocuments);
         this.xmlService = new XmlService(allDocuments);
     }
@@ -174,12 +177,11 @@ export class Service {
             return result;
         }
 
-        if (documentUri.endsWith('.twig')) {
+        if (documentUri.endsWith('.php')) {
+            result.items = await this.phpService.complete(project, document, params.position);
+        } else if (documentUri.endsWith('.twig')) {
             result.items = await this.twigService.complete(project, document, params.position);
-            return result;
         }
-
-        result.items = await project.onCompletition(params);
 
         return result;
     }
@@ -196,6 +198,10 @@ export class Service {
         let document = await this.getDocument(documentUri);
         if (document === null) {
             return null;
+        }
+
+        if (documentUri.endsWith('.php')) {
+            return this.phpService.definition(project, document, params.position);
         }
 
         if (documentUri.endsWith('.twig')) {
@@ -343,6 +349,10 @@ export class Service {
         let document = await this.getDocument(documentUri);
         if (document === null) {
             return null;
+        }
+
+        if (documentUri.endsWith('.php')) {
+            return this.phpService.hover(project, document, params.position);
         }
 
         if (documentUri.endsWith('.twig')) {
